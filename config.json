@@ -1,0 +1,15 @@
+{
+    "server": "localhost",
+    "port": 6667,
+
+    "name": "jp202",
+    "user": "JeanPaulCCII",
+
+    "channels": ["#wgt"],
+
+    "hellos": ["Czołem lewary!", "No cześć."],
+
+    "aliases": [
+        ["widget", "wgt", "widget_praca"]
+    ]
+}
