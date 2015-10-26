@@ -2,13 +2,16 @@ package main
 
 import (
 	"database/sql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-func InitDatabase() error {
-	var err error
-	db, err = sql.Open("sqlite3", "papabot.db")
-	if err != nil {
-		return err
+var (
+	db		 *sql.DB
+)
+
+func init()  {
+	if db, err = sql.Open("sqlite3", "papabot.db"); err != nil {
+		lerror.Fatal("Can't open database:", err)
 	}
 
 	// Create tables
@@ -22,9 +25,7 @@ func InitDatabase() error {
 			"title" VARCHAR,
 			"timestamp" DATE DEFAULT (datetime('now','localtime'))
 		);`
-	_, err = db.Exec(query)
-	if err != nil {
-		return err
+	if _, err := db.Exec(query); err != nil {
+		lerror.Fatal("Can't create urls table:", err)
 	}
-	return nil
 }

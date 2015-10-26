@@ -9,11 +9,12 @@ import (
 
 type Configuration struct {
 	Server      string
-	Port        uint
 	Name	    string
 	User        string
+	OwnerPassword string
 	Channels	[]string
 	Hellos	    []string
+	HellosAfterKick	    []string
 }
 
 
@@ -28,6 +29,10 @@ func LoadConfig(filename string) (Configuration, error) {
 	err = json.Unmarshal(file, &configuration)
 	if err != nil {
 		return configuration, err
+	}
+
+	if configuration.OwnerPassword  == "" {  // don't allow empty passwords
+		lerror.Fatal("You must set OwnerPassword in your config.")
 	}
 
 	return configuration, nil

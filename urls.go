@@ -7,13 +7,14 @@ import (
 	"time"
 	"strings"
 	"regexp"
-	"fmt"
 )
 
 var (
 	httpClient	http.Client
 	titleRe		*regexp.Regexp
 )
+
+const UserAgent = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 
 func init() {
 	httpClient = http.Client{
@@ -36,8 +37,15 @@ func Standardize(url *url.URL) string {
 
 // Find the title for url
 func GetTitle(url string) string {
-	// Get the response
-	resp, err := http.Get(url)
+	// Build the request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		lerror.Println("Can't build request for", url)
+		return ""
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	// Get response
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		lerror.Println("Can't get the response for", url)
 		return ""
@@ -100,13 +108,13 @@ func CheckForDuplicates(channel, sender, link string) {
 				nick = txtDuplicateYou
 			}
 			elapsed := GetTimeElapsed(timestamp)
-			IRC.Notice(channel, fmt.Sprintf(txtDuplicateFirst, nick, elapsed))
+			SendNotice(channel, text(txtDuplicateFirst, nick, elapsed))
 		} else if count > 1 {  // More duplicates exist
 			if AreSamePeople(nick, sender) {
 				nick = txtDuplicateYou
 			}
 			elapsed := GetTimeElapsed(timestamp)
-			IRC.Notice(channel, fmt.Sprintf(txtDuplicateMulti, count, nick, elapsed))
+			SendNotice(channel, text(txtDuplicateMulti, count, nick, elapsed))
 		}
 	}
 }
@@ -127,7 +135,7 @@ func HandleURLs(channel, sender, msg string) {
 		title := GetTitle(link)
 		// Announce the title
 		if title != "" {
-			IRC.Notice(channel, title)
+			SendNotice(channel, title)
 		}
 		// Check for duplicates
 		CheckForDuplicates(channel, sender, link)
