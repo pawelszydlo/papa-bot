@@ -1,9 +1,10 @@
-package main
+package papaBot
 
 import (
-	"time"
 	"fmt"
+	"log"
 	"sort"
+	"time"
 )
 
 const (
@@ -15,12 +16,6 @@ const (
 	Year     = 12 * Month
 	LongTime = 37 * Year
 )
-
-
-// Check if the sender is the bot
-func isMe(name string) bool {
-	return name == bot.OriginalName
-}
 
 // Check if two nicks don't belong to the same person
 func AreSamePeople(nick1, nick2 string) bool {
@@ -64,7 +59,6 @@ func TimeDiff(a time.Time) string {
 	return fmt.Sprintf(mag.format, args...)
 }
 
-
 // Get string describing time elapsed
 func GetTimeElapsed(fromTime time.Time) string {
 	// Hack to force the time to be from the same timezone as now
@@ -75,14 +69,13 @@ func GetTimeElapsed(fromTime time.Time) string {
 			fromTime.Hour(), fromTime.Minute(), fromTime.Second()),
 		time.Now().Location())
 	if err != nil {
-		lerror.Fatal("Date parse error:", err)
+		log.Fatal("Date parse error:", err)
 	}
-
 
 	diff := time.Now().Unix() - fromTime.Unix()
 	if diff < 60 {
 		return txtJustNow
-	} else  {
+	} else {
 		return TimeDiff(fromTime)
 	}
 	return ""

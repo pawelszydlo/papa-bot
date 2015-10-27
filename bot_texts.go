@@ -1,4 +1,4 @@
-package main
+package papaBot
 
 import (
 	"fmt"
@@ -6,19 +6,19 @@ import (
 )
 
 const (
-	txtDuplicateYou string = "Sam żeś"
+	txtDuplicateYou   string = "Sam żeś"
 	txtDuplicateFirst string = "%s już to wrzucał, %s."
 	txtDuplicateMulti string = "Było już wrzucane %d razy. %s ostatnio wrzucał, %s."
-	txtJustNow string = "chwilkę temu"
-	txtNeedsPriv string = "Takie rozmowy to na priv."
-	txtPasswordOk string = "Tak, panie."
-	txtAgo string = "temu"
-	txtFromNow string = "w przód"
+	txtJustNow        string = "chwilkę temu"
+	txtNeedsPriv      string = "Takie rozmowy to na priv."
+	txtPasswordOk     string = "Tak, panie."
+	txtAgo            string = "temu"
+	txtFromNow        string = "w przód"
 )
 
 var (
-	txtHellos = []string{"Czołem lewary!", "No cześć.", "Niech będzie pochwalony Jezus Chrystus!", "Szczęść Boże!"}
-	txtHellosAfterKick = []string {"Wróciłem!", "Ładnie to tak?", "Mnie? Bohatera?", "Wybaczam."}
+	txtHellos          = []string{"Czołem lewary!", "No cześć.", "Niech będzie pochwalony Jezus Chrystus!", "Szczęść Boże!"}
+	txtHellosAfterKick = []string{"Wróciłem!", "Ładnie to tak?", "Mnie? Bohatera?", "Wybaczam."}
 )
 
 // This part comes from https://github.com/dustin/go-humanize, copied for localization
