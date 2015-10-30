@@ -1,34 +1,80 @@
 package papaBot
 
 import (
+	"fmt"
 	"github.com/mvdan/xurls"
+	"golang.org/x/net/html/charset"
+	_ "golang.org/x/net/html/charset"
 	"golang.org/x/net/idna"
+	"golang.org/x/text/transform"
+	"html"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
-	"html"
 )
 
 var (
-	httpClient http.Client
-	titleRe    *regexp.Regexp
-	lastAnnouncedTitle map[string]time.Time
-	lastAnnouncedDuplicate map[string]time.Time
+	httpClient               = http.Client{Timeout: 5 * time.Second}
+	titleRe                  *regexp.Regexp
+	lastAnnouncedTime        = map[string]time.Time{}
+	lastAnnouncedLinesPassed = map[string]int{}
 )
 
-const UserAgent = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+const (
+	UserAgent               = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+	announceIntervalMinutes = 15
+	announceIntervalLines   = 50
+	preloadBodySize         = 20 * 1024
+)
 
-func init() {
-	httpClient = http.Client{
-		Timeout: 5 * time.Second,
+// Initializes stuff needed by this processor.
+func initUrlProcessor(bot *Bot) error {
+	titleRe, _ = regexp.Compile("<title.*?>(.+?)</title>")
+
+	// Create URLs table if needed
+	query := `
+		CREATE TABLE IF NOT EXISTS "urls" (
+			"id" INTEGER PRIMARY KEY  AUTOINCREMENT  NOT NULL,
+			"channel" VARCHAR NOT NULL,
+			"nick" VARCHAR NOT NULL,
+			"link" VARCHAR NOT NULL,
+			"quote" VARCHAR NOT NULL,
+			"title" VARCHAR,
+			"timestamp" DATETIME DEFAULT (datetime('now','localtime'))
+		);`
+	if _, err := bot.Db.Exec(query); err != nil {
+		return err
 	}
-	titleRe, _ = regexp.Compile("<title>(.+?)</title>")
-	lastAnnouncedTitle = map[string]time.Time{}
-	lastAnnouncedDuplicate = map[string]time.Time{}
+	// FTS table
+	query = `
+		CREATE VIRTUAL TABLE IF NOT EXISTS urls_search
+		USING fts4(channel, nick, link, title, timestamp, search);`
+	if _, err := bot.Db.Exec(query); err != nil {
+		return err
+	}
+	// FTS trigger
+	query = `
+		CREATE TRIGGER IF NOT EXISTS url_add AFTER INSERT ON urls BEGIN
+			INSERT INTO urls_search(channel, nick, link, title, timestamp, search)
+			VALUES(new.channel, new.nick, new.link, new.title, new.timestamp, new.link || ' ' || new.title);
+		END`
+	if _, err := bot.Db.Exec(query); err != nil {
+		return err
+	}
+	query = `
+		CREATE TRIGGER IF NOT EXISTS url_update AFTER UPDATE ON urls BEGIN
+			UPDATE urls_search SET title = new.title, search = new.link || ' ' || new.title
+			WHERE timestamp = new.timestamp;
+		END`
+	if _, err := bot.Db.Exec(query); err != nil {
+		return err
+	}
+	return nil
 }
 
-// Make sure the address has a schema
+// Standardizes the url.
 func standardize(url string) string {
 	link := url
 	var schema, domain, path string
@@ -53,7 +99,7 @@ func standardize(url string) string {
 	}
 
 	domain, _ = idna.ToASCII(domain)
-	link = schema + domain + path
+	link = schema + domain + "/" + path
 
 	if !strings.HasSuffix(link, "/") {
 		link = link + "/"
@@ -61,7 +107,7 @@ func standardize(url string) string {
 	return link
 }
 
-// Find the title for url
+// Find the title for url.
 func getTitle(bot *Bot, url string) string {
 	// Build the request
 	req, err := http.NewRequest("GET", url, nil)
@@ -80,25 +126,25 @@ func getTitle(bot *Bot, url string) string {
 	defer resp.Body.Close()
 
 	// Load part of body
-	body := make([]byte, 10*1024, 10*1024)
-	if _, err = resp.Body.Read(body); err != nil {
+	body := make([]byte, preloadBodySize, preloadBodySize)
+	if _, err := io.ReadFull(resp.Body, body); err != nil {
 		bot.logWarn.Println("Can't load body for:", url)
 		return ""
 	}
-
 	// Get the content-type
 	content_type := resp.Header.Get("Content-Type")
 	if content_type == "" {
 		content_type = http.DetectContentType(body)
 	}
+	// Detect the encoding and create decoder
+	encoding, _, _ := charset.DetermineEncoding(body, content_type)
 	if strings.Contains(content_type, "text/html") {
 		// get the title
-		match := titleRe.FindString(string(body))
-		if match != "" {
-			title := strings.Replace(match, "<title>", "", -1)
-			title = strings.Replace(title, "</title>", "", -1)
+		match := titleRe.FindStringSubmatch(string(body))
+		if len(match) > 1 {
+			title, _, _ := transform.String(encoding.NewDecoder(), match[1])
 			title = html.UnescapeString(title)
-			bot.logInfo.Println("Found title:", title)
+			bot.logDebug.Println("Found title:", title)
 			return title
 		}
 	} else {
@@ -109,7 +155,7 @@ func getTitle(bot *Bot, url string) string {
 	return ""
 }
 
-// Check for duplicates of the url in the database
+// Check for duplicates of the url in the database.
 func checkForDuplicates(bot *Bot, channel, sender, link string) string {
 	result, err := bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
@@ -134,24 +180,68 @@ func checkForDuplicates(bot *Bot, channel, sender, link string) string {
 
 		// Only one duplicate
 		if count == 1 {
-			if AreSamePeople(nick, sender) {
-				nick = txtDuplicateYou
+			if bot.areSamePeople(nick, sender) {
+				nick = bot.Texts.DuplicateYou
 			}
 			elapsed := GetTimeElapsed(timestamp)
-			return text(txtDuplicateFirst, nick, elapsed)
+			return Format(bot.Texts.tempDuplicateFirst, &map[string]string{"nick": nick, "elapsed": elapsed})
 		} else if count > 1 { // More duplicates exist
-			if AreSamePeople(nick, sender) {
-				nick = txtDuplicateYou
+			if bot.areSamePeople(nick, sender) {
+				nick = bot.Texts.DuplicateYou
 			}
 			elapsed := GetTimeElapsed(timestamp)
-			return text(txtDuplicateMulti, count, nick, elapsed)
+			return Format(
+				bot.Texts.tempDuplicateMulti,
+				&map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
 		}
 	}
 	return ""
 }
 
-// Look for urls in the message, resolve the title
+// Find out what to announce to the channel.
+func announce(channel, title, link, duplicates string) string {
+
+	// If we can't announce yet, return
+	if time.Since(lastAnnouncedTime[link+channel]) < announceIntervalMinutes*time.Minute {
+		return ""
+	}
+	if lines, exists := lastAnnouncedLinesPassed[link+channel]; exists && lines < announceIntervalLines {
+		return ""
+	}
+
+	if title != "" && duplicates != "" { // Announce both title and duplicates at the same time.
+		lastAnnouncedTime[link+channel] = time.Now()
+		lastAnnouncedLinesPassed[link+channel] = 0
+		return fmt.Sprintf("%s (%s)", title, duplicates)
+	}
+
+	if title != "" {
+		lastAnnouncedTime[link+channel] = time.Now()
+		lastAnnouncedLinesPassed[link+channel] = 0
+		return title
+	}
+
+	if duplicates != "" {
+		lastAnnouncedTime[link+channel] = time.Now()
+		lastAnnouncedLinesPassed[link+channel] = 0
+		return duplicates
+	}
+
+	return ""
+}
+
+// Look for urls in the message, resolve the title.
 func processorURLs(bot *Bot, channel, sender, msg string) {
+	// Increase lines count for all announcements
+	for k := range lastAnnouncedLinesPassed {
+		lastAnnouncedLinesPassed[k] += 1
+		// After 100 lines pass, forget it ever happened
+		if lastAnnouncedLinesPassed[k] > 100 {
+			delete(lastAnnouncedLinesPassed, k)
+			delete(lastAnnouncedTime, k)
+		}
+	}
+
 	links := xurls.Relaxed.FindAllString(msg, -1)
 	for i := range links {
 		// Validate the url
@@ -161,37 +251,21 @@ func processorURLs(bot *Bot, channel, sender, msg string) {
 
 		// Get the title
 		title := getTitle(bot, link)
-		// Announce the title
-		if title != "" {
-			// Do not announce title too often
-			lastTime, exists := lastAnnouncedTitle[title+channel]
-			if exists && time.Since(lastTime) < 5 * time.Minute {
-				// do nothing
-			} else {
-				bot.SendNotice(channel, title)
-				lastAnnouncedTitle[title + channel] = time.Now()
-			}
-		}
+
 		// Check for duplicates
 		duplicates := checkForDuplicates(bot, channel, sender, link)
-		// Announce the duplicates
-		if duplicates != "" {
-			// Do not announce duplicate of the same link too often
-			lastTime, exists := lastAnnouncedDuplicate[link + channel]
-			if exists && time.Since(lastTime) < 5 * time.Minute {
-				// do nothing
-			} else {
-				bot.SendNotice(channel, duplicates)
-				lastAnnouncedDuplicate[link + channel] = time.Now()
-			}
+
+		// What to announce?
+		if msg := announce(channel, title, link, duplicates); msg != "" {
+			bot.SendNotice(channel, msg)
 		}
 
 		// Insert url into db
-		_, err := bot.Db.Exec("INSERT INTO urls(channel, nick, link, quote, title) VALUES(?, ?, ?, ?, ?)",
+		_, err := bot.Db.Exec(`
+			INSERT INTO urls(channel, nick, link, quote, title) VALUES(?, ?, ?, ?, ?)`,
 			channel, sender, link, msg, title)
 		if err != nil {
 			bot.logWarn.Println("Can't add url to database:", err)
 		}
 	}
-	bot.logInfo.Println("Finished processing URLs.")
 }
