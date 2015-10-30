@@ -3,8 +3,9 @@ package papaBot
 import (
 	"database/sql"
 	"github.com/nickvanw/ircx"
-	"log"
+	"github.com/op/go-logging"
 	"text/template"
+	"time"
 )
 
 type Bot struct {
@@ -17,10 +18,7 @@ type Bot struct {
 
 	floodSemaphore chan int
 
-	logDebug *log.Logger
-	logInfo  *log.Logger
-	logWarn  *log.Logger
-	logError *log.Logger
+	log *logging.Logger
 
 	kickedFrom      map[string]bool
 	commands        map[string]botCommand
@@ -28,17 +26,23 @@ type Bot struct {
 
 	textsFile string
 	Texts     botTexts
+
+	lastURLAnnouncedTime        map[string]time.Time
+	lastURLAnnouncedLinesPassed map[string]int
+	urlMoreInfo                 map[string]string
 }
 
 type Configuration struct {
-	Server         string
-	Name           string
-	User           string
-	OwnerPassword  string
-	Channels       []string
-	AntiFloodDelay int
-	CommandsPer5   int
-	LogChannel     bool
+	Server                     string
+	Name                       string
+	User                       string
+	OwnerPassword              string
+	Channels                   []string
+	AntiFloodDelay             int
+	CommandsPer5               int
+	LogChannel                 bool
+	UrlAnnounceIntervalMinutes time.Duration
+	UrlAnnounceIntervalLines   int
 }
 
 type botCommand struct {
@@ -62,7 +66,14 @@ type botTexts struct {
 	SearchNoResults     string
 	SearchPrivateNotice string
 	CommandLimit        string
+	NothingToAdd        string
 	Hellos              []string
 	HellosAfterKick     []string
 	WrongCommand        []string
+}
+
+type urlInfo struct {
+	link      string
+	shortInfo string
+	longInfo  string
 }

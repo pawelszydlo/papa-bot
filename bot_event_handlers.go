@@ -2,6 +2,7 @@ package papaBot
 
 import (
 	"fmt"
+	"github.com/mvdan/xurls"
 	"github.com/nickvanw/ircx"
 	"github.com/sorcix/irc"
 	"math/rand"
@@ -34,7 +35,7 @@ func (bot *Bot) attachEventHandlers() {
 }
 
 func (bot *Bot) handlerConnect(s ircx.Sender, m *irc.Message) {
-	bot.logInfo.Println("I have connected. Joining channels...")
+	bot.log.Info("I have connected. Joining channels...")
 	s.Send(&irc.Message{
 		Command: irc.JOIN,
 		Params:  bot.Config.Channels,
@@ -50,47 +51,47 @@ func (bot *Bot) handlerPing(s ircx.Sender, m *irc.Message) {
 }
 
 func (bot *Bot) handlerPart(s ircx.Sender, m *irc.Message) {
-	bot.logInfo.Println(m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
+	bot.log.Info("%s has left %s: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 	bot.Scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
 }
 
 func (bot *Bot) handlerError(s ircx.Sender, m *irc.Message) {
-	bot.logError.Println("Error from server:", m.Trailing)
+	bot.log.Error("Error from server:", m.Trailing)
 }
 
 func (bot *Bot) handlerDummy(s ircx.Sender, m *irc.Message) {
-	bot.logInfo.Printf("MESSAGE: %+v", m)
+	bot.log.Info("MESSAGE: %+v", m)
 }
 
 func (bot *Bot) handlerJoin(s ircx.Sender, m *irc.Message) {
 	if bot.isMe(m.Prefix.Name) {
 		if bot.kickedFrom[m.Trailing] {
-			bot.logInfo.Println("I have rejoined", m.Trailing)
+			bot.log.Info("I have rejoined %s", m.Trailing)
 			bot.SendMessage(m.Trailing, bot.Texts.HellosAfterKick[rand.Intn(len(bot.Texts.HellosAfterKick))])
 			delete(bot.kickedFrom, m.Trailing)
 		} else {
-			bot.logInfo.Println("I have joined", m.Trailing)
+			bot.log.Info("I have joined %s", m.Trailing)
 			bot.SendMessage(m.Trailing, bot.Texts.Hellos[rand.Intn(len(bot.Texts.Hellos))])
 		}
 	} else {
-		bot.logInfo.Println(m.Prefix.Name, "has joined", m.Trailing)
+		bot.log.Info("%s has joined %s", m.Prefix.Name, m.Trailing)
 	}
-	bot.Scribe(m.Trailing, m.Prefix.Name, "has joined", m.Trailing)
+	bot.Scribe(m.Trailing, m.Prefix.Name, " has joined ", m.Trailing)
 }
 
 func (bot *Bot) handlerMode(s ircx.Sender, m *irc.Message) {
-	bot.logInfo.Println(m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
+	bot.log.Info("%s has set mode %s on %s", m.Prefix.Name, m.Params[1:], m.Params[0])
 	bot.Scribe(m.Params[0], m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
 }
 
 func (bot *Bot) handlerTopic(s ircx.Sender, m *irc.Message) {
-	bot.logInfo.Println(m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
+	bot.log.Info("%s has set topic on %s to:", m.Prefix.Name, m.Params[0], m.Trailing)
 	bot.Scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
 }
 
 func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
 	if bot.isMe(m.Params[1]) {
-		bot.logInfo.Println("I was kicked from", m.Params[0], "by", m.Prefix.Name, "for:", m.Trailing)
+		bot.log.Info("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 		bot.kickedFrom[m.Params[0]] = true
 		// Rejoin
 		timer := time.NewTimer(3 * time.Second)
@@ -102,7 +103,7 @@ func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
 			})
 		}()
 	} else {
-		bot.logInfo.Println(m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
+		bot.log.Info("%s was kicked from %s by %s for: %s", m.Params[1], m.Prefix.Name, m.Params[0], m.Trailing)
 	}
 	bot.Scribe(m.Params[0], m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
 }
@@ -111,7 +112,7 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 	// Silence any errors :)
 	defer func() {
 		if r := recover(); r != nil {
-			bot.logError.Println("FATAL ERROR in handlerMsg: ", r)
+			bot.log.Error("FATAL ERROR in handlerMsg: ", r)
 		}
 	}()
 
@@ -132,18 +133,18 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 		msg := msg[1 : len(msg)-1]
 
 		if msg == "VERSION" {
-			bot.logDebug.Println("Replying to VERSION query from", nick)
+			bot.log.Debug("Replying to VERSION query from %s...", nick)
 			bot.SendNotice(nick, fmt.Sprintf("\x01VERSION papaBot:%s:Go bot running on insomnia.\x01", Version))
 			return
 		}
 
 		if msg == "FINGER" {
-			bot.logDebug.Println("Replying to FINGER query from", nick)
+			bot.log.Debug("Replying to FINGER query from %s...", nick)
 			bot.SendNotice(nick, "\x01FINGER yourself.\x01")
 			return
 		}
 
-		bot.logDebug.Println(nick, "sent a", msg, "CTCP request. Ignoring.")
+		bot.log.Debug("%s sent a %s CTCP request. Ignoring.", nick, msg)
 		return
 	}
 
@@ -170,8 +171,49 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 				return
 			}
 		}
-		// Run all the processors
-		processorURLs(bot, channel, nick, msg)
-	}
+		// Increase lines count for all announcements
+		for k := range bot.lastURLAnnouncedLinesPassed {
+			bot.lastURLAnnouncedLinesPassed[k] += 1
+			// After 100 lines pass, forget it ever happened
+			if bot.lastURLAnnouncedLinesPassed[k] > 100 {
+				delete(bot.lastURLAnnouncedLinesPassed, k)
+				delete(bot.lastURLAnnouncedTime, k)
+			}
+		}
 
+		// Find all URLs in the message
+		links := xurls.Relaxed.FindAllString(msg, -1)
+		for i := range links {
+			// Validate the url
+			bot.log.Info("Got link %s", links[i])
+			link := StandardizeURL(links[i])
+			bot.log.Debug("Standardized to: %s", link)
+			// Link info structure, it will be filled by the processors
+			urlinfo := &urlInfo{link, "", ""}
+			// Run the processors - order matters
+			urlProcessorTitle(bot, urlinfo, channel, nick, msg)
+
+			linkKey := urlinfo.link + channel
+			// If we can't announce yet, skip this link
+			if time.Since(bot.lastURLAnnouncedTime[linkKey]) < bot.Config.UrlAnnounceIntervalMinutes*time.Minute {
+				continue
+			}
+			if lines, exists := bot.lastURLAnnouncedLinesPassed[linkKey]; exists && lines < bot.Config.UrlAnnounceIntervalLines {
+				continue
+			}
+
+			// Announce the short info, save the long info.
+			if urlinfo.shortInfo != "" {
+				if urlinfo.longInfo != "" {
+					bot.SendNotice(channel, urlinfo.shortInfo+" …")
+				} else {
+					bot.SendNotice(channel, urlinfo.shortInfo)
+				}
+				bot.lastURLAnnouncedTime[linkKey] = time.Now()
+				bot.lastURLAnnouncedLinesPassed[linkKey] = 0
+				// Keep the long info for later
+				bot.urlMoreInfo[channel] = urlinfo.longInfo
+			}
+		}
+	}
 }

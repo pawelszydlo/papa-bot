@@ -21,6 +21,10 @@ func (bot *Bot) initBotCommands() {
 			false, false,
 			"find token1 token2 token3 ...", "Look for URLs containing all the tokens.",
 			bot.commandFindUrl},
+		"more": {
+			false, false,
+			"more", "Say more about last link.",
+			bot.commandSayMore},
 	}
 
 	bot.commandUseLimit = map[string]int{}
@@ -46,7 +50,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	command = params[0]
 	params = params[1:]
 
-	bot.logInfo.Println("Command from:", nick, "on:", channel, "command:", command, "params:", params)
+	bot.log.Info("Received command '%s' from '%s' on '%s' with params %s", command, nick, channel, params)
 
 	if len(command) < 3 {
 		return
@@ -98,13 +102,26 @@ func (bot *Bot) commandAuth(nick, user, channel, receiver string, priv bool, par
 	if len(params) == 1 && HashPassword(params[0]) == bot.Config.OwnerPassword {
 		bot.SendMessage(receiver, bot.Texts.PasswordOk)
 		bot.BotOwner = nick + "!" + user
-		bot.logInfo.Println("Owner set to:", bot.BotOwner)
+		bot.log.Info("Owner set to: %s", bot.BotOwner)
 	}
 }
 
 func (bot *Bot) commandReloadTexts(nick, user, channel, receiver string, priv bool, params []string) {
-	bot.logInfo.Println("Reloading texts...")
+	bot.log.Info("Reloading texts...")
 	bot.loadTexts()
+}
+
+func (bot *Bot) commandSayMore(nick, user, channel, receiver string, priv bool, params []string) {
+	if bot.urlMoreInfo[receiver] == "" {
+		bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
+		return
+	} else {
+		if len(bot.urlMoreInfo[receiver]) > 500 {
+			bot.urlMoreInfo[receiver] = bot.urlMoreInfo[receiver][:500]
+		}
+		bot.SendNotice(receiver, bot.urlMoreInfo[receiver])
+		delete(bot.urlMoreInfo, receiver)
+	}
 }
 
 func (bot *Bot) commandFindUrl(nick, user, channel, receiver string, priv bool, params []string) {
@@ -123,7 +140,7 @@ func (bot *Bot) commandFindUrl(nick, user, channel, receiver string, priv bool, 
 	// Query FTS table
 	result, err := bot.Db.Query(query1+query2+query3, token)
 	if err != nil {
-		bot.logWarn.Println("Can't search for URLs:", err)
+		bot.log.Warning("Can't search for URLs: %s", err)
 		return
 	}
 
@@ -134,7 +151,7 @@ func (bot *Bot) commandFindUrl(nick, user, channel, receiver string, priv bool, 
 	for result.Next() {
 		var nick, timestr, link, title string
 		if err = result.Scan(&nick, &timestr, &link, &title); err != nil {
-			bot.logWarn.Println("Error getting search results:", err)
+			bot.log.Warning("Error getting search results: %s", err)
 		} else {
 			if priv { // skip the author and time when not on a channel
 				found = append(found, fmt.Sprintf("%s (%s)", link, title))

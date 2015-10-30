@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/BurntSushi/toml"
-	"github.com/fatih/color"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nickvanw/ircx"
+	"github.com/op/go-logging"
 	"github.com/sorcix/irc"
 	"io/ioutil"
 	"log"
@@ -24,43 +24,50 @@ const Version = "0.7.0"
 func New(configFile, textsFile string) *Bot {
 	rand.Seed(time.Now().Unix())
 
-	r := color.New(color.FgHiRed).SprintfFunc()
-	y := color.New(color.FgHiYellow).SprintfFunc()
-	p := color.New(color.FgHiMagenta).SprintfFunc()
 	// Init bot struct
 	bot := &Bot{
-		floodSemaphore: make(chan int, 5),
-		logDebug:       log.New(os.Stdout, p("DEBUG: "), log.Ltime),
-		logInfo:        log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime),
-		logWarn:        log.New(os.Stdout, y("WARN: "), log.Ldate|log.Ltime|log.Lshortfile),
-		logError:       log.New(os.Stderr, r("ERROR: "), log.Ldate|log.Ltime|log.Lshortfile),
-		kickedFrom:     map[string]bool{},
-		configFile:     configFile,
-		textsFile:      textsFile,
+		floodSemaphore:              make(chan int, 5),
+		log:                         logging.MustGetLogger("bot"),
+		kickedFrom:                  map[string]bool{},
+		configFile:                  configFile,
+		textsFile:                   textsFile,
+		lastURLAnnouncedTime:        map[string]time.Time{},
+		lastURLAnnouncedLinesPassed: map[string]int{},
+		urlMoreInfo:                 map[string]string{},
 
 		Config: Configuration{
-			AntiFloodDelay: 5,
-			LogChannel:     true,
-			CommandsPer5:   3,
+			AntiFloodDelay:             5,
+			LogChannel:                 true,
+			CommandsPer5:               3,
+			UrlAnnounceIntervalMinutes: 15,
+			UrlAnnounceIntervalLines:   50,
 		},
 
 		Texts: botTexts{},
 	}
-	bot.logInfo.Println("I am papaBot, version", Version)
+	// Logging init.
+	formatNorm := logging.MustStringFormatter(
+		"%{color}[%{time:2006/01/02 15:04:05}] %{level:.4s} ▶%{color:reset} %{message}",
+	)
+	backendNorm := logging.NewLogBackend(os.Stdout, "", 0)
+	backendNormFormatted := logging.NewBackendFormatter(backendNorm, formatNorm)
+	logging.SetBackend(backendNormFormatted)
+
+	bot.log.Info("I am papaBot, version %s", Version)
 
 	// Load config
 	if err := bot.loadConfig(); err != nil {
-		bot.logError.Fatal("Can't load config:", err)
+		bot.log.Error("Can't load config: %s", err)
 	}
 
 	// Load texts
 	if err := bot.loadTexts(); err != nil {
-		bot.logError.Fatal("Can't load texts:", err)
+		bot.log.Fatal("Can't load texts: %s", err)
 	}
 
 	// Init database
 	if err := bot.initDb(); err != nil {
-		bot.logError.Fatal("Can't init database:", err)
+		bot.log.Fatal("Can't init database: %s", err)
 	}
 
 	// Init underlying irc bot
@@ -78,18 +85,18 @@ func New(configFile, textsFile string) *Bot {
 	if bot.Config.LogChannel {
 		exists, err := DirExists("logs")
 		if err != nil {
-			bot.logError.Fatal("Can't check if logs dir exists:", err)
+			bot.log.Fatal("Can't check if logs dir exists: %s", err)
 		}
 		if !exists {
 			if err := os.Mkdir("logs", 0700); err != nil {
-				bot.logError.Fatal("Can't create logs folder:", err)
+				bot.log.Fatal("Can't create logs folder: %s", err)
 			}
 		}
 	}
 
 	// Init processors
-	if err := initUrlProcessor(bot); err != nil {
-		bot.logError.Fatal("Can't init URL processor:", err)
+	if err := initUrlProcessorTitle(bot); err != nil {
+		bot.log.Fatal("Can't init URL title processor: %s", err)
 	}
 
 	return bot
@@ -100,7 +107,7 @@ func (bot *Bot) loadConfig() error {
 	// Load raw config file
 	configFile, err := ioutil.ReadFile(bot.configFile)
 	if err != nil {
-		bot.logError.Fatalln("Can't load config file:", err)
+		bot.log.Fatal("Can't load config file: %s", err)
 	}
 	// Decode TOML
 	if _, err := toml.Decode(string(configFile), &bot.Config); err != nil {
@@ -109,10 +116,10 @@ func (bot *Bot) loadConfig() error {
 
 	// Bot owners password
 	if bot.Config.OwnerPassword == "" { // Don't allow empty passwords
-		bot.logError.Fatal("You must set OwnerPassword in your config.")
+		bot.log.Fatal("You must set OwnerPassword in your config.")
 	}
 	if !strings.HasPrefix(bot.Config.OwnerPassword, "hash:") { // Password needs to be hashed
-		bot.logInfo.Println("Pasword not hashed. Hashing and saving.")
+		bot.log.Info("Pasword not hashed. Hashing and saving.")
 		bot.Config.OwnerPassword = HashPassword(bot.Config.OwnerPassword)
 		// Now rewrite the password line in the config
 		lines := strings.Split(string(configFile), "\n")
@@ -125,7 +132,7 @@ func (bot *Bot) loadConfig() error {
 		output := strings.Join(lines, "\n")
 		err = ioutil.WriteFile(bot.configFile, []byte(output), 0644)
 		if err != nil {
-			bot.logError.Fatalln("Can't save config:", err)
+			bot.log.Fatal("Can't save config: %s", err)
 		}
 	}
 
@@ -141,13 +148,13 @@ func (bot *Bot) loadTexts() error {
 	// Parse the templates
 	temp, err := template.New("tpl1").Parse(bot.Texts.DuplicateFirst)
 	if err != nil {
-		bot.logError.Fatalln("Error in the text '", bot.Texts.DuplicateFirst, "': ", err)
+		bot.log.Fatal("Error in the text: %s", bot.Texts.DuplicateFirst)
 	} else {
 		bot.Texts.tempDuplicateFirst = temp
 	}
 	temp, err = template.New("tpl2").Parse(bot.Texts.DuplicateMulti)
 	if err != nil {
-		bot.logError.Fatalln("Error in the text '", bot.Texts.DuplicateMulti, "': ", err)
+		bot.log.Fatal("Error in the text: %s", bot.Texts.DuplicateMulti)
 	} else {
 		bot.Texts.tempDuplicateMulti = temp
 	}
@@ -218,7 +225,7 @@ func (bot *Bot) Scribe(channel string, message ...interface{}) {
 		logFileName := fmt.Sprintf("logs/%s_%s.txt", channel, time.Now().Format("2006-01-02"))
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			bot.logError.Println("Error opening log file:", err)
+			bot.log.Error("Error opening log file: %s", err)
 			return
 		}
 		defer f.Close()
@@ -238,9 +245,9 @@ func (bot *Bot) Run() {
 	defer bot.Close()
 
 	// Connect to server.
-	bot.logInfo.Println("Connecting to", bot.Config.Server, "...")
+	bot.log.Info("Connecting to %s...", bot.Config.Server)
 	if err := bot.irc.Connect(); err != nil {
-		bot.logError.Fatal("Error creating connection:", err)
+		bot.log.Fatal("Error creating connection: %s", err)
 	}
 
 	// Semaphore clearing ticker.
