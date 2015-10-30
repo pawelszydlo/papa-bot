@@ -1,0 +1,13 @@
+# papa-bot
+IRC bot written in Go. Quite comprehensive in design, easily extendable.
+
+Built on top of [github.com/nickvanw/ircx](http://github.com/nickvanw/ircx), which in turn is built on top of [github.com/sorcix/irc](http://github.com/sorcix/irc).
+
+###Features
+
+* Easy configuration through a TOML file.
+* Things that the bot says are all in one TOML file, for easy editing and l18n.
+* Stores all the links posted on the channel, with title.
+* Allows full text search through the links.
+* Logs all channel activity.
+
