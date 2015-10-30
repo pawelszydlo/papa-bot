@@ -7,7 +7,13 @@ Built on top of [github.com/nickvanw/ircx](http://github.com/nickvanw/ircx), whi
 
 * Easy configuration through a TOML file.
 * Things that the bot says are all in one TOML file, for easy editing and l18n.
+* Flood protection.
+* Abuse protection.
 * Stores all the links posted on the channel, with title.
 * Allows full text search through the links.
 * Logs all channel activity.
+
+###TODO
+
+* A lot...
 
