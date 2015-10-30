@@ -1,4 +1,3 @@
-// This whole file needs to be refactored.
 package papaBot
 
 import (

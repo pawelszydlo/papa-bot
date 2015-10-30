@@ -1,6 +1,7 @@
 package papaBot
 
 import (
+	"errors"
 	"fmt"
 	"github.com/mvdan/xurls"
 	"golang.org/x/net/html/charset"
@@ -92,44 +93,40 @@ func standardize(url string) string {
 	slice = strings.SplitN(link, "/", 2)
 	if len(slice) == 2 {
 		domain = slice[0]
-		path = slice[1]
+		path = "/" + slice[1]
 	} else {
 		domain = slice[0]
-		path = ""
+		path = "/"
 	}
 
 	domain, _ = idna.ToASCII(domain)
-	link = schema + domain + "/" + path
+	link = schema + domain + path
 
-	if !strings.HasSuffix(link, "/") {
-		link = link + "/"
-	}
 	return link
 }
 
 // Find the title for url.
-func getTitle(bot *Bot, url string) string {
+func getTitle(bot *Bot, url string) (string, string, error) {
 	// Build the request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		bot.logWarn.Println("Can't build request for", url)
-		return ""
+		return "", "", err
 	}
 	req.Header.Set("User-Agent", UserAgent)
 
 	// Get response
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		bot.logWarn.Println("Can't get the response for", url)
-		return ""
+		return "", "", err
 	}
 	defer resp.Body.Close()
+
+	final_link := resp.Request.URL.String()
 
 	// Load part of body
 	body := make([]byte, preloadBodySize, preloadBodySize)
 	if _, err := io.ReadFull(resp.Body, body); err != nil {
-		bot.logWarn.Println("Can't load body for:", url)
-		return ""
+		return "", final_link, err
 	}
 	// Get the content-type
 	content_type := resp.Header.Get("Content-Type")
@@ -145,14 +142,13 @@ func getTitle(bot *Bot, url string) string {
 			title, _, _ := transform.String(encoding.NewDecoder(), match[1])
 			title = html.UnescapeString(title)
 			bot.logDebug.Println("Found title:", title)
-			return title
+			return title, final_link, nil
 		}
 	} else {
-		bot.logWarn.Println("Not checking title for content type:", content_type)
-		return ""
+		return "", "", errors.New("Not checking title for content type: " + content_type)
 	}
 
-	return ""
+	return "", final_link, nil
 }
 
 // Check for duplicates of the url in the database.
@@ -250,7 +246,14 @@ func processorURLs(bot *Bot, channel, sender, msg string) {
 		bot.logInfo.Println("Standardized to:", link)
 
 		// Get the title
-		title := getTitle(bot, link)
+		title, final_link, err := getTitle(bot, link)
+		if err != nil {
+			bot.logWarn.Println("Error getting title:", err)
+		}
+		if final_link != "" && final_link != link {
+			bot.logDebug.Println(link, ">", final_link)
+			link = final_link
+		}
 
 		// Check for duplicates
 		duplicates := checkForDuplicates(bot, channel, sender, link)
@@ -261,7 +264,7 @@ func processorURLs(bot *Bot, channel, sender, msg string) {
 		}
 
 		// Insert url into db
-		_, err := bot.Db.Exec(`
+		_, err = bot.Db.Exec(`
 			INSERT INTO urls(channel, nick, link, quote, title) VALUES(?, ?, ?, ?, ?)`,
 			channel, sender, link, msg, title)
 		if err != nil {

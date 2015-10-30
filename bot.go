@@ -1,3 +1,4 @@
+// IRC bot written mostly for handling URLs posted on the channels.
 package papaBot
 
 import (
@@ -234,22 +235,26 @@ func (bot *Bot) Close() {
 
 // Run starts the bot's main loop.
 func (bot *Bot) Run() {
-	// Connect to server
+	defer bot.Close()
+
+	// Connect to server.
+	bot.logInfo.Println("Connecting to", bot.Config.Server, "...")
 	if err := bot.irc.Connect(); err != nil {
 		bot.logError.Fatal("Error creating connection:", err)
 	}
 
-	// Semaphore clearing ticker
+	// Semaphore clearing ticker.
 	ticker := time.NewTicker(time.Second * time.Duration(bot.Config.AntiFloodDelay))
+	defer ticker.Stop()
 	go func() {
 		for range ticker.C {
 			bot.resetFloodSemaphore()
 		}
 	}()
-	defer ticker.Stop()
 
-	// Command use clearing ticker
+	// Command use clearing ticker.
 	ticker2 := time.NewTicker(time.Minute * 5)
+	defer ticker2.Stop()
 	go func() {
 		for range ticker2.C {
 			for k := range bot.commandUseLimit {
@@ -257,7 +262,7 @@ func (bot *Bot) Run() {
 			}
 		}
 	}()
-	defer ticker2.Stop()
 
+	// Main loop.
 	bot.irc.HandleLoop()
 }
