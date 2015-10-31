@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"github.com/nickvanw/ircx"
 	"github.com/op/go-logging"
-	"text/template"
 	"time"
 )
 
@@ -21,11 +20,12 @@ type Bot struct {
 	log *logging.Logger
 
 	kickedFrom      map[string]bool
-	commands        map[string]botCommand
+	commands        map[string]*botCommand
 	commandUseLimit map[string]int
+	commandWarn     map[string]bool
 
 	textsFile string
-	Texts     botTexts
+	Texts     *botTexts
 
 	lastURLAnnouncedTime        map[string]time.Time
 	lastURLAnnouncedLinesPassed map[string]int
@@ -55,11 +55,6 @@ type botCommand struct {
 }
 
 type botTexts struct {
-	tempDuplicateFirst  *template.Template
-	DuplicateFirst      string
-	tempDuplicateMulti  *template.Template
-	DuplicateMulti      string
-	DuplicateYou        string
 	NeedsPriv           string
 	NeedsOwner          string
 	PasswordOk          string

@@ -2,17 +2,21 @@
 package papaBot
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nickvanw/ircx"
 	"github.com/op/go-logging"
 	"github.com/sorcix/irc"
+	"golang.org/x/crypto/pbkdf2"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
+	"reflect"
 	"strings"
 	"text/template"
 	"time"
@@ -46,7 +50,10 @@ func New(configFile, textsFile string) *Bot {
 			RejoinDelaySeconds:         15,
 		},
 
-		Texts: botTexts{},
+		commands:        map[string]*botCommand{},
+		commandUseLimit: map[string]int{},
+		commandWarn:     map[string]bool{},
+		Texts:           &botTexts{},
 	}
 	// Logging init.
 	formatNorm := logging.MustStringFormatter(
@@ -64,13 +71,26 @@ func New(configFile, textsFile string) *Bot {
 	}
 
 	// Load texts
-	if err := bot.loadTexts(); err != nil {
+	if err := bot.loadTexts(bot.textsFile, bot.Texts); err != nil {
 		bot.log.Fatal("Can't load texts: %s", err)
 	}
 
 	// Init database
 	if err := bot.initDb(); err != nil {
 		bot.log.Fatal("Can't init database: %s", err)
+	}
+
+	// Create log folder.
+	if bot.Config.LogChannel {
+		exists, err := DirExists("logs")
+		if err != nil {
+			bot.log.Fatal("Can't check if logs dir exists: %s", err)
+		}
+		if !exists {
+			if err := os.Mkdir("logs", 0700); err != nil {
+				bot.log.Fatal("Can't create logs folder: %s", err)
+			}
+		}
 	}
 
 	// Init underlying irc bot
@@ -84,29 +104,24 @@ func New(configFile, textsFile string) *Bot {
 	// Init bot commands
 	bot.initBotCommands()
 
-	// Create log folder
-	if bot.Config.LogChannel {
-		exists, err := DirExists("logs")
-		if err != nil {
-			bot.log.Fatal("Can't check if logs dir exists: %s", err)
-		}
-		if !exists {
-			if err := os.Mkdir("logs", 0700); err != nil {
-				bot.log.Fatal("Can't create logs folder: %s", err)
-			}
-		}
-	}
+	// Init processors
+	initUrlProcessorTitle(bot)
+
+	// Init extensions.
+	initBtcExtension(bot)
 
 	return bot
 }
 
 // loadConfig loads JSON configuration for the bot.
 func (bot *Bot) loadConfig() error {
+
 	// Load raw config file
 	configFile, err := ioutil.ReadFile(bot.configFile)
 	if err != nil {
 		bot.log.Fatal("Can't load config file: %s", err)
 	}
+
 	// Decode TOML
 	if _, err := toml.Decode(string(configFile), &bot.Config); err != nil {
 		return err
@@ -118,7 +133,7 @@ func (bot *Bot) loadConfig() error {
 	}
 	if !strings.HasPrefix(bot.Config.OwnerPassword, "hash:") { // Password needs to be hashed
 		bot.log.Info("Pasword not hashed. Hashing and saving.")
-		bot.Config.OwnerPassword = HashPassword(bot.Config.OwnerPassword)
+		bot.Config.OwnerPassword = bot.hashPassword(bot.Config.OwnerPassword)
 		// Now rewrite the password line in the config
 		lines := strings.Split(string(configFile), "\n")
 
@@ -137,34 +152,13 @@ func (bot *Bot) loadConfig() error {
 	return nil
 }
 
-// loadTexts loads bot texts from file.
-func (bot *Bot) loadTexts() error {
-	// Decode TOML
-	if _, err := toml.DecodeFile(bot.textsFile, &bot.Texts); err != nil {
-		return err
-	}
-	// Parse the templates
-	temp, err := template.New("tpl1").Parse(bot.Texts.DuplicateFirst)
-	if err != nil {
-		bot.log.Fatal("Error in the text: %s", bot.Texts.DuplicateFirst)
-	} else {
-		bot.Texts.tempDuplicateFirst = temp
-	}
-	temp, err = template.New("tpl2").Parse(bot.Texts.DuplicateMulti)
-	if err != nil {
-		bot.log.Fatal("Error in the text: %s", bot.Texts.DuplicateMulti)
-	} else {
-		bot.Texts.tempDuplicateMulti = temp
-	}
-	return nil
-}
-
 // initDb initializes the bot's database.
 func (bot *Bot) initDb() error {
 	db, err := sql.Open("sqlite3", "papabot.db")
 	if err != nil {
 		return err
 	}
+
 	// Create URLs tables and triggers, if needed.
 	query := `
 		CREATE TABLE IF NOT EXISTS "urls" (
@@ -192,6 +186,7 @@ func (bot *Bot) initDb() error {
 	if _, err := db.Exec(query); err != nil {
 		bot.log.Panic(err)
 	}
+
 	bot.Db = db
 	return nil
 }
@@ -244,8 +239,8 @@ func (bot *Bot) areSamePeople(nick1, nick2 string) bool {
 	return nick1 == nick2
 }
 
-// Scribe saves the message into appropriate file.
-func (bot *Bot) Scribe(channel string, message ...interface{}) {
+// scribe saves the message into appropriate file.
+func (bot *Bot) scribe(channel string, message ...interface{}) {
 	if !bot.Config.LogChannel {
 		return
 	}
@@ -261,6 +256,65 @@ func (bot *Bot) Scribe(channel string, message ...interface{}) {
 		scribe := log.New(f, "", log.Ldate|log.Ltime)
 		scribe.Println(message...)
 	}()
+}
+
+// LoadTexts loads texts from a file into a struct.
+func (bot *Bot) loadTexts(filename string, data interface{}) error {
+
+	// Decode TOML
+	if _, err := toml.DecodeFile(filename, data); err != nil {
+		return err
+	}
+
+	// Fields starting with "Tpl" with be parsed into templates and saved in the field starting with "Temp".
+	rData := reflect.ValueOf(data).Elem()
+	missingTexts := false
+	for i := 0; i < rData.NumField(); i++ {
+		// Get field and it's value
+		field := rData.Type().Field(i)
+		fieldValue := rData.Field(i)
+
+		// Check if all fields were filled
+		if !strings.HasPrefix(field.Name, "Temp") {
+			if fieldValue.String() == "" {
+				bot.log.Warning("Field left empty %s!", field.Name)
+				missingTexts = true
+			}
+		}
+
+		if strings.HasPrefix(field.Name, "Tpl") {
+			temp, err := template.New(field.Name).Parse(fieldValue.String())
+			if err != nil {
+				return err
+			} else {
+				tempFieldName := strings.TrimPrefix(field.Name, "Tpl")
+				tempFieldName = "Temp" + tempFieldName
+				// Set temp field
+				tempField := rData.FieldByName(tempFieldName)
+				if !tempField.IsValid() {
+					bot.log.Fatal("Can't find field %s to store template from %s.", tempFieldName, field.Name)
+				}
+				if !tempField.CanSet() {
+					bot.log.Fatal("Field %s is not settable.", tempFieldName)
+				}
+				if reflect.ValueOf(temp).Type() != tempField.Type() {
+					bot.log.Fatalf("Incompatible types %s and %s", reflect.ValueOf(temp).Type(), tempField.Type())
+				}
+				tempField.Set(reflect.ValueOf(temp))
+			}
+		}
+	}
+	if missingTexts {
+		bot.log.Fatal("Missing texts.")
+	}
+
+	return nil
+}
+
+// HashPassword hashes the password.
+func (bot *Bot) hashPassword(password string) string {
+	return fmt.Sprintf("hash:%s", base64.StdEncoding.EncodeToString(
+		pbkdf2.Key([]byte(password), []byte(password), 4096, sha256.Size, sha256.New)))
 }
 
 // Close cleans up after the bot.
@@ -294,6 +348,9 @@ func (bot *Bot) Run() {
 		for range ticker2.C {
 			for k := range bot.commandUseLimit {
 				delete(bot.commandUseLimit, k)
+			}
+			for k := range bot.commandWarn {
+				delete(bot.commandWarn, k)
 			}
 		}
 	}()

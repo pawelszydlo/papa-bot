@@ -4,10 +4,7 @@ package papaBot
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
-	"golang.org/x/crypto/pbkdf2"
 	"log"
 	"os"
 	"sort"
@@ -45,12 +42,6 @@ var magnitudes = []struct {
 	{18 * Month, "1 rok temu", 1},
 	{2 * Year, "2 lata temu", 1},
 	{LongTime, "%d lat temu", Year},
-}
-
-// HashPassword hashes the password.
-func HashPassword(password string) string {
-	return fmt.Sprintf("hash:%s", base64.StdEncoding.EncodeToString(
-		pbkdf2.Key([]byte(password), []byte(password), 4096, sha256.Size, sha256.New)))
 }
 
 // DirExists returns whether the given file or directory exists or not.

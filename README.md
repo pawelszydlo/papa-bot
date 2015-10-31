@@ -3,6 +3,11 @@ IRC bot written in Go. Quite comprehensive in design and IRC events handling, ea
 
 Built on top of [github.com/nickvanw/ircx](http://github.com/nickvanw/ircx), which in turn is built on top of [github.com/sorcix/irc](http://github.com/sorcix/irc).
 
+###How good is it?
+
+It is my first project written in Go, so the implementation might be lacking. That being said, bot is actively developed
+and used by me and my friends, so there's that.
+
 ###Features
 
 * Easy configuration through a TOML file.

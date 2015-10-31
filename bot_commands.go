@@ -8,30 +8,32 @@ import (
 
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
-	bot.commands = map[string]botCommand{
-		"auth": {
-			true, false,
-			"auth password", "Authenticate with the bot.",
-			bot.commandAuth},
-		"reload_texts": {
-			true, true,
-			"reload_texts", "Reload bot's texts from file.",
-			bot.commandReloadTexts},
-		"find": {
-			false, false,
-			"find token1 token2 token3 ...", "Look for URLs containing all the tokens.",
-			bot.commandFindUrl},
-		"more": {
-			false, false,
-			"more", "Say more about last link.",
-			bot.commandSayMore},
-	}
-
-	bot.commandUseLimit = map[string]int{}
+	bot.commands["auth"] = &botCommand{
+		true, false,
+		"auth password", "Authenticate with the bot.",
+		bot.commandAuth}
+	bot.commands["reload_texts"] = &botCommand{
+		true, true,
+		"reload_texts", "Reload bot's texts from file.",
+		bot.commandReloadTexts}
+	bot.commands["find"] = &botCommand{
+		false, false,
+		"find token1 token2 token3 ...", "Look for URLs containing all the tokens.",
+		bot.commandFindUrl}
+	bot.commands["more"] = &botCommand{
+		false, false,
+		"more", "Say more about last link.",
+		bot.commandSayMore}
 }
 
 // handleBotCommand handles command directed at the bot.
 func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
+	// Silence any errors :)
+	defer func() {
+		if r := recover(); r != nil {
+			bot.log.Error("FATAL ERROR in bot command: %s", r)
+		}
+	}()
 	receiver := channel
 	// Was this command sent on a private query?
 	private := false
@@ -58,7 +60,10 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 
 	if !private && !owner { // Command limits apply
 		if bot.commandUseLimit[command+nick] >= bot.Config.CommandsPer5 {
-			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.CommandLimit))
+			if !bot.commandWarn[channel] { // Warning was not yet sent
+				bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.CommandLimit))
+				bot.commandWarn[channel] = true
+			}
 			return
 		} else {
 			bot.commandUseLimit[command+nick] += 1
@@ -75,7 +80,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 			if cmd.ownerOnly && !owner {
 				continue
 			}
-			bot.SendNotice(receiver, fmt.Sprintf("%s - %s%s", cmd.usage, cmd.help, options))
+			bot.SendNotice(nick, fmt.Sprintf("%s - %s%s", cmd.usage, cmd.help, options))
 		}
 		return
 	}
@@ -100,7 +105,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 
 // commandAuth is a command for authenticating a user as bot's owner.
 func (bot *Bot) commandAuth(nick, user, channel, receiver string, priv bool, params []string) {
-	if len(params) == 1 && HashPassword(params[0]) == bot.Config.OwnerPassword {
+	if len(params) == 1 && bot.hashPassword(params[0]) == bot.Config.OwnerPassword {
 		bot.SendMessage(receiver, bot.Texts.PasswordOk)
 		bot.BotOwner = nick + "!" + user
 		bot.log.Info("Owner set to: %s", bot.BotOwner)
@@ -109,8 +114,15 @@ func (bot *Bot) commandAuth(nick, user, channel, receiver string, priv bool, par
 
 // commandReloadTexts reloads texts from TOML file.
 func (bot *Bot) commandReloadTexts(nick, user, channel, receiver string, priv bool, params []string) {
+	// Silence possible text errors
+	defer func() {
+		if r := recover(); r != nil {
+			bot.log.Error("FATAL ERROR while reloading texts: %s", r)
+		}
+	}()
 	bot.log.Info("Reloading texts...")
-	bot.loadTexts()
+	bot.loadTexts(bot.textsFile, bot.Texts)
+	bot.SendMessage(receiver, "Done.")
 }
 
 // commandSayMore gives more info, if bot has any.

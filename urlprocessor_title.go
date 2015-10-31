@@ -9,19 +9,36 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"text/template"
 	"time"
 )
 
+type urlProcessorTitleTextsStruct struct {
+	TempDuplicateFirst *template.Template
+	TplDuplicateFirst  string
+
+	TempDuplicateMulti *template.Template
+	TplDuplicateMulti  string
+
+	DuplicateYou string
+}
+
 var (
-	titleRe = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
-	metaRe  = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
-	descRe  = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
+	titleRe    = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
+	metaRe     = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
+	descRe     = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
+	titleTexts = &urlProcessorTitleTextsStruct{}
 )
+
+// Init the processor.
+func initUrlProcessorTitle(bot *Bot) {
+	bot.loadTexts(bot.textsFile, titleTexts)
+}
 
 // Find the title for url.
 func getTitle(url string) (string, string, string, error) {
 	// Get response
-	resp, err := GetHTTPResponse(url)
+	resp, err := GetHttpResponse(url)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -94,17 +111,17 @@ func checkForDuplicates(bot *Bot, channel, sender, link string) string {
 		// Only one duplicate
 		if count == 1 {
 			if bot.areSamePeople(nick, sender) {
-				nick = bot.Texts.DuplicateYou
+				nick = titleTexts.DuplicateYou
 			}
 			elapsed := GetTimeElapsed(timestamp)
-			return Format(bot.Texts.tempDuplicateFirst, &map[string]string{"nick": nick, "elapsed": elapsed})
+			return Format(titleTexts.TempDuplicateFirst, &map[string]string{"nick": nick, "elapsed": elapsed})
 		} else if count > 1 { // More duplicates exist
 			if bot.areSamePeople(nick, sender) {
-				nick = bot.Texts.DuplicateYou
+				nick = titleTexts.DuplicateYou
 			}
 			elapsed := GetTimeElapsed(timestamp)
 			return Format(
-				bot.Texts.tempDuplicateMulti,
+				titleTexts.TempDuplicateMulti,
 				&map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
 		}
 	}

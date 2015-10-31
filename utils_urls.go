@@ -1,10 +1,12 @@
 package papaBot
 
 import (
+	"encoding/json"
 	"golang.org/x/net/idna"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
 	"html"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -18,7 +20,7 @@ const (
 )
 
 // Get HTTP Response
-func GetHTTPResponse(url string) (resp *http.Response, err error) {
+func GetHttpResponse(url string) (resp *http.Response, err error) {
 	// Build the request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -28,6 +30,29 @@ func GetHTTPResponse(url string) (resp *http.Response, err error) {
 
 	// Get response
 	return httpClient.Do(req)
+}
+
+func GetJsonResponse(url string) (map[string]interface{}, error) {
+
+	// Get HTTP response
+	resp, err := GetHttpResponse(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Load body
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert from JSON
+	var raw_data interface{}
+	if err := json.Unmarshal(body, &raw_data); err != nil {
+		return nil, err
+	}
+	return raw_data.(map[string]interface{}), nil
 }
 
 // Sanitize string.

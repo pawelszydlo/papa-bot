@@ -85,7 +85,7 @@ func (bot *Bot) handlerBadNick(s ircx.Sender, m *irc.Message) {
 
 func (bot *Bot) handlerPart(s ircx.Sender, m *irc.Message) {
 	bot.log.Info("%s has left %s: %s", m.Prefix.Name, m.Params[0], m.Trailing)
-	bot.Scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
+	bot.scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
 }
 
 func (bot *Bot) handlerError(s ircx.Sender, m *irc.Message) {
@@ -109,17 +109,17 @@ func (bot *Bot) handlerJoin(s ircx.Sender, m *irc.Message) {
 	} else {
 		bot.log.Info("%s has joined %s", m.Prefix.Name, m.Trailing)
 	}
-	bot.Scribe(m.Trailing, m.Prefix.Name, " has joined ", m.Trailing)
+	bot.scribe(m.Trailing, m.Prefix.Name, " has joined ", m.Trailing)
 }
 
 func (bot *Bot) handlerMode(s ircx.Sender, m *irc.Message) {
 	bot.log.Info("%s has set mode %s on %s", m.Prefix.Name, m.Params[1:], m.Params[0])
-	bot.Scribe(m.Params[0], m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
+	bot.scribe(m.Params[0], m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
 }
 
 func (bot *Bot) handlerTopic(s ircx.Sender, m *irc.Message) {
 	bot.log.Info("%s has set topic on %s to:", m.Prefix.Name, m.Params[0], m.Trailing)
-	bot.Scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
+	bot.scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
 }
 
 func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
@@ -138,17 +138,10 @@ func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
 	} else {
 		bot.log.Info("%s was kicked from %s by %s for: %s", m.Params[1], m.Prefix.Name, m.Params[0], m.Trailing)
 	}
-	bot.Scribe(m.Params[0], m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
+	bot.scribe(m.Params[0], m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
 }
 
 func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
-	// Silence any errors :)
-	defer func() {
-		if r := recover(); r != nil {
-			bot.log.Error("FATAL ERROR in handlerMsg: %s", r)
-		}
-	}()
-
 	msg := m.Trailing
 	if msg == "" {
 		return
@@ -185,7 +178,7 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 	if bot.isMe(channel) { // private msg to the bot
 		go bot.handleBotCommand(channel, nick, user, msg)
 	} else { // Message on a channel
-		bot.Scribe(channel, fmt.Sprintf("<%s> %s", nick, msg))
+		bot.scribe(channel, fmt.Sprintf("<%s> %s", nick, msg))
 
 		// Is someone talking to the bot?
 		true_nick := bot.irc.OriginalName
