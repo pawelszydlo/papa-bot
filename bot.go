@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	Version = "0.7.0"
+	Version = "0.8.0"
 )
 
 // New creates a new bot.
@@ -43,6 +43,7 @@ func New(configFile, textsFile string) *Bot {
 			CommandsPer5:               3,
 			UrlAnnounceIntervalMinutes: 15,
 			UrlAnnounceIntervalLines:   50,
+			RejoinDelaySeconds:         15,
 		},
 
 		Texts: botTexts{},
@@ -95,10 +96,6 @@ func New(configFile, textsFile string) *Bot {
 			}
 		}
 	}
-
-	// Init processors
-	initUrlProcessorTitle(bot)
-	initUrlProcessorGithub(bot)
 
 	return bot
 }
@@ -167,6 +164,33 @@ func (bot *Bot) initDb() error {
 	db, err := sql.Open("sqlite3", "papabot.db")
 	if err != nil {
 		return err
+	}
+	// Create URLs tables and triggers, if needed.
+	query := `
+		CREATE TABLE IF NOT EXISTS "urls" (
+			"id" INTEGER PRIMARY KEY  AUTOINCREMENT  NOT NULL,
+			"channel" VARCHAR NOT NULL,
+			"nick" VARCHAR NOT NULL,
+			"link" VARCHAR NOT NULL,
+			"quote" VARCHAR NOT NULL,
+			"title" VARCHAR,
+			"timestamp" DATETIME DEFAULT (datetime('now','localtime'))
+		);
+
+		CREATE VIRTUAL TABLE IF NOT EXISTS urls_search
+		USING fts4(channel, nick, link, title, timestamp, search);
+
+		CREATE TRIGGER IF NOT EXISTS url_add AFTER INSERT ON urls BEGIN
+			INSERT INTO urls_search(channel, nick, link, title, timestamp, search)
+			VALUES(new.channel, new.nick, new.link, new.title, new.timestamp, new.link || ' ' || new.title);
+		END;
+
+		CREATE TRIGGER IF NOT EXISTS url_update AFTER UPDATE ON urls BEGIN
+			UPDATE urls_search SET title = new.title, search = new.link || ' ' || new.title
+			WHERE timestamp = new.timestamp;
+		END;`
+	if _, err := db.Exec(query); err != nil {
+		bot.log.Panic(err)
 	}
 	bot.Db = db
 	return nil

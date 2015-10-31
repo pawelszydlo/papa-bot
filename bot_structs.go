@@ -43,6 +43,7 @@ type Configuration struct {
 	LogChannel                 bool
 	UrlAnnounceIntervalMinutes time.Duration
 	UrlAnnounceIntervalLines   int
+	RejoinDelaySeconds         time.Duration
 }
 
 type botCommand struct {

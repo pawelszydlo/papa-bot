@@ -1,5 +1,7 @@
 package papaBot
 
+// TODO: refactor this whole file.
+
 import (
 	"bytes"
 	"crypto/sha256"

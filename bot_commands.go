@@ -30,7 +30,7 @@ func (bot *Bot) initBotCommands() {
 	bot.commandUseLimit = map[string]int{}
 }
 
-// handleBotCommand handle command directed at the bot.
+// handleBotCommand handles command directed at the bot.
 func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	receiver := channel
 	// Was this command sent on a private query?
@@ -98,6 +98,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	}
 }
 
+// commandAuth is a command for authenticating a user as bot's owner.
 func (bot *Bot) commandAuth(nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) == 1 && HashPassword(params[0]) == bot.Config.OwnerPassword {
 		bot.SendMessage(receiver, bot.Texts.PasswordOk)
@@ -106,11 +107,13 @@ func (bot *Bot) commandAuth(nick, user, channel, receiver string, priv bool, par
 	}
 }
 
+// commandReloadTexts reloads texts from TOML file.
 func (bot *Bot) commandReloadTexts(nick, user, channel, receiver string, priv bool, params []string) {
 	bot.log.Info("Reloading texts...")
 	bot.loadTexts()
 }
 
+// commandSayMore gives more info, if bot has any.
 func (bot *Bot) commandSayMore(nick, user, channel, receiver string, priv bool, params []string) {
 	if bot.urlMoreInfo[receiver] == "" {
 		bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
@@ -124,6 +127,7 @@ func (bot *Bot) commandSayMore(nick, user, channel, receiver string, priv bool, 
 	}
 }
 
+// commandFindUrl searches bot's database using FTS for links matching the query.
 func (bot *Bot) commandFindUrl(nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) == 0 {
 		return

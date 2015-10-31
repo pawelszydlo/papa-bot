@@ -16,6 +16,16 @@ func (bot *Bot) attachEventHandlers() {
 	bot.irc.HandleFunc(irc.RPL_WELCOME, bot.handlerConnect)
 	// Ping
 	bot.irc.HandleFunc(irc.PING, bot.handlerPing)
+	// Nickname taken
+	bot.irc.HandleFunc(irc.ERR_NICKCOLLISION, bot.handlerNickTaken)
+	bot.irc.HandleFunc(irc.ERR_NICKNAMEINUSE, bot.handlerNickTaken)
+	// Invalid nickname
+	bot.irc.HandleFunc(irc.ERR_NONICKNAMEGIVEN, bot.handlerBadNick)
+	bot.irc.HandleFunc(irc.ERR_ERRONEUSNICKNAME, bot.handlerBadNick)
+	// Various events that prevent the bot from joining a channel
+	bot.irc.HandleFunc(irc.ERR_CHANNELISFULL, bot.handlerCantJoin)
+	bot.irc.HandleFunc(irc.ERR_BANNEDFROMCHAN, bot.handlerCantJoin)
+	bot.irc.HandleFunc(irc.ERR_INVITEONLYCHAN, bot.handlerCantJoin)
 	// Join channel
 	bot.irc.HandleFunc(irc.JOIN, bot.handlerJoin)
 	// Part channel
@@ -48,6 +58,29 @@ func (bot *Bot) handlerPing(s ircx.Sender, m *irc.Message) {
 		Params:   m.Params,
 		Trailing: m.Trailing,
 	})
+}
+
+func (bot *Bot) handlerNickTaken(s ircx.Sender, m *irc.Message) {
+	bot.log.Warning("Server at %s said that my nick is already taken. Changing nick...", m.Prefix.Name)
+	bot.irc.OriginalName = bot.Config.Name + "_"
+}
+
+func (bot *Bot) handlerCantJoin(s ircx.Sender, m *irc.Message) {
+	bot.log.Warning("Server at %s said that I can't join %s: %s", m.Prefix.Name, m.Params[1], m.Trailing)
+	// Rejoin
+	timer := time.NewTimer(bot.Config.RejoinDelaySeconds * time.Second)
+	go func() {
+		<-timer.C
+		bot.log.Debug("Trying to join %s...", m.Params[1])
+		s.Send(&irc.Message{
+			Command: irc.JOIN,
+			Params:  []string{m.Params[1]},
+		})
+	}()
+}
+
+func (bot *Bot) handlerBadNick(s ircx.Sender, m *irc.Message) {
+	bot.log.Fatal("Server at %s said that my nick is invalid.", m.Prefix.Name)
 }
 
 func (bot *Bot) handlerPart(s ircx.Sender, m *irc.Message) {
@@ -94,7 +127,7 @@ func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
 		bot.log.Info("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 		bot.kickedFrom[m.Params[0]] = true
 		// Rejoin
-		timer := time.NewTimer(3 * time.Second)
+		timer := time.NewTimer(bot.Config.RejoinDelaySeconds * time.Second)
 		go func() {
 			<-timer.C
 			s.Send(&irc.Message{
@@ -181,40 +214,48 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 			}
 		}
 
-		// Find all URLs in the message
-		links := xurls.Relaxed.FindAllString(msg, -1)
-		for i := range links {
-			// Validate the url
-			bot.log.Info("Got link %s", links[i])
-			link := StandardizeURL(links[i])
-			bot.log.Debug("Standardized to: %s", link)
-			// Link info structure, it will be filled by the processors
-			urlinfo := &urlInfo{link, "", ""}
-			// Run the processors - order matters
-			urlProcessorTitle(bot, urlinfo, channel, nick, msg)
-			urlProcessorGithub(bot, urlinfo, channel, nick, msg)
+		// Handle links in the message
+		go bot.handlerMsgURLs(channel, nick, msg)
 
-			linkKey := urlinfo.link + channel
-			// If we can't announce yet, skip this link
-			if time.Since(bot.lastURLAnnouncedTime[linkKey]) < bot.Config.UrlAnnounceIntervalMinutes*time.Minute {
-				continue
-			}
-			if lines, exists := bot.lastURLAnnouncedLinesPassed[linkKey]; exists && lines < bot.Config.UrlAnnounceIntervalLines {
-				continue
-			}
+	}
+}
 
-			// Announce the short info, save the long info.
-			if urlinfo.shortInfo != "" {
-				if urlinfo.longInfo != "" {
-					bot.SendNotice(channel, urlinfo.shortInfo+" …")
-				} else {
-					bot.SendNotice(channel, urlinfo.shortInfo)
-				}
-				bot.lastURLAnnouncedTime[linkKey] = time.Now()
-				bot.lastURLAnnouncedLinesPassed[linkKey] = 0
-				// Keep the long info for later
-				bot.urlMoreInfo[channel] = urlinfo.longInfo
+// handlerMsgURLs finds all URLs in the message and executes the URL processors on them.
+func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
+	// Find all URLs in the message
+	links := xurls.Relaxed.FindAllString(msg, -1)
+	for i := range links {
+		// Validate the url
+		bot.log.Info("Got link %s", links[i])
+		link := StandardizeURL(links[i])
+		bot.log.Debug("Standardized to: %s", link)
+		// Link info structure, it will be filled by the processors
+		urlinfo := &urlInfo{link, "", ""}
+
+		// Run the processors - order matters
+		urlProcessorTitle(bot, urlinfo, channel, nick, msg)
+		urlProcessorGithub(bot, urlinfo, channel, nick, msg)
+
+		linkKey := urlinfo.link + channel
+		// If we can't announce yet, skip this link
+		if time.Since(bot.lastURLAnnouncedTime[linkKey]) < bot.Config.UrlAnnounceIntervalMinutes*time.Minute {
+			continue
+		}
+		if lines, exists := bot.lastURLAnnouncedLinesPassed[linkKey]; exists && lines < bot.Config.UrlAnnounceIntervalLines {
+			continue
+		}
+
+		// Announce the short info, save the long info.
+		if urlinfo.shortInfo != "" {
+			if urlinfo.longInfo != "" {
+				bot.SendNotice(channel, urlinfo.shortInfo+" …")
+			} else {
+				bot.SendNotice(channel, urlinfo.shortInfo)
 			}
+			bot.lastURLAnnouncedTime[linkKey] = time.Now()
+			bot.lastURLAnnouncedLinesPassed[linkKey] = 0
+			// Keep the long info for later
+			bot.urlMoreInfo[channel] = urlinfo.longInfo
 		}
 	}
 }
