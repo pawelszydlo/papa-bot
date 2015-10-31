@@ -112,7 +112,7 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 	// Silence any errors :)
 	defer func() {
 		if r := recover(); r != nil {
-			bot.log.Error("FATAL ERROR in handlerMsg: ", r)
+			bot.log.Error("FATAL ERROR in handlerMsg: %s", r)
 		}
 	}()
 
@@ -192,6 +192,7 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 			urlinfo := &urlInfo{link, "", ""}
 			// Run the processors - order matters
 			urlProcessorTitle(bot, urlinfo, channel, nick, msg)
+			urlProcessorGithub(bot, urlinfo, channel, nick, msg)
 
 			linkKey := urlinfo.link + channel
 			// If we can't announce yet, skip this link

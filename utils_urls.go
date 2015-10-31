@@ -5,8 +5,30 @@ import (
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/transform"
 	"html"
+	"net/http"
 	"strings"
+	"time"
 )
+
+var httpClient = http.Client{Timeout: 5 * time.Second}
+
+const (
+	UserAgent       = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+	preloadBodySize = 50 * 1024
+)
+
+// Get HTTP Response
+func GetHTTPResponse(url string) (resp *http.Response, err error) {
+	// Build the request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", UserAgent)
+
+	// Get response
+	return httpClient.Do(req)
+}
 
 // Sanitize string.
 func SanitizeString(str string, enc encoding.Encoding) string {

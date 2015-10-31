@@ -18,7 +18,9 @@ import (
 	"time"
 )
 
-const Version = "0.7.0"
+const (
+	Version = "0.7.0"
+)
 
 // New creates a new bot.
 func New(configFile, textsFile string) *Bot {
@@ -95,9 +97,8 @@ func New(configFile, textsFile string) *Bot {
 	}
 
 	// Init processors
-	if err := initUrlProcessorTitle(bot); err != nil {
-		bot.log.Fatal("Can't init URL title processor: %s", err)
-	}
+	initUrlProcessorTitle(bot)
+	initUrlProcessorGithub(bot)
 
 	return bot
 }
@@ -185,12 +186,16 @@ func (bot *Bot) resetFloodSemaphore() {
 
 // sendFloodProtected is a flood protected sender.
 func (bot *Bot) sendFloodProtected(mType, channel, message string) {
-	bot.floodSemaphore <- 1
-	bot.irc.Sender.Send(&irc.Message{
-		Command:  mType,
-		Params:   []string{channel},
-		Trailing: message,
-	})
+	messages := strings.Split(message, "\n")
+	for i := range messages {
+		bot.floodSemaphore <- 1
+		bot.irc.Sender.Send(&irc.Message{
+			Command:  mType,
+			Params:   []string{channel},
+			Trailing: messages[i],
+		})
+	}
+
 }
 
 // SendMessage sends a message to the channel.
@@ -201,7 +206,6 @@ func (bot *Bot) SendMessage(channel, message string) {
 // SendNotice send a notice to the channel.
 func (bot *Bot) SendNotice(channel, message string) {
 	bot.sendFloodProtected(irc.NOTICE, channel, message)
-
 }
 
 // isMe checks if the sender is the bot.

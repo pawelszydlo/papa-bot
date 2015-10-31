@@ -13,19 +13,13 @@ import (
 )
 
 var (
-	httpClient = http.Client{Timeout: 5 * time.Second}
-	titleRe    = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
-	metaRe     = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
-	descRe     = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
-)
-
-const (
-	UserAgent       = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-	preloadBodySize = 50 * 1024
+	titleRe = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
+	metaRe  = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
+	descRe  = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
 )
 
 // Initializes stuff needed by this processor.
-func initUrlProcessorTitle(bot *Bot) error {
+func initUrlProcessorTitle(bot *Bot) {
 	// Create URLs table if needed
 	query := `
 		CREATE TABLE IF NOT EXISTS "urls" (
@@ -36,48 +30,29 @@ func initUrlProcessorTitle(bot *Bot) error {
 			"quote" VARCHAR NOT NULL,
 			"title" VARCHAR,
 			"timestamp" DATETIME DEFAULT (datetime('now','localtime'))
-		);`
-	if _, err := bot.Db.Exec(query); err != nil {
-		return err
-	}
-	// FTS table
-	query = `
+		);
+
 		CREATE VIRTUAL TABLE IF NOT EXISTS urls_search
-		USING fts4(channel, nick, link, title, timestamp, search);`
-	if _, err := bot.Db.Exec(query); err != nil {
-		return err
-	}
-	// FTS trigger
-	query = `
+		USING fts4(channel, nick, link, title, timestamp, search);
+
 		CREATE TRIGGER IF NOT EXISTS url_add AFTER INSERT ON urls BEGIN
 			INSERT INTO urls_search(channel, nick, link, title, timestamp, search)
 			VALUES(new.channel, new.nick, new.link, new.title, new.timestamp, new.link || ' ' || new.title);
-		END`
-	if _, err := bot.Db.Exec(query); err != nil {
-		return err
-	}
-	query = `
+		END;
+
 		CREATE TRIGGER IF NOT EXISTS url_update AFTER UPDATE ON urls BEGIN
 			UPDATE urls_search SET title = new.title, search = new.link || ' ' || new.title
 			WHERE timestamp = new.timestamp;
-		END`
+		END;`
 	if _, err := bot.Db.Exec(query); err != nil {
-		return err
+		bot.log.Panic(err)
 	}
-	return nil
 }
 
 // Find the title for url.
-func getTitle(bot *Bot, url string) (string, string, string, error) {
-	// Build the request
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", "", "", err
-	}
-	req.Header.Set("User-Agent", UserAgent)
-
+func getTitle(url string) (string, string, string, error) {
 	// Get response
-	resp, err := httpClient.Do(req)
+	resp, err := GetHTTPResponse(url)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -184,7 +159,7 @@ func prepareShort(title, duplicates string) string {
 // Look for urls in the message, resolve the title.
 func urlProcessorTitle(bot *Bot, info *urlInfo, channel, sender, msg string) {
 	// Get the title
-	title, final_link, description, err := getTitle(bot, info.link)
+	title, final_link, description, err := getTitle(info.link)
 	if err != nil {
 		bot.log.Warning("Error getting title: %s", err)
 	} else {
