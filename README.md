@@ -34,10 +34,12 @@ func (ext *YourExtension) Init(bot *Bot) {
 }
 
 // Will be run for each URL found in the message.
-func (ext *YourExtension) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
+func (ext *YourExtension) ProcessURL(
+    bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
     // Here you can do something with the data in the urlinfo struct.
 }
 ```
+(If you don't want to implement any of those just leave them empty)
 
 Then add your extension to the list in the bot's Run function:
 ```go
@@ -48,8 +50,6 @@ extensions: []Extension{
     // Your extension goes here.
 },
 ```
-
-If you don't want to implement any of those just leave them empty.
 
 ###TODO
 
