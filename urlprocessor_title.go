@@ -13,7 +13,12 @@ import (
 	"time"
 )
 
-type urlProcessorTitleTextsStruct struct {
+type UrlProcessorTitle struct {
+	Texts                   *urlProcessorTitleTexts
+	titleRe, metaRe, descRe *regexp.Regexp
+}
+
+type urlProcessorTitleTexts struct {
 	TempDuplicateFirst *template.Template
 	TplDuplicateFirst  string
 
@@ -23,20 +28,21 @@ type urlProcessorTitleTextsStruct struct {
 	DuplicateYou string
 }
 
-var (
-	titleRe    = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
-	metaRe     = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
-	descRe     = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
-	titleTexts = &urlProcessorTitleTextsStruct{}
-)
-
 // Init the processor.
-func initUrlProcessorTitle(bot *Bot) {
-	bot.loadTexts(bot.textsFile, titleTexts)
+func (proc *UrlProcessorTitle) Init(bot *Bot) error {
+	texts := new(urlProcessorTitleTexts) // Can't load directly because of reflection issues.
+	if err := bot.loadTexts(bot.textsFile, texts); err != nil {
+		return err
+	}
+	proc.Texts = texts
+	proc.titleRe = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
+	proc.metaRe = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
+	proc.descRe = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
+	return nil
 }
 
 // Find the title for url.
-func getTitle(url string) (string, string, string, error) {
+func (proc *UrlProcessorTitle) getTitle(url string) (string, string, string, error) {
 	// Get response
 	resp, err := GetHttpResponse(url)
 	if err != nil {
@@ -63,17 +69,17 @@ func getTitle(url string) (string, string, string, error) {
 	if strings.Contains(content_type, "text/html") {
 		// Iterate over meta tags to get the description
 		description := ""
-		metas := metaRe.FindAllStringSubmatch(string(body), -1)
+		metas := proc.metaRe.FindAllStringSubmatch(string(body), -1)
 		for i := range metas {
 			if len(metas[i]) > 1 {
-				isDesc := descRe.FindString(metas[i][0])
+				isDesc := proc.descRe.FindString(metas[i][0])
 				if isDesc != "" && (len(metas[i][1]) > len(description)) {
 					description = SanitizeString(metas[i][1], encoding)
 				}
 			}
 		}
 		// Get the title
-		match := titleRe.FindStringSubmatch(string(body))
+		match := proc.titleRe.FindStringSubmatch(string(body))
 		if len(match) > 1 {
 			title := SanitizeString(match[1], encoding)
 			return title, final_link, description, nil
@@ -86,7 +92,7 @@ func getTitle(url string) (string, string, string, error) {
 }
 
 // Check for duplicates of the url in the database.
-func checkForDuplicates(bot *Bot, channel, sender, link string) string {
+func (proc *UrlProcessorTitle) checkForDuplicates(bot *Bot, channel, sender, link string) string {
 	result, err := bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
 		FROM urls WHERE link=? AND channel=?
@@ -111,17 +117,17 @@ func checkForDuplicates(bot *Bot, channel, sender, link string) string {
 		// Only one duplicate
 		if count == 1 {
 			if bot.areSamePeople(nick, sender) {
-				nick = titleTexts.DuplicateYou
+				nick = proc.Texts.DuplicateYou
 			}
 			elapsed := GetTimeElapsed(timestamp)
-			return Format(titleTexts.TempDuplicateFirst, &map[string]string{"nick": nick, "elapsed": elapsed})
+			return Format(proc.Texts.TempDuplicateFirst, &map[string]string{"nick": nick, "elapsed": elapsed})
 		} else if count > 1 { // More duplicates exist
 			if bot.areSamePeople(nick, sender) {
-				nick = titleTexts.DuplicateYou
+				nick = proc.Texts.DuplicateYou
 			}
 			elapsed := GetTimeElapsed(timestamp)
 			return Format(
-				titleTexts.TempDuplicateMulti,
+				proc.Texts.TempDuplicateMulti,
 				&map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
 		}
 	}
@@ -129,7 +135,7 @@ func checkForDuplicates(bot *Bot, channel, sender, link string) string {
 }
 
 // Find out what to announce to the channel.
-func prepareShort(title, duplicates string) string {
+func (proc *UrlProcessorTitle) prepareShort(title, duplicates string) string {
 	if title != "" && duplicates != "" {
 		return fmt.Sprintf("%s (%s)", title, duplicates)
 	}
@@ -143,9 +149,9 @@ func prepareShort(title, duplicates string) string {
 }
 
 // Look for urls in the message, resolve the title.
-func urlProcessorTitle(bot *Bot, info *urlInfo, channel, sender, msg string) {
+func (proc *UrlProcessorTitle) Process(bot *Bot, info *urlInfo, channel, sender, msg string) {
 	// Get the title
-	title, final_link, description, err := getTitle(info.link)
+	title, final_link, description, err := proc.getTitle(info.link)
 	if err != nil {
 		bot.log.Warning("Error getting title: %s", err)
 	} else {
@@ -157,8 +163,8 @@ func urlProcessorTitle(bot *Bot, info *urlInfo, channel, sender, msg string) {
 	}
 
 	// Check for duplicates
-	duplicates := checkForDuplicates(bot, channel, sender, info.link)
-	info.shortInfo = prepareShort(title, duplicates)
+	duplicates := proc.checkForDuplicates(bot, channel, sender, info.link)
+	info.shortInfo = proc.prepareShort(title, duplicates)
 	info.longInfo = description
 
 	// Insert url into db

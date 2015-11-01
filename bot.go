@@ -32,15 +32,18 @@ func New(configFile, textsFile string) *Bot {
 
 	// Init bot struct
 	bot := &Bot{
-		floodSemaphore:              make(chan int, 5),
-		log:                         logging.MustGetLogger("bot"),
-		kickedFrom:                  map[string]bool{},
-		configFile:                  configFile,
-		textsFile:                   textsFile,
+		log:            logging.MustGetLogger("bot"),
+		floodSemaphore: make(chan int, 5),
+		kickedFrom:     map[string]bool{},
+
+		textsFile: textsFile,
+		Texts:     &botTexts{},
+
 		lastURLAnnouncedTime:        map[string]time.Time{},
 		lastURLAnnouncedLinesPassed: map[string]int{},
 		urlMoreInfo:                 map[string]string{},
 
+		configFile: configFile,
 		Config: Configuration{
 			AntiFloodDelay:             5,
 			LogChannel:                 true,
@@ -53,7 +56,17 @@ func New(configFile, textsFile string) *Bot {
 		commands:        map[string]*botCommand{},
 		commandUseLimit: map[string]int{},
 		commandWarn:     map[string]bool{},
-		Texts:           &botTexts{},
+
+		// Register URL processors
+		urlProcessors: []urlProcessor{
+			new(UrlProcessorTitle),
+			new(UrlProcessorGitHub),
+		},
+
+		// Register extensions
+		extensions: []extension{
+			new(ExtensionBtc),
+		},
 	}
 	// Logging init.
 	formatNorm := logging.MustStringFormatter(
@@ -105,10 +118,18 @@ func New(configFile, textsFile string) *Bot {
 	bot.initBotCommands()
 
 	// Init processors
-	initUrlProcessorTitle(bot)
+	for i := range bot.urlProcessors {
+		if err := bot.urlProcessors[i].Init(bot); err != nil {
+			bot.log.Fatal("Error loading processors: %s", err)
+		}
+	}
 
 	// Init extensions.
-	initBtcExtension(bot)
+	for i := range bot.extensions {
+		if err := bot.extensions[i].Init(bot); err != nil {
+			bot.log.Fatal("Error loading extensions: %s", err)
+		}
+	}
 
 	return bot
 }

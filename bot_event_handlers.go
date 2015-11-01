@@ -226,8 +226,9 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 		urlinfo := &urlInfo{link, "", ""}
 
 		// Run the processors - order matters
-		urlProcessorTitle(bot, urlinfo, channel, nick, msg)
-		urlProcessorGithub(bot, urlinfo, channel, nick, msg)
+		for i := range bot.urlProcessors {
+			bot.urlProcessors[i].Process(bot, urlinfo, channel, nick, msg)
+		}
 
 		linkKey := urlinfo.link + channel
 		// If we can't announce yet, skip this link

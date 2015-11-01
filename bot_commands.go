@@ -11,19 +11,19 @@ func (bot *Bot) initBotCommands() {
 	bot.commands["auth"] = &botCommand{
 		true, false,
 		"auth password", "Authenticate with the bot.",
-		bot.commandAuth}
+		commandAuth}
 	bot.commands["reload_texts"] = &botCommand{
 		true, true,
 		"reload_texts", "Reload bot's texts from file.",
-		bot.commandReloadTexts}
+		commandReloadTexts}
 	bot.commands["find"] = &botCommand{
 		false, false,
 		"find token1 token2 token3 ...", "Look for URLs containing all the tokens.",
-		bot.commandFindUrl}
+		commandFindUrl}
 	bot.commands["more"] = &botCommand{
 		false, false,
 		"more", "Say more about last link.",
-		bot.commandSayMore}
+		commandSayMore}
 }
 
 // handleBotCommand handles command directed at the bot.
@@ -96,7 +96,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsOwner))
 			return
 		}
-		cmd.commandFunc(nick, user, channel, receiver, private, params)
+		cmd.commandFunc(bot, nick, user, channel, receiver, private, params)
 	} else { // Unknown command, say something
 		bot.SendMessage(receiver, fmt.Sprintf(
 			"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
@@ -104,7 +104,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 }
 
 // commandAuth is a command for authenticating a user as bot's owner.
-func (bot *Bot) commandAuth(nick, user, channel, receiver string, priv bool, params []string) {
+func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) == 1 && bot.hashPassword(params[0]) == bot.Config.OwnerPassword {
 		bot.SendMessage(receiver, bot.Texts.PasswordOk)
 		bot.BotOwner = nick + "!" + user
@@ -113,7 +113,7 @@ func (bot *Bot) commandAuth(nick, user, channel, receiver string, priv bool, par
 }
 
 // commandReloadTexts reloads texts from TOML file.
-func (bot *Bot) commandReloadTexts(nick, user, channel, receiver string, priv bool, params []string) {
+func commandReloadTexts(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	// Silence possible text errors
 	defer func() {
 		if r := recover(); r != nil {
@@ -126,7 +126,7 @@ func (bot *Bot) commandReloadTexts(nick, user, channel, receiver string, priv bo
 }
 
 // commandSayMore gives more info, if bot has any.
-func (bot *Bot) commandSayMore(nick, user, channel, receiver string, priv bool, params []string) {
+func commandSayMore(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if bot.urlMoreInfo[receiver] == "" {
 		bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
 		return
@@ -140,7 +140,7 @@ func (bot *Bot) commandSayMore(nick, user, channel, receiver string, priv bool, 
 }
 
 // commandFindUrl searches bot's database using FTS for links matching the query.
-func (bot *Bot) commandFindUrl(nick, user, channel, receiver string, priv bool, params []string) {
+func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) == 0 {
 		return
 	}

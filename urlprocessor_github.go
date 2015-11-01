@@ -5,13 +5,19 @@ import (
 	"regexp"
 )
 
-var (
-	gitHubRe = regexp.MustCompile(`(?i)github\.com/(.*?)/(.*?)(/|$)`)
-)
+type UrlProcessorGitHub struct {
+	gitHubRe *regexp.Regexp
+}
 
-// urlProcessorGithub will try to get more info on GitHub links.
-func urlProcessorGithub(bot *Bot, info *urlInfo, channel, sender, msg string) {
-	match := gitHubRe.FindStringSubmatch(info.link)
+// Init the processor.
+func (proc *UrlProcessorGitHub) Init(bot *Bot) error {
+	proc.gitHubRe = regexp.MustCompile(`(?i)github\.com/(.*?)/(.*?)(/|$)`)
+	return nil
+}
+
+// Processor will try to get more info on GitHub links.
+func (proc *UrlProcessorGitHub) Process(bot *Bot, info *urlInfo, channel, sender, msg string) {
+	match := proc.gitHubRe.FindStringSubmatch(info.link)
 	if len(match) < 2 {
 		return
 	}

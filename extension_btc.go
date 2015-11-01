@@ -8,47 +8,54 @@ import (
 	"time"
 )
 
-type btcExtensionTextsStruct struct {
+type ExtensionBtc struct {
+	HourlyLastQuery time.Time
+	HourlyData      map[string]interface{}
+	LastAsk         map[string]time.Time
+	Warned          map[string]bool
+
+	Texts *extensionBtcTexts
+}
+
+type extensionBtcTexts struct {
 	NothingHasChanged string
 	TplBtcNotice      string
 	TempBtcNotice     *template.Template
 }
 
-var (
-	btcHourlyLastQuery time.Time
-	btcHourlyData      map[string]interface{}
-	btcAsk             = map[string]time.Time{}
-	btcWarned          = map[string]bool{}
-
-	btcTexts = &btcExtensionTextsStruct{}
-)
-
-func initBtcExtension(bot *Bot) {
+func (ext *ExtensionBtc) Init(bot *Bot) error {
 	// Register new command
 	bot.commands["btc"] = &botCommand{
 		false, false,
 		"btc", "Show current BTC price.",
-		bot.commandBtc}
-	bot.loadTexts(bot.textsFile, btcTexts)
+		ext.commandBtc}
+	ext.LastAsk = map[string]time.Time{}
+	ext.Warned = map[string]bool{}
+	texts := new(extensionBtcTexts)
+	if err := bot.loadTexts(bot.textsFile, texts); err != nil {
+		return err
+	}
+	ext.Texts = texts
+	return nil
 }
 
-func (bot *Bot) commandBtc(nick, user, channel, receiver string, priv bool, params []string) {
+func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	// Get fresh data max every 5 minutes.
-	if time.Since(btcHourlyLastQuery) > 5*time.Minute {
+	if time.Since(ext.HourlyLastQuery) > 5*time.Minute {
 		data, err := GetJsonResponse("http://www.bitstamp.net/api/ticker/")
 		if err != nil {
 			bot.log.Warning("Error getting BTC data: %s", err)
 		}
-		btcHourlyData = data
-		btcHourlyLastQuery = time.Now()
+		ext.HourlyData = data
+		ext.HourlyLastQuery = time.Now()
 	}
 	// Answer only once per 5 minutes per channel.
-	if time.Since(btcAsk[channel]) > 5*time.Minute {
-		btcAsk[channel] = time.Now()
-		btcWarned[channel] = false
-		price, _ := strconv.ParseFloat(btcHourlyData["last"].(string), 64)
+	if time.Since(ext.LastAsk[channel]) > 5*time.Minute {
+		ext.LastAsk[channel] = time.Now()
+		ext.Warned[channel] = false
+		price, _ := strconv.ParseFloat(ext.HourlyData["last"].(string), 64)
 		//		open, _ := strconv.ParseFloat(btcHourlyData["open"].(string), 64)
-		diff := price - btcHourlyData["open"].(float64)
+		diff := price - ext.HourlyData["open"].(float64)
 		diffstr := ""
 		if diff > 0 {
 			diffstr = fmt.Sprintf("⬆$%.2f", math.Abs(diff))
@@ -57,12 +64,12 @@ func (bot *Bot) commandBtc(nick, user, channel, receiver string, priv bool, para
 		}
 		pricestr := fmt.Sprintf("$%.2f", price)
 
-		bot.SendNotice(receiver, Format(btcTexts.TempBtcNotice, &map[string]string{"price": pricestr, "diff": diffstr}))
+		bot.SendNotice(receiver, Format(ext.Texts.TempBtcNotice, &map[string]string{"price": pricestr, "diff": diffstr}))
 	} else {
 		// Only warn once.
-		if !btcWarned[channel] {
-			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, btcTexts.NothingHasChanged))
-			btcWarned[channel] = true
+		if !ext.Warned[channel] {
+			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, ext.Texts.NothingHasChanged))
+			ext.Warned[channel] = true
 		}
 	}
 
