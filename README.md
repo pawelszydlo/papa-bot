@@ -21,6 +21,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 ###Bundled extensions
 
 * Title, description and duplicates announce.
+* Check if link was posted on Reddit.
 * GitHub repository information.
 * BTC price command.
 

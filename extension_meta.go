@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// ExtensionMeta - extension for getting title and description from html links.
 type ExtensionMeta struct {
 	Texts                   *ExtensionMetaTexts
 	titleRe, metaRe, descRe *regexp.Regexp

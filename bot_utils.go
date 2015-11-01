@@ -31,17 +31,21 @@ var magnitudes = []struct {
 }{
 	{60, "chwilkę temu", 1},
 	{2 * Minute, "1 minutę temu", 1},
+	{5 * Minute, "%d minuty temu", Minute},
 	{Hour, "%d minut temu", Minute},
 	{2 * Hour, "1 godzinę temu", 1},
+	{5 * Hour, "%d godziny temu", Hour},
 	{Day, "%d godzin temu", Hour},
 	{2 * Day, "1 dzień temu", 1},
 	{Week, "%d dni temu", Day},
 	{2 * Week, "1 tydzień temu", 1},
+	{5 * Week, "%d tygodnie temu", Week},
 	{Month, "%d tygodni temu", Week},
 	{2 * Month, "1 miesiąc temu", 1},
+	{5 * Month, "%d miesiące temu", Month},
 	{Year, "%d miesięcy temu", Month},
 	{18 * Month, "1 rok temu", 1},
-	{2 * Year, "2 lata temu", 1},
+	{5 * Year, "%d lata temu", Year},
 	{LongTime, "%d lat temu", Year},
 }
 

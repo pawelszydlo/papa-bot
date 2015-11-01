@@ -6,6 +6,7 @@ import (
 	"regexp"
 )
 
+// ExtensionGitHub - extension for getting basic repository information.
 type ExtensionGitHub struct {
 	gitHubRe *regexp.Regexp
 }

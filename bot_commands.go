@@ -28,7 +28,7 @@ func (bot *Bot) initBotCommands() {
 
 // handleBotCommand handles commands directed at the bot.
 func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
-	// Silence any errors :)
+	// Catch errors.
 	defer func() {
 		if r := recover(); r != nil {
 			bot.log.Error("FATAL ERROR in bot command: %s", r)

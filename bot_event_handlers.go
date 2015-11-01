@@ -215,6 +215,12 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 
 // handlerMsgURLs finds all URLs in the message and executes the URL processors on them.
 func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
+	// Catch errors.
+	defer func() {
+		if r := recover(); r != nil {
+			bot.log.Error("FATAL ERROR in URL processor: %s", r)
+		}
+	}()
 	// Find all URLs in the message.
 	links := xurls.Relaxed.FindAllString(msg, -1)
 	for i := range links {

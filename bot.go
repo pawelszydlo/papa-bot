@@ -39,7 +39,7 @@ func New(configFile, textsFile string) *Bot {
 	// Init bot struct.
 	bot := &Bot{
 		log:            logging.MustGetLogger("bot"),
-		HTTPClient:     &http.Client{Timeout: 5 * time.Second},
+		HTTPClient:     &http.Client{Timeout: 10 * time.Second},
 		floodSemaphore: make(chan int, 5),
 		kickedFrom:     map[string]bool{},
 
@@ -71,6 +71,7 @@ func New(configFile, textsFile string) *Bot {
 			new(ExtensionMeta),
 			new(ExtensionGitHub),
 			new(ExtensionBtc),
+			new(ExtensionReddit),
 		},
 	}
 	// Logging init.
