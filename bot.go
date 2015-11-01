@@ -6,20 +6,26 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"math/rand"
+	"net/http"
+	"os"
+	"reflect"
+	"strings"
+	"text/template"
+	"time"
+
+	"errors"
 	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nickvanw/ircx"
 	"github.com/op/go-logging"
 	"github.com/sorcix/irc"
 	"golang.org/x/crypto/pbkdf2"
-	"io/ioutil"
-	"log"
-	"math/rand"
-	"os"
-	"reflect"
-	"strings"
-	"text/template"
-	"time"
+	"golang.org/x/net/html/charset"
+	"golang.org/x/text/transform"
 )
 
 const (
@@ -33,11 +39,12 @@ func New(configFile, textsFile string) *Bot {
 	// Init bot struct.
 	bot := &Bot{
 		log:            logging.MustGetLogger("bot"),
+		HTTPClient:     &http.Client{Timeout: 5 * time.Second},
 		floodSemaphore: make(chan int, 5),
 		kickedFrom:     map[string]bool{},
 
 		textsFile: textsFile,
-		Texts:     &botTexts{},
+		Texts:     &BotTexts{},
 
 		lastURLAnnouncedTime:        map[string]time.Time{},
 		lastURLAnnouncedLinesPassed: map[string]int{},
@@ -51,20 +58,18 @@ func New(configFile, textsFile string) *Bot {
 			UrlAnnounceIntervalMinutes: 15,
 			UrlAnnounceIntervalLines:   50,
 			RejoinDelaySeconds:         15,
+			PageBodyMaxSize:            50 * 1024,
+			HttpUserAgent:              "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
 		},
 
-		commands:        map[string]*botCommand{},
+		commands:        map[string]*BotCommand{},
 		commandUseLimit: map[string]int{},
 		commandWarn:     map[string]bool{},
 
-		// Register URL processors.
-		urlProcessors: []urlProcessor{
-			new(UrlProcessorTitle),
-			new(UrlProcessorGitHub),
-		},
-
-		// Register extensions.
-		extensions: []extension{
+		// Register extensions (ordering matters!)
+		extensions: []Extension{
+			new(ExtensionMeta),
+			new(ExtensionGitHub),
 			new(ExtensionBtc),
 		},
 	}
@@ -116,13 +121,6 @@ func New(configFile, textsFile string) *Bot {
 
 	// Init bot commands.
 	bot.initBotCommands()
-
-	// Init processors.
-	for i := range bot.urlProcessors {
-		if err := bot.urlProcessors[i].Init(bot); err != nil {
-			bot.log.Fatal("Error loading processors: %s", err)
-		}
-	}
 
 	// Init extensions.
 	for i := range bot.extensions {
@@ -277,6 +275,69 @@ func (bot *Bot) scribe(channel string, message ...interface{}) {
 		scribe := log.New(f, "", log.Ldate|log.Ltime)
 		scribe.Println(message...)
 	}()
+}
+
+// GetPageBodyByURL is a convenience wrapper around GetPageBody.
+func (bot *Bot) GetPageBodyByURL(url string) ([]byte, error) {
+	urlinfo := &UrlInfo{url, "", []byte{}, "", ""}
+	if err := bot.GetPageBody(urlinfo); err != nil {
+		return urlinfo.Body, err
+	}
+	return urlinfo.Body, nil
+}
+
+// GetPageBody gets and returns a body of a page.
+func (bot *Bot) GetPageBody(urlinfo *UrlInfo) error {
+	if urlinfo.URL == "" {
+		return errors.New("Empty URL")
+	}
+	// Build the request.
+	req, err := http.NewRequest("GET", urlinfo.URL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", bot.Config.HttpUserAgent)
+
+	// Get response.
+	resp, err := bot.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Update the URL if it changed after redirects.
+	final_link := resp.Request.URL.String()
+	if final_link != "" && final_link != urlinfo.URL {
+		bot.log.Debug("%s becomes %s", urlinfo.URL, final_link)
+		urlinfo.URL = final_link
+	}
+
+	// Load the body up to PageBodyMaxSize.
+	body := make([]byte, bot.Config.PageBodyMaxSize, bot.Config.PageBodyMaxSize)
+	if num, err := io.ReadFull(resp.Body, body); err != nil && err != io.ErrUnexpectedEOF {
+		return err
+	} else {
+		// Trim unneeded 0 bytes so that JSON unmarshaller won't complain.
+		body = body[:num]
+	}
+	// Get the content-type
+	content_type := resp.Header.Get("Content-Type")
+	if content_type == "" {
+		content_type = http.DetectContentType(body)
+	}
+	urlinfo.ContentType = content_type
+
+	// If type is text, decode the body to UTF-8.
+	if strings.Contains(content_type, "text/html") || strings.Contains(content_type, "text/plain") {
+		encoding, _, _ := charset.DetermineEncoding(body, content_type)
+		decodedBody, _, _ := transform.Bytes(encoding.NewDecoder(), body)
+		urlinfo.Body = decodedBody
+	} else if strings.Contains(content_type, "application/json") {
+		urlinfo.Body = body
+	} else {
+		bot.log.Debug("Not fetching the body for Content-Type: %s", content_type)
+	}
+	return nil
 }
 
 // loadTexts loads texts from a file into a struct auto handling the templates.

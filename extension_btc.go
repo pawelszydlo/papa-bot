@@ -1,6 +1,7 @@
 package papaBot
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -25,7 +26,7 @@ type extensionBtcTexts struct {
 
 func (ext *ExtensionBtc) Init(bot *Bot) error {
 	// Register new command.
-	bot.commands["btc"] = &botCommand{
+	bot.commands["btc"] = &BotCommand{
 		false, false,
 		"btc", "Show current BTC price.",
 		ext.commandBtc}
@@ -39,13 +40,22 @@ func (ext *ExtensionBtc) Init(bot *Bot) error {
 	return nil
 }
 
+func (proc *ExtensionBtc) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}
+
 func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	// Get fresh data max every 5 minutes.
 	if time.Since(ext.HourlyLastQuery) > 5*time.Minute {
-		data, err := GetJsonResponse("http://www.bitstamp.net/api/ticker/")
+		body, err := bot.GetPageBodyByURL("http://www.bitstamp.net/api/ticker/")
 		if err != nil {
 			bot.log.Warning("Error getting BTC data: %s", err)
 		}
+		// Convert from JSON
+		var raw_data interface{}
+		if err := json.Unmarshal(body, &raw_data); err != nil {
+			bot.log.Warning("Error parsing JSON from Bitstamp: %s", err)
+			return
+		}
+		data := raw_data.(map[string]interface{})
 		ext.HourlyData = data
 		ext.HourlyLastQuery = time.Now()
 	}

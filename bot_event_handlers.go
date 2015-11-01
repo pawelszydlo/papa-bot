@@ -223,14 +223,18 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 		link := StandardizeURL(links[i])
 		bot.log.Debug("Standardized to: %s", link)
 		// Link info structure, it will be filled by the processors.
-		urlinfo := &urlInfo{link, "", ""}
-
-		// Run the processors - order matters.
-		for i := range bot.urlProcessors {
-			bot.urlProcessors[i].Process(bot, urlinfo, channel, nick, msg)
+		urlinfo := &UrlInfo{link, "", []byte{}, "", ""}
+		// Try to get the body of the page.
+		if err := bot.GetPageBody(urlinfo); err != nil {
+			bot.log.Warning("Could't fetch the body: %s", err)
 		}
 
-		linkKey := urlinfo.link + channel
+		// Run the extensions.
+		for i := range bot.extensions {
+			bot.extensions[i].ProcessURL(bot, urlinfo, channel, nick, msg)
+		}
+
+		linkKey := urlinfo.URL + channel
 		// If we can't announce yet, skip this link.
 		if time.Since(bot.lastURLAnnouncedTime[linkKey]) < bot.Config.UrlAnnounceIntervalMinutes*time.Minute {
 			continue
@@ -240,16 +244,16 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 		}
 
 		// Announce the short info, save the long info.
-		if urlinfo.shortInfo != "" {
-			if urlinfo.longInfo != "" {
-				bot.SendNotice(channel, urlinfo.shortInfo+" …")
+		if urlinfo.ShortInfo != "" {
+			if urlinfo.LongInfo != "" {
+				bot.SendNotice(channel, urlinfo.ShortInfo+" …")
 			} else {
-				bot.SendNotice(channel, urlinfo.shortInfo)
+				bot.SendNotice(channel, urlinfo.ShortInfo)
 			}
 			bot.lastURLAnnouncedTime[linkKey] = time.Now()
 			bot.lastURLAnnouncedLinesPassed[linkKey] = 0
 			// Keep the long info for later.
-			bot.urlMoreInfo[channel] = urlinfo.longInfo
+			bot.urlMoreInfo[channel] = urlinfo.LongInfo
 		}
 	}
 }

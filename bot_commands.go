@@ -8,19 +8,19 @@ import (
 
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
-	bot.commands["auth"] = &botCommand{
+	bot.commands["auth"] = &BotCommand{
 		true, false,
 		"auth password", "Authenticate with the bot.",
 		commandAuth}
-	bot.commands["reload_texts"] = &botCommand{
+	bot.commands["reload_texts"] = &BotCommand{
 		true, true,
 		"reload_texts", "Reload bot's texts from file.",
 		commandReloadTexts}
-	bot.commands["find"] = &botCommand{
+	bot.commands["find"] = &BotCommand{
 		false, false,
 		"find token1 token2 token3 ...", "Look for URLs containing all the tokens.",
 		commandFindUrl}
-	bot.commands["more"] = &botCommand{
+	bot.commands["more"] = &BotCommand{
 		false, false,
 		"more", "Say more about last link.",
 		commandSayMore}
@@ -74,29 +74,29 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	if command == "help" {
 		for _, cmd := range bot.commands {
 			options := ""
-			if cmd.privateOnly {
+			if cmd.Private {
 				options = " (query only)"
 			}
-			if cmd.ownerOnly && !owner {
+			if cmd.Owner && !owner {
 				continue
 			}
-			bot.SendNotice(nick, fmt.Sprintf("%s - %s%s", cmd.usage, cmd.help, options))
+			bot.SendNotice(nick, fmt.Sprintf("%s - %s%s", cmd.HelpUsage, cmd.HelpDescription, options))
 		}
 		return
 	}
 
 	if cmd, exists := bot.commands[command]; exists {
 		// Check if command needs to be run through query.
-		if cmd.privateOnly && !private {
+		if cmd.Private && !private {
 			bot.SendMessage(channel, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsPriv))
 			return
 		}
 		// Check if command needs to be run by the owner.
-		if cmd.ownerOnly && !owner {
+		if cmd.Owner && !owner {
 			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsOwner))
 			return
 		}
-		cmd.commandFunc(bot, nick, user, channel, receiver, private, params)
+		cmd.CommandFunc(bot, nick, user, channel, receiver, private, params)
 	} else { // Unknown command, say something.
 		bot.SendMessage(receiver, fmt.Sprintf(
 			"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
