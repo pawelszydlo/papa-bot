@@ -10,15 +10,15 @@ type ExtensionGitHub struct {
 	gitHubRe *regexp.Regexp
 }
 
-// Init the processor.
-func (proc *ExtensionGitHub) Init(bot *Bot) error {
-	proc.gitHubRe = regexp.MustCompile(`(?i)github\.com/(.*?)/(.*?)(/|$)`)
+// Init inits the extension.
+func (ext *ExtensionGitHub) Init(bot *Bot) error {
+	ext.gitHubRe = regexp.MustCompile(`(?i)github\.com/(.+?)/(.+?)(/|$)`)
 	return nil
 }
 
-// Processor will try to get more info on GitHub links.
-func (proc *ExtensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
-	match := proc.gitHubRe.FindStringSubmatch(urlinfo.URL)
+// ProcessURL will try to get more info on GitHub links.
+func (ext *ExtensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
+	match := ext.gitHubRe.FindStringSubmatch(urlinfo.URL)
 	if len(match) < 2 {
 		return
 	}

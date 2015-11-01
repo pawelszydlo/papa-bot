@@ -3,6 +3,7 @@ package papaBot
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -22,44 +23,44 @@ type ExtensionMetaTexts struct {
 	DuplicateYou string
 }
 
-// Init the extension.
-func (proc *ExtensionMeta) Init(bot *Bot) error {
+// Init inits the extension.
+func (ext *ExtensionMeta) Init(bot *Bot) error {
 	texts := new(ExtensionMetaTexts) // Can't load directly because of reflection issues.
 	if err := bot.loadTexts(bot.textsFile, texts); err != nil {
 		return err
 	}
-	proc.Texts = texts
-	proc.titleRe = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
-	proc.metaRe = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
-	proc.descRe = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
+	ext.Texts = texts
+	ext.titleRe = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
+	ext.metaRe = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
+	ext.descRe = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
 	return nil
 }
 
-// Find the title for url.
-func (proc *ExtensionMeta) getTitle(body string) (string, string, error) {
+// getTitle find the title and description.
+func (ext *ExtensionMeta) getTitle(body string) (string, string, error) {
 	// Iterate over meta tags to get the description
 	description := ""
-	metas := proc.metaRe.FindAllStringSubmatch(string(body), -1)
+	metas := ext.metaRe.FindAllStringSubmatch(string(body), -1)
 	for i := range metas {
 		if len(metas[i]) > 1 {
-			isDesc := proc.descRe.FindString(metas[i][0])
+			isDesc := ext.descRe.FindString(metas[i][0])
 			if isDesc != "" && (len(metas[i][1]) > len(description)) {
-				description = SanitizeString(metas[i][1])
+				description = CleanString(metas[i][1])
 			}
 		}
 	}
 	// Get the title
-	match := proc.titleRe.FindStringSubmatch(string(body))
+	match := ext.titleRe.FindStringSubmatch(string(body))
 	if len(match) > 1 {
-		title := SanitizeString(match[1])
+		title := CleanString(match[1])
 		return title, description, nil
 	}
 
 	return "", "", nil
 }
 
-// Check for duplicates of the url in the database.
-func (proc *ExtensionMeta) checkForDuplicates(bot *Bot, channel, sender, link string) string {
+// checkForDuplicates checks for duplicates of the url in the database.
+func (ext *ExtensionMeta) checkForDuplicates(bot *Bot, channel, sender, link string) string {
 	result, err := bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
 		FROM urls WHERE link=? AND channel=?
@@ -84,25 +85,25 @@ func (proc *ExtensionMeta) checkForDuplicates(bot *Bot, channel, sender, link st
 		// Only one duplicate
 		if count == 1 {
 			if bot.areSamePeople(nick, sender) {
-				nick = proc.Texts.DuplicateYou
+				nick = ext.Texts.DuplicateYou
 			}
-			elapsed := GetTimeElapsed(timestamp)
-			return Format(proc.Texts.TempDuplicateFirst, &map[string]string{"nick": nick, "elapsed": elapsed})
+			elapsed := HumanizedSince(MustForceLocalTimezone(timestamp))
+			return Format(ext.Texts.TempDuplicateFirst, &map[string]string{"nick": nick, "elapsed": elapsed})
 		} else if count > 1 { // More duplicates exist
 			if bot.areSamePeople(nick, sender) {
-				nick = proc.Texts.DuplicateYou
+				nick = ext.Texts.DuplicateYou
 			}
-			elapsed := GetTimeElapsed(timestamp)
+			elapsed := HumanizedSince(MustForceLocalTimezone(timestamp))
 			return Format(
-				proc.Texts.TempDuplicateMulti,
+				ext.Texts.TempDuplicateMulti,
 				&map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
 		}
 	}
 	return ""
 }
 
-// Find out what to announce to the channel.
-func (proc *ExtensionMeta) prepareShort(title, duplicates string) string {
+// prepareShort finds out what to announce to the channel.
+func (ext *ExtensionMeta) prepareShort(title, duplicates string) string {
 	if title != "" && duplicates != "" {
 		return fmt.Sprintf("%s (%s)", title, duplicates)
 	}
@@ -115,13 +116,13 @@ func (proc *ExtensionMeta) prepareShort(title, duplicates string) string {
 	return ""
 }
 
-// Look for urls in the message, resolve the title.
-func (proc *ExtensionMeta) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
-	if len(urlinfo.Body) == 0 {
+// ProcessURL will try to get the title and description.
+func (ext *ExtensionMeta) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
+	if len(urlinfo.Body) == 0 || !strings.Contains(urlinfo.ContentType, "html") {
 		return
 	}
 	// Get the title
-	title, description, err := proc.getTitle(string(urlinfo.Body))
+	title, description, err := ext.getTitle(string(urlinfo.Body))
 	if err != nil {
 		bot.log.Warning("Error getting title: %s", err)
 	} else {
@@ -129,8 +130,8 @@ func (proc *ExtensionMeta) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sende
 	}
 
 	// Check for duplicates
-	duplicates := proc.checkForDuplicates(bot, channel, sender, urlinfo.URL)
-	urlinfo.ShortInfo = proc.prepareShort(title, duplicates)
+	duplicates := ext.checkForDuplicates(bot, channel, sender, urlinfo.URL)
+	urlinfo.ShortInfo = ext.prepareShort(title, duplicates)
 	urlinfo.LongInfo = description
 
 	// Insert url into db

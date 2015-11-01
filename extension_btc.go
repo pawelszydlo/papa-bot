@@ -40,7 +40,7 @@ func (ext *ExtensionBtc) Init(bot *Bot) error {
 	return nil
 }
 
-func (proc *ExtensionBtc) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}
+func (ext *ExtensionBtc) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}
 
 func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	// Get fresh data max every 5 minutes.

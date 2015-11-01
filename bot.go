@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	Version = "0.8.1"
+	Version = "0.8.2"
 )
 
 // New creates a new bot.
@@ -340,7 +340,7 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo) error {
 	return nil
 }
 
-// loadTexts loads texts from a file into a struct auto handling the templates.
+// loadTexts loads texts from a file into a struct, auto handling the templates.
 func (bot *Bot) loadTexts(filename string, data interface{}) error {
 
 	// Decode TOML
