@@ -24,7 +24,7 @@ type extensionBtcTexts struct {
 }
 
 func (ext *ExtensionBtc) Init(bot *Bot) error {
-	// Register new command
+	// Register new command.
 	bot.commands["btc"] = &botCommand{
 		false, false,
 		"btc", "Show current BTC price.",

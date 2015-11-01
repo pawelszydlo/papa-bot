@@ -26,7 +26,7 @@ func (bot *Bot) initBotCommands() {
 		commandSayMore}
 }
 
-// handleBotCommand handles command directed at the bot.
+// handleBotCommand handles commands directed at the bot.
 func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	// Silence any errors :)
 	defer func() {
@@ -58,9 +58,9 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 		return
 	}
 
-	if !private && !owner { // Command limits apply
+	if !private && !owner { // Command limits apply.
 		if bot.commandUseLimit[command+nick] >= bot.Config.CommandsPer5 {
-			if !bot.commandWarn[channel] { // Warning was not yet sent
+			if !bot.commandWarn[channel] { // Warning was not yet sent.
 				bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.CommandLimit))
 				bot.commandWarn[channel] = true
 			}
@@ -70,7 +70,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 		}
 	}
 
-	// Print help
+	// Print help.
 	if command == "help" {
 		for _, cmd := range bot.commands {
 			options := ""
@@ -86,18 +86,18 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	}
 
 	if cmd, exists := bot.commands[command]; exists {
-		// Check if command needs to be run through query
+		// Check if command needs to be run through query.
 		if cmd.privateOnly && !private {
 			bot.SendMessage(channel, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsPriv))
 			return
 		}
-		// Check if command needs to be run by the owner
+		// Check if command needs to be run by the owner.
 		if cmd.ownerOnly && !owner {
 			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsOwner))
 			return
 		}
 		cmd.commandFunc(bot, nick, user, channel, receiver, private, params)
-	} else { // Unknown command, say something
+	} else { // Unknown command, say something.
 		bot.SendMessage(receiver, fmt.Sprintf(
 			"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
 	}
@@ -153,7 +153,7 @@ func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, p
 	}
 	query3 := "search MATCH ? GROUP BY link ORDER BY timestamp DESC LIMIT 5"
 
-	// Query FTS table
+	// Query FTS table.
 	result, err := bot.Db.Query(query1+query2+query3, token)
 	if err != nil {
 		bot.log.Warning("Can't search for URLs: %s", err)
@@ -162,14 +162,14 @@ func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, p
 
 	defer result.Close()
 
-	// Announce results
+	// Announce results.
 	found := []string{}
 	for result.Next() {
 		var nick, timestr, link, title string
 		if err = result.Scan(&nick, &timestr, &link, &title); err != nil {
 			bot.log.Warning("Error getting search results: %s", err)
 		} else {
-			if priv { // skip the author and time when not on a channel
+			if priv { // skip the author and time when not on a channel.
 				found = append(found, fmt.Sprintf("%s (%s)", link, title))
 			} else {
 				found = append(found, fmt.Sprintf("%s | %s | %s (%s)", nick, timestr, link, title))

@@ -175,9 +175,9 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 	}
 
 	// Is it a private query?
-	if bot.isMe(channel) { // private msg to the bot
+	if bot.isMe(channel) {
 		go bot.handleBotCommand(channel, nick, user, msg)
-	} else { // Message on a channel
+	} else { // Message on a channel.
 		bot.scribe(channel, fmt.Sprintf("<%s> %s", nick, msg))
 
 		// Is someone talking to the bot?
@@ -197,17 +197,17 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 				return
 			}
 		}
-		// Increase lines count for all announcements
+		// Increase lines count for all announcements.
 		for k := range bot.lastURLAnnouncedLinesPassed {
 			bot.lastURLAnnouncedLinesPassed[k] += 1
-			// After 100 lines pass, forget it ever happened
+			// After 100 lines pass, forget it ever happened.
 			if bot.lastURLAnnouncedLinesPassed[k] > 100 {
 				delete(bot.lastURLAnnouncedLinesPassed, k)
 				delete(bot.lastURLAnnouncedTime, k)
 			}
 		}
 
-		// Handle links in the message
+		// Handle links in the message.
 		go bot.handlerMsgURLs(channel, nick, msg)
 
 	}
@@ -215,23 +215,23 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 
 // handlerMsgURLs finds all URLs in the message and executes the URL processors on them.
 func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
-	// Find all URLs in the message
+	// Find all URLs in the message.
 	links := xurls.Relaxed.FindAllString(msg, -1)
 	for i := range links {
-		// Validate the url
+		// Validate the url.
 		bot.log.Info("Got link %s", links[i])
 		link := StandardizeURL(links[i])
 		bot.log.Debug("Standardized to: %s", link)
-		// Link info structure, it will be filled by the processors
+		// Link info structure, it will be filled by the processors.
 		urlinfo := &urlInfo{link, "", ""}
 
-		// Run the processors - order matters
+		// Run the processors - order matters.
 		for i := range bot.urlProcessors {
 			bot.urlProcessors[i].Process(bot, urlinfo, channel, nick, msg)
 		}
 
 		linkKey := urlinfo.link + channel
-		// If we can't announce yet, skip this link
+		// If we can't announce yet, skip this link.
 		if time.Since(bot.lastURLAnnouncedTime[linkKey]) < bot.Config.UrlAnnounceIntervalMinutes*time.Minute {
 			continue
 		}
@@ -248,7 +248,7 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 			}
 			bot.lastURLAnnouncedTime[linkKey] = time.Now()
 			bot.lastURLAnnouncedLinesPassed[linkKey] = 0
-			// Keep the long info for later
+			// Keep the long info for later.
 			bot.urlMoreInfo[channel] = urlinfo.longInfo
 		}
 	}

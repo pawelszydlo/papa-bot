@@ -19,7 +19,7 @@ const (
 	preloadBodySize = 50 * 1024
 )
 
-// Get HTTP Response
+// GetHttpResponse gets and returns a HTTP response object.
 func GetHttpResponse(url string) (resp *http.Response, err error) {
 	// Build the request
 	req, err := http.NewRequest("GET", url, nil)
@@ -32,6 +32,7 @@ func GetHttpResponse(url string) (resp *http.Response, err error) {
 	return httpClient.Do(req)
 }
 
+// GetJsonResponse tries to get the body of the response and decode it from JSON.
 func GetJsonResponse(url string) (map[string]interface{}, error) {
 
 	// Get HTTP response
@@ -55,7 +56,7 @@ func GetJsonResponse(url string) (map[string]interface{}, error) {
 	return raw_data.(map[string]interface{}), nil
 }
 
-// Sanitize string.
+// SanitizeString cleans a string.
 func SanitizeString(str string, enc encoding.Encoding) string {
 	str, _, _ = transform.String(enc.NewDecoder(), str)
 	str = html.UnescapeString(str)
@@ -64,7 +65,7 @@ func SanitizeString(str string, enc encoding.Encoding) string {
 	return strings.Trim(str, " ")
 }
 
-// Standardizes the url.
+// StandardizeURL standardizes the url by making sure it has a schema and converting IDNA domains into ASCII.
 func StandardizeURL(url string) string {
 	link := url
 	var schema, domain, path string

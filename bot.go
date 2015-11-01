@@ -1,4 +1,4 @@
-// IRC bot written mostly for handling URLs posted on the channels.
+// Package papaBot provides an easily extensible IRC bot written mostly for handling URLs posted on the channels.
 package papaBot
 
 import (
@@ -23,14 +23,14 @@ import (
 )
 
 const (
-	Version = "0.8.0"
+	Version = "0.8.1"
 )
 
 // New creates a new bot.
 func New(configFile, textsFile string) *Bot {
 	rand.Seed(time.Now().Unix())
 
-	// Init bot struct
+	// Init bot struct.
 	bot := &Bot{
 		log:            logging.MustGetLogger("bot"),
 		floodSemaphore: make(chan int, 5),
@@ -57,13 +57,13 @@ func New(configFile, textsFile string) *Bot {
 		commandUseLimit: map[string]int{},
 		commandWarn:     map[string]bool{},
 
-		// Register URL processors
+		// Register URL processors.
 		urlProcessors: []urlProcessor{
 			new(UrlProcessorTitle),
 			new(UrlProcessorGitHub),
 		},
 
-		// Register extensions
+		// Register extensions.
 		extensions: []extension{
 			new(ExtensionBtc),
 		},
@@ -78,17 +78,17 @@ func New(configFile, textsFile string) *Bot {
 
 	bot.log.Info("I am papaBot, version %s", Version)
 
-	// Load config
+	// Load config.
 	if err := bot.loadConfig(); err != nil {
 		bot.log.Error("Can't load config: %s", err)
 	}
 
-	// Load texts
+	// Load texts.
 	if err := bot.loadTexts(bot.textsFile, bot.Texts); err != nil {
 		bot.log.Fatal("Can't load texts: %s", err)
 	}
 
-	// Init database
+	// Init database.
 	if err := bot.initDb(); err != nil {
 		bot.log.Fatal("Can't init database: %s", err)
 	}
@@ -106,18 +106,18 @@ func New(configFile, textsFile string) *Bot {
 		}
 	}
 
-	// Init underlying irc bot
+	// Init underlying irc bot.
 	bot.irc = ircx.Classic(bot.Config.Server, bot.Config.Name)
 	bot.irc.Config.User = bot.Config.User
 	bot.irc.Config.MaxRetries = 9999
 
-	// Attach event handlers
+	// Attach event handlers.
 	bot.attachEventHandlers()
 
-	// Init bot commands
+	// Init bot commands.
 	bot.initBotCommands()
 
-	// Init processors
+	// Init processors.
 	for i := range bot.urlProcessors {
 		if err := bot.urlProcessors[i].Init(bot); err != nil {
 			bot.log.Fatal("Error loading processors: %s", err)
@@ -137,25 +137,25 @@ func New(configFile, textsFile string) *Bot {
 // loadConfig loads JSON configuration for the bot.
 func (bot *Bot) loadConfig() error {
 
-	// Load raw config file
+	// Load raw config file.
 	configFile, err := ioutil.ReadFile(bot.configFile)
 	if err != nil {
 		bot.log.Fatal("Can't load config file: %s", err)
 	}
 
-	// Decode TOML
+	// Decode TOML.
 	if _, err := toml.Decode(string(configFile), &bot.Config); err != nil {
 		return err
 	}
 
-	// Bot owners password
-	if bot.Config.OwnerPassword == "" { // Don't allow empty passwords
+	// Bot owners password.
+	if bot.Config.OwnerPassword == "" { // Don't allow empty passwords.
 		bot.log.Fatal("You must set OwnerPassword in your config.")
 	}
-	if !strings.HasPrefix(bot.Config.OwnerPassword, "hash:") { // Password needs to be hashed
+	if !strings.HasPrefix(bot.Config.OwnerPassword, "hash:") { // Password needs to be hashed.
 		bot.log.Info("Pasword not hashed. Hashing and saving.")
 		bot.Config.OwnerPassword = bot.hashPassword(bot.Config.OwnerPassword)
-		// Now rewrite the password line in the config
+		// Now rewrite the password line in the config.
 		lines := strings.Split(string(configFile), "\n")
 
 		for i, line := range lines {
@@ -279,7 +279,7 @@ func (bot *Bot) scribe(channel string, message ...interface{}) {
 	}()
 }
 
-// LoadTexts loads texts from a file into a struct.
+// loadTexts loads texts from a file into a struct auto handling the templates.
 func (bot *Bot) loadTexts(filename string, data interface{}) error {
 
 	// Decode TOML
@@ -291,11 +291,11 @@ func (bot *Bot) loadTexts(filename string, data interface{}) error {
 	rData := reflect.ValueOf(data).Elem()
 	missingTexts := false
 	for i := 0; i < rData.NumField(); i++ {
-		// Get field and it's value
+		// Get field and it's value.
 		field := rData.Type().Field(i)
 		fieldValue := rData.Field(i)
 
-		// Check if all fields were filled
+		// Check if all fields were filled.
 		if !strings.HasPrefix(field.Name, "Temp") {
 			if fieldValue.String() == "" {
 				bot.log.Warning("Field left empty %s!", field.Name)
@@ -310,7 +310,7 @@ func (bot *Bot) loadTexts(filename string, data interface{}) error {
 			} else {
 				tempFieldName := strings.TrimPrefix(field.Name, "Tpl")
 				tempFieldName = "Temp" + tempFieldName
-				// Set temp field
+				// Set template field value.
 				tempField := rData.FieldByName(tempFieldName)
 				if !tempField.IsValid() {
 					bot.log.Fatal("Can't find field %s to store template from %s.", tempFieldName, field.Name)

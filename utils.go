@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-// This part comes from https://github.com/dustin/go-humanize, copied for localization
 const (
 	Minute   = 60
 	Hour     = 60 * Minute
@@ -56,7 +55,7 @@ func DirExists(path string) (bool, error) {
 	return true, err
 }
 
-// TimeDiff returns a humanized time passed string.
+// TimePassed returns a humanized time passed string.
 func TimePassed(past time.Time) string {
 	diff := time.Now().Unix() - past.Unix()
 
