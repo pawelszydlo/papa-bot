@@ -48,6 +48,8 @@ type Extension interface {
 type UrlInfo struct {
 	// The URL itself.
 	URL string
+	// Title (this is a bit special, with one extension in mind).
+	Title string
 	// Content type (if available).
 	ContentType string
 	// Body (will be available only for type/html and type/text).

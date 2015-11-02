@@ -7,9 +7,16 @@ import (
 	"time"
 )
 
+// Planned:
+// https://www.reddit.com/r/wtf/hot.json?limit=1
+// TrueReddit
+// foodforthought
+// Futurology
+// longtext
+
 // ExtensionReddit - extension for getting link information from reddit.com.
 type ExtensionReddit struct {
-	announced map[string]bool
+	announced map[string]bool // TODO: this map is never cleaned.
 	Texts     *ExtensionRedditTexts
 }
 
@@ -22,14 +29,14 @@ type ExtensionRedditTexts struct {
 func (ext *ExtensionReddit) Init(bot *Bot) error {
 	ext.announced = map[string]bool{}
 	texts := &ExtensionRedditTexts{}
-	if err := bot.loadTexts(bot.textsFile, texts); err != nil {
+	if err := bot.LoadTexts(bot.textsFile, texts); err != nil {
 		return err
 	}
 	ext.Texts = texts
 	return nil
 }
 
-func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, channel string) string {
+func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel string) string {
 	// Catch errors.
 	defer func() {
 		if r := recover(); r != nil {
@@ -48,6 +55,7 @@ func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, channel string) string 
 		bot.log.Warning("Error parsing JSON from reddit: %s", err)
 		return ""
 	}
+	// TODO(pawelszydlo): create appropriate struct first and fill it?
 	data := raw_data.(map[string]interface{})
 	if data["error"] != nil {
 		bot.log.Debug("Reddit returned error %.0f.", data["error"])
@@ -63,6 +71,9 @@ func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, channel string) string 
 		score := int(post_data["score"].(float64))
 		if score > best_score {
 			title := post_data["title"].(string)
+			if title == urlTitle { // This happens.
+				title = ""
+			}
 			if len(title) > 100 {
 				title = title[:100] + "…"
 			}
@@ -91,15 +102,15 @@ func (ext *ExtensionReddit) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 
 	// Can we fit into the ShortInfo?
 	if urlinfo.ShortInfo == "" {
-		urlinfo.ShortInfo = ext.getRedditInfo(bot, urlinfo.URL, channel)
-	} else if len(urlinfo.ShortInfo) < 30 {
-		reddit := ext.getRedditInfo(bot, urlinfo.URL, channel)
+		urlinfo.ShortInfo = ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
+	} else if len(urlinfo.ShortInfo) < 50 {
+		reddit := ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
 		if reddit != "" {
 			urlinfo.ShortInfo += " | " + reddit
 		}
 	} else { // Better send as separate notcie.
 		go func() {
-			reddit := ext.getRedditInfo(bot, urlinfo.URL, channel)
+			reddit := ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
 			if reddit != "" {
 				bot.SendNotice(channel, reddit)
 			}

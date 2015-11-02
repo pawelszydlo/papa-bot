@@ -34,7 +34,7 @@ func (ext *ExtensionBtc) Init(bot *Bot) error {
 	ext.LastAsk = map[string]time.Time{}
 	ext.Warned = map[string]bool{}
 	texts := new(extensionBtcTexts)
-	if err := bot.loadTexts(bot.textsFile, texts); err != nil {
+	if err := bot.LoadTexts(bot.textsFile, texts); err != nil {
 		return err
 	}
 	ext.Texts = texts

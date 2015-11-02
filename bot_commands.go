@@ -37,7 +37,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	receiver := channel
 	// Was this command sent on a private query?
 	private := false
-	if bot.isMe(channel) {
+	if bot.IsMe(channel) {
 		private = true
 		receiver = nick
 	}
@@ -80,7 +80,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 			if cmd.Owner && !owner {
 				continue
 			}
-			bot.SendNotice(nick, fmt.Sprintf("%s - %s%s", cmd.HelpUsage, cmd.HelpDescription, options))
+			bot.SendMessage(nick, fmt.Sprintf("%s - %s%s", cmd.HelpUsage, cmd.HelpDescription, options))
 		}
 		return
 	}
@@ -105,7 +105,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 
 // commandAuth is a command for authenticating a user as bot's owner.
 func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
-	if len(params) == 1 && bot.hashPassword(params[0]) == bot.Config.OwnerPassword {
+	if len(params) == 1 && bot.HashPassword(params[0]) == bot.Config.OwnerPassword {
 		bot.SendMessage(receiver, bot.Texts.PasswordOk)
 		bot.BotOwner = nick + "!" + user
 		bot.log.Info("Owner set to: %s", bot.BotOwner)
@@ -121,7 +121,7 @@ func commandReloadTexts(bot *Bot, nick, user, channel, receiver string, priv boo
 		}
 	}()
 	bot.log.Info("Reloading texts...")
-	bot.loadTexts(bot.textsFile, bot.Texts)
+	bot.LoadTexts(bot.textsFile, bot.Texts)
 	bot.SendMessage(receiver, "Done.")
 }
 

@@ -20,7 +20,8 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 
 ###Bundled extensions
 
-* Title, description and duplicates announce.
+* Link title and description.
+* Link duplicates announce.
 * Check if link was posted on Reddit.
 * GitHub repository information.
 * BTC price command.
@@ -54,5 +55,4 @@ extensions: []Extension{
 
 ###TODO
 
-* Proper Go style comments.
-
+* Better memory management - some maps can grow infinitely.

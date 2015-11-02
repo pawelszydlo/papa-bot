@@ -85,7 +85,7 @@ func (bot *Bot) handlerBadNick(s ircx.Sender, m *irc.Message) {
 
 func (bot *Bot) handlerPart(s ircx.Sender, m *irc.Message) {
 	bot.log.Info("%s has left %s: %s", m.Prefix.Name, m.Params[0], m.Trailing)
-	bot.scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
+	bot.Scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
 }
 
 func (bot *Bot) handlerError(s ircx.Sender, m *irc.Message) {
@@ -97,7 +97,7 @@ func (bot *Bot) handlerDummy(s ircx.Sender, m *irc.Message) {
 }
 
 func (bot *Bot) handlerJoin(s ircx.Sender, m *irc.Message) {
-	if bot.isMe(m.Prefix.Name) {
+	if bot.IsMe(m.Prefix.Name) {
 		if bot.kickedFrom[m.Trailing] {
 			bot.log.Info("I have rejoined %s", m.Trailing)
 			bot.SendMessage(m.Trailing, bot.Texts.HellosAfterKick[rand.Intn(len(bot.Texts.HellosAfterKick))])
@@ -109,21 +109,21 @@ func (bot *Bot) handlerJoin(s ircx.Sender, m *irc.Message) {
 	} else {
 		bot.log.Info("%s has joined %s", m.Prefix.Name, m.Trailing)
 	}
-	bot.scribe(m.Trailing, m.Prefix.Name, " has joined ", m.Trailing)
+	bot.Scribe(m.Trailing, m.Prefix.Name, " has joined ", m.Trailing)
 }
 
 func (bot *Bot) handlerMode(s ircx.Sender, m *irc.Message) {
 	bot.log.Info("%s has set mode %s on %s", m.Prefix.Name, m.Params[1:], m.Params[0])
-	bot.scribe(m.Params[0], m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
+	bot.Scribe(m.Params[0], m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
 }
 
 func (bot *Bot) handlerTopic(s ircx.Sender, m *irc.Message) {
 	bot.log.Info("%s has set topic on %s to:", m.Prefix.Name, m.Params[0], m.Trailing)
-	bot.scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
+	bot.Scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
 }
 
 func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
-	if bot.isMe(m.Params[1]) {
+	if bot.IsMe(m.Params[1]) {
 		bot.log.Info("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 		bot.kickedFrom[m.Params[0]] = true
 		// Rejoin
@@ -138,7 +138,7 @@ func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
 	} else {
 		bot.log.Info("%s was kicked from %s by %s for: %s", m.Params[1], m.Prefix.Name, m.Params[0], m.Trailing)
 	}
-	bot.scribe(m.Params[0], m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
+	bot.Scribe(m.Params[0], m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
 }
 
 func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
@@ -150,7 +150,7 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 	user := m.Prefix.User + "@" + m.Prefix.Host
 	channel := m.Params[0]
 
-	if bot.isMe(nick) { // It's the bot talking
+	if bot.IsMe(nick) { // It's the bot talking
 		return
 	}
 
@@ -175,10 +175,10 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 	}
 
 	// Is it a private query?
-	if bot.isMe(channel) {
+	if bot.IsMe(channel) {
 		go bot.handleBotCommand(channel, nick, user, msg)
 	} else { // Message on a channel.
-		bot.scribe(channel, fmt.Sprintf("<%s> %s", nick, msg))
+		bot.Scribe(channel, fmt.Sprintf("<%s> %s", nick, msg))
 
 		// Is someone talking to the bot?
 		true_nick := bot.irc.OriginalName
@@ -229,7 +229,7 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 		link := StandardizeURL(links[i])
 		bot.log.Debug("Standardized to: %s", link)
 		// Link info structure, it will be filled by the processors.
-		urlinfo := &UrlInfo{link, "", []byte{}, "", ""}
+		urlinfo := &UrlInfo{link, "", "", []byte{}, "", ""}
 		// Try to get the body of the page.
 		if err := bot.GetPageBody(urlinfo); err != nil {
 			bot.log.Warning("Could't fetch the body: %s", err)
@@ -238,6 +238,12 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 		// Run the extensions.
 		for i := range bot.extensions {
 			bot.extensions[i].ProcessURL(bot, urlinfo, channel, nick, msg)
+		}
+
+		// Insert URL into the db.
+		if _, err := bot.Db.Exec(`INSERT INTO urls(channel, nick, link, quote, title) VALUES(?, ?, ?, ?, ?)`,
+			channel, nick, urlinfo.URL, msg, urlinfo.Title); err != nil {
+			bot.log.Warning("Can't add url to database: %s", err)
 		}
 
 		linkKey := urlinfo.URL + channel

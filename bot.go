@@ -39,7 +39,7 @@ func New(configFile, textsFile string) *Bot {
 	// Init bot struct.
 	bot := &Bot{
 		log:            logging.MustGetLogger("bot"),
-		HTTPClient:     &http.Client{Timeout: 10 * time.Second},
+		HTTPClient:     &http.Client{Timeout: 5 * time.Second},
 		floodSemaphore: make(chan int, 5),
 		kickedFrom:     map[string]bool{},
 
@@ -69,6 +69,7 @@ func New(configFile, textsFile string) *Bot {
 		// Register extensions (ordering matters!)
 		extensions: []Extension{
 			new(ExtensionMeta),
+			new(ExtensionDuplicates),
 			new(ExtensionGitHub),
 			new(ExtensionBtc),
 			new(ExtensionReddit),
@@ -90,7 +91,7 @@ func New(configFile, textsFile string) *Bot {
 	}
 
 	// Load texts.
-	if err := bot.loadTexts(bot.textsFile, bot.Texts); err != nil {
+	if err := bot.LoadTexts(bot.textsFile, bot.Texts); err != nil {
 		bot.log.Fatal("Can't load texts: %s", err)
 	}
 
@@ -153,7 +154,7 @@ func (bot *Bot) loadConfig() error {
 	}
 	if !strings.HasPrefix(bot.Config.OwnerPassword, "hash:") { // Password needs to be hashed.
 		bot.log.Info("Pasword not hashed. Hashing and saving.")
-		bot.Config.OwnerPassword = bot.hashPassword(bot.Config.OwnerPassword)
+		bot.Config.OwnerPassword = bot.HashPassword(bot.Config.OwnerPassword)
 		// Now rewrite the password line in the config.
 		lines := strings.Split(string(configFile), "\n")
 
@@ -248,19 +249,19 @@ func (bot *Bot) SendNotice(channel, message string) {
 }
 
 // isMe checks if the sender is the bot.
-func (bot *Bot) isMe(name string) bool {
+func (bot *Bot) IsMe(name string) bool {
 	return name == bot.irc.OriginalName
 }
 
 // areSamePeople checks if two nicks belong to the same person.
-func (bot *Bot) areSamePeople(nick1, nick2 string) bool {
+func (bot *Bot) AreSamePeople(nick1, nick2 string) bool {
 	nick1 = strings.Trim(nick1, "_~")
 	nick2 = strings.Trim(nick2, "_~")
 	return nick1 == nick2
 }
 
-// scribe saves the message into appropriate file.
-func (bot *Bot) scribe(channel string, message ...interface{}) {
+// scribe saves the message into appropriate channel log file.
+func (bot *Bot) Scribe(channel string, message ...interface{}) {
 	if !bot.Config.LogChannel {
 		return
 	}
@@ -280,7 +281,7 @@ func (bot *Bot) scribe(channel string, message ...interface{}) {
 
 // GetPageBodyByURL is a convenience wrapper around GetPageBody.
 func (bot *Bot) GetPageBodyByURL(url string) ([]byte, error) {
-	urlinfo := &UrlInfo{url, "", []byte{}, "", ""}
+	urlinfo := &UrlInfo{url, "", "", []byte{}, "", ""}
 	if err := bot.GetPageBody(urlinfo); err != nil {
 		return urlinfo.Body, err
 	}
@@ -341,8 +342,8 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo) error {
 	return nil
 }
 
-// loadTexts loads texts from a file into a struct, auto handling the templates.
-func (bot *Bot) loadTexts(filename string, data interface{}) error {
+// LoadTexts loads texts from a file into a struct, auto handling the templates.
+func (bot *Bot) LoadTexts(filename string, data interface{}) error {
 
 	// Decode TOML
 	if _, err := toml.DecodeFile(filename, data); err != nil {
@@ -395,7 +396,7 @@ func (bot *Bot) loadTexts(filename string, data interface{}) error {
 }
 
 // HashPassword hashes the password.
-func (bot *Bot) hashPassword(password string) string {
+func (bot *Bot) HashPassword(password string) string {
 	return fmt.Sprintf("hash:%s", base64.StdEncoding.EncodeToString(
 		pbkdf2.Key([]byte(password), []byte(password), 4096, sha256.Size, sha256.New)))
 }
