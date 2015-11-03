@@ -33,6 +33,8 @@ func (ext *ExtensionDuplicates) Init(bot *Bot) error {
 	return nil
 }
 
+func (ext *ExtensionDuplicates) Tick(bot *Bot, daily bool) {}
+
 // checkForDuplicates checks for duplicates of the url in the database.
 func (ext *ExtensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
 	result, err := bot.Db.Query(`

@@ -42,6 +42,8 @@ type Extension interface {
 	Init(bot *Bot) error
 	// Will be run whenever an URL is found in the message.
 	ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string)
+	// Will be run every 5 minutes. Daily will be set to true once per day.
+	Tick(bot *Bot, daily bool)
 }
 
 // Url information passed between url processors.

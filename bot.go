@@ -240,12 +240,21 @@ func (bot *Bot) sendFloodProtected(mType, channel, message string) {
 
 // SendMessage sends a message to the channel.
 func (bot *Bot) SendMessage(channel, message string) {
+	bot.log.Debug("Sending message to %s: %s", channel, message)
 	bot.sendFloodProtected(irc.PRIVMSG, channel, message)
 }
 
-// SendNotice send a notice to the channel.
+// SendNotice sends a notice to the channel.
 func (bot *Bot) SendNotice(channel, message string) {
+	bot.log.Debug("Sending notice to %s: %s", channel, message)
 	bot.sendFloodProtected(irc.NOTICE, channel, message)
+}
+
+// SendMassNotice sends a notice to all the channels bot is on.
+func (bot *Bot) SendMassNotice(message string) {
+	for _, channel := range bot.Config.Channels {
+		bot.sendFloodProtected(irc.NOTICE, channel, message)
+	}
 }
 
 // isMe checks if the sender is the bot.
@@ -401,6 +410,20 @@ func (bot *Bot) HashPassword(password string) string {
 		pbkdf2.Key([]byte(password), []byte(password), 4096, sha256.Size, sha256.New)))
 }
 
+// runExtensionTickers will asynchronously run all extension tickers.
+func (bot *Bot) runExtensionTickers() {
+	// Catch errors.
+	defer func() {
+		if r := recover(); r != nil {
+			bot.log.Error("FATAL ERROR in tickers: %s", r)
+		}
+	}()
+	// Run the tickers.
+	for i := range bot.extensions {
+		bot.extensions[i].Tick(bot, false)
+	}
+}
+
 // Close cleans up after the bot.
 func (bot *Bot) Close() {
 	bot.Db.Close()
@@ -425,17 +448,20 @@ func (bot *Bot) Run() {
 		}
 	}()
 
-	// Command use clearing ticker.
+	// 5 minute ticker.
 	ticker2 := time.NewTicker(time.Minute * 5)
 	defer ticker2.Stop()
 	go func() {
 		for range ticker2.C {
+			// Clear command use.
 			for k := range bot.commandUseLimit {
 				delete(bot.commandUseLimit, k)
 			}
 			for k := range bot.commandWarn {
 				delete(bot.commandWarn, k)
 			}
+			// Run extension tickers.
+			go bot.runExtensionTickers()
 		}
 	}()
 

@@ -36,6 +36,8 @@ func (ext *ExtensionReddit) Init(bot *Bot) error {
 	return nil
 }
 
+func (ext *ExtensionReddit) Tick(bot *Bot, daily bool) {}
+
 func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel string) string {
 	// Catch errors.
 	defer func() {

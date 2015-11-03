@@ -17,6 +17,8 @@ func (ext *ExtensionGitHub) Init(bot *Bot) error {
 	return nil
 }
 
+func (ext *ExtensionGitHub) Tick(bot *Bot, daily bool) {}
+
 // ProcessURL will try to get more info on GitHub links.
 func (ext *ExtensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
 	match := ext.gitHubRe.FindStringSubmatch(urlinfo.URL)

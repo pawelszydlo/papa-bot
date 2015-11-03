@@ -18,6 +18,8 @@ func (ext *ExtensionMeta) Init(bot *Bot) error {
 	return nil
 }
 
+func (ext *ExtensionMeta) Tick(bot *Bot, daily bool) {}
+
 // getTitle find the title and description.
 func (ext *ExtensionMeta) getTitle(body string) (string, string, error) {
 	// Iterate over meta tags to get the description
