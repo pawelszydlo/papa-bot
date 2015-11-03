@@ -31,7 +31,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 To add your own extension you just need to create a struct that will implement these methods:
 ```go
 // Will be run on bot init.
-func (ext *YourExtension) Init(bot *Bot) {
+func (ext *YourExtension) Init(bot *Bot) error {
     // Extension initialization goes here.
 }
 
@@ -39,6 +39,11 @@ func (ext *YourExtension) Init(bot *Bot) {
 func (ext *YourExtension) ProcessURL(
     bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
     // Here you can do something with the data in the urlinfo struct.
+}
+
+// Will be run every 5 minutes. Daily will be set to true once per day.
+func (ext *YourExtension) Tick(bot *Bot, daily bool) {
+    // Anything you want to do periodically goes here.
 }
 ```
 (If you don't want to implement any of those just leave them empty)

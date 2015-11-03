@@ -418,6 +418,7 @@ func (bot *Bot) runExtensionTickers() {
 			bot.log.Error("FATAL ERROR in tickers: %s", r)
 		}
 	}()
+	bot.log.Debug("Tick...")
 	// Run the tickers.
 	for i := range bot.extensions {
 		bot.extensions[i].Tick(bot, false)
@@ -464,6 +465,8 @@ func (bot *Bot) Run() {
 			go bot.runExtensionTickers()
 		}
 	}()
+	// First tick, before ticker goes off.
+	go bot.runExtensionTickers()
 
 	// Main loop.
 	bot.irc.HandleLoop()
