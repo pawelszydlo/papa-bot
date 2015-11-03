@@ -2,24 +2,134 @@ package papaBot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math/rand"
 	"text/template"
 	"time"
 )
 
 // ExtensionReddit - extension for getting link information from reddit.com.
 type ExtensionReddit struct {
-	announced map[string]bool
-	Texts     *ExtensionRedditTexts
+	announced          map[string]bool
+	Texts              *ExtensionRedditTexts
+	InterestingReddits []string
 }
 
 type ExtensionRedditTexts struct {
 	TplRedditAnnounce  string
 	TempRedditAnnounce *template.Template
+	TplRedditDaily     string
+	TempRedditDaily    *template.Template
+}
+
+// Reddit structs.
+type RedditPostData struct {
+	Id        string
+	Subreddit string
+	Author    string
+	Score     int
+	Comments  int `json:"num_comments"`
+	Title     string
+	Url       string
+	Created   float64
+}
+type RedditListing struct {
+	Error int
+	Data  struct {
+		Children []struct{ Data RedditPostData }
+	}
+}
+
+func (postData *RedditPostData) toStrings() map[string]string {
+	return map[string]string{
+		"id":           postData.Id,
+		"created":      HumanizedSince(time.Unix(int64(postData.Created), 0)),
+		"author":       postData.Author,
+		"subreddit":    postData.Subreddit,
+		"score":        fmt.Sprintf("%d", postData.Score),
+		"comments_url": "http://redd.it/" + postData.Id,
+		"comments":     fmt.Sprintf("%d", postData.Comments),
+		"title":        postData.Title,
+		"url":          postData.Url,
+	}
+}
+
+// getRedditListing fetches a reddit listing data.
+func (ext *ExtensionReddit) getRedditListing(bot *Bot, url string, listing *RedditListing) error {
+	// Get response
+	var urlinfo UrlInfo
+	urlinfo.URL = url
+	headers := map[string]string{"User-Agent": "PapaBot version " + Version}
+	if err := bot.GetPageBody(&urlinfo, headers); err != nil {
+		return err
+	}
+
+	// Decode JSON.
+	if err := json.Unmarshal(urlinfo.Body, &listing); err != nil {
+		return err
+	}
+
+	// Check for reddit error.
+	if listing.Error != 0 {
+		return errors.New(fmt.Sprintf("Reddit returned error %d.", listing.Error))
+	}
+	return nil
+}
+
+// getRedditInfo fetches information about a link from Reddit.
+func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel string) string {
+	// Catch errors.
+	defer func() {
+		if Debug {
+			return
+		} // When in debug mode fail on all errors.
+		if r := recover(); r != nil {
+			bot.log.Error("FATAL ERROR in reddit extension: %s", r)
+		}
+	}()
+
+	// Get the listing.
+	url = fmt.Sprintf("https://www.reddit.com/api/info.json?url=%s", url)
+	var listing RedditListing
+	if err := ext.getRedditListing(bot, url, &listing); err != nil {
+		bot.log.Debug("Error getting reddit's response %d.", listing.Error)
+		return ""
+	}
+
+	ext.announced[channel+url] = true
+
+	// Find highest rated post and return it.
+	message := ""
+	bestScore := 0
+	for i := range listing.Data.Children {
+		postData := listing.Data.Children[i].Data
+		if postData.Score > bestScore {
+			// Was the title already included in the URL title?
+			if postData.Title == urlTitle {
+				postData.Title = ""
+			}
+			// Trim the title.
+			if len(postData.Title) > 100 {
+				postData.Title = postData.Title[:100] + "…"
+			}
+			message = Format(ext.Texts.TempRedditAnnounce, postData.toStrings())
+			bestScore = postData.Score
+		}
+	}
+	bot.log.Debug("Reddit: %s", message)
+	return message
 }
 
 // Init inits the extension.
 func (ext *ExtensionReddit) Init(bot *Bot) error {
+	ext.InterestingReddits = []string{
+		"TrueReddit",
+		"foodforthought",
+		"Futurology",
+		"longtext",
+	}
+	// Load texts.
 	ext.announced = map[string]bool{}
 	texts := &ExtensionRedditTexts{}
 	if err := bot.LoadTexts(bot.textsFile, texts); err != nil {
@@ -29,69 +139,26 @@ func (ext *ExtensionReddit) Init(bot *Bot) error {
 	return nil
 }
 
-// Tick will clear the announces table.
+// Tick will clear the announces table and give post of the day.
 func (ext *ExtensionReddit) Tick(bot *Bot, daily bool) {
-	if daily {
-		ext.announced = map[string]bool{}
+	if !daily {
+		return
 	}
-}
+	ext.announced = map[string]bool{}
 
-// getRedditInfo fetches information about a link from Reddit.
-func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel string) string {
-	// Catch errors.
-	defer func() {
-		if r := recover(); r != nil {
-			bot.log.Error("FATAL ERROR in reddit extension: %s", r)
-		}
-	}()
-	// Get response
-	body, err := bot.GetPageBodyByURL(fmt.Sprintf("https://www.reddit.com/api/info.json?url=%s", url))
-	if err != nil {
-		bot.log.Warning("Error getting response from reddit: %s", err)
-		return ""
+	subreddit := ext.InterestingReddits[rand.Intn(len(ext.InterestingReddits))]
+	// Get the listing.
+	url := fmt.Sprintf("https://www.reddit.com/r/%s/hot.json?limit=1", subreddit)
+	var listing RedditListing
+	if err := ext.getRedditListing(bot, url, &listing); err != nil {
+		bot.log.Debug("Error getting reddit's response %d.", listing.Error)
+		return
 	}
-	// Convert from JSON
-	var raw_data interface{}
-	if err := json.Unmarshal(body, &raw_data); err != nil {
-		bot.log.Warning("Error parsing JSON from reddit: %s", err)
-		return ""
+	// Get the article.
+	if len(listing.Data.Children) > 0 {
+		post := listing.Data.Children[0].Data
+		bot.SendMassNotice(Format(ext.Texts.TempRedditDaily, post.toStrings()))
 	}
-	// TODO(pawelszydlo): create appropriate struct first and fill it?
-	data := raw_data.(map[string]interface{})
-	if data["error"] != nil {
-		bot.log.Debug("Reddit returned error %.0f.", data["error"])
-		return ""
-	} else {
-		ext.announced[channel+url] = true
-	}
-	posts := data["data"].(map[string]interface{})["children"].([]interface{})
-	message := ""
-	best_score := 0
-	for i := range posts {
-		post_data := posts[i].(map[string]interface{})["data"].(map[string]interface{})
-		score := int(post_data["score"].(float64))
-		if score > best_score {
-			title := post_data["title"].(string)
-			if title == urlTitle { // This happens.
-				title = ""
-			}
-			if len(title) > 100 {
-				title = title[:100] + "…"
-			}
-			msgData := &map[string]string{
-				"elapsed":   HumanizedSince(time.Unix(int64(post_data["created"].(float64)), 0)),
-				"name":      post_data["author"].(string),
-				"subreddit": post_data["subreddit"].(string),
-				"score":     fmt.Sprintf("%d", score),
-				"comments":  "http://redd.it/" + post_data["id"].(string),
-				"title":     title,
-			}
-			message = Format(ext.Texts.TempRedditAnnounce, msgData)
-			best_score = score
-		}
-	}
-	bot.log.Debug("Reddit: %s", message)
-	return message
 }
 
 // ProcessURL will try to check if link was ever on reddit.
@@ -118,10 +185,3 @@ func (ext *ExtensionReddit) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 		}()
 	}
 }
-
-// Planned:
-// https://www.reddit.com/r/wtf/hot.json?limit=1
-// TrueReddit
-// foodforthought
-// Futurology
-// longtext

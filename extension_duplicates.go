@@ -62,14 +62,14 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, 
 				nick = ext.Texts.DuplicateYou
 			}
 			elapsed := HumanizedSince(MustForceLocalTimezone(timestamp))
-			duplicate = Format(ext.Texts.TempDuplicateFirst, &map[string]string{"nick": nick, "elapsed": elapsed})
+			duplicate = Format(ext.Texts.TempDuplicateFirst, map[string]string{"nick": nick, "elapsed": elapsed})
 		} else if count > 1 { // More duplicates exist
 			if bot.AreSamePeople(nick, sender) {
 				nick = ext.Texts.DuplicateYou
 			}
 			elapsed := HumanizedSince(MustForceLocalTimezone(timestamp))
 			duplicate = Format(ext.Texts.TempDuplicateMulti,
-				&map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
+				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
 		}
 		// Only announce once per 5 minutes per link.
 		if duplicate != "" && time.Since(ext.announced[channel+urlinfo.URL]) > 5*time.Minute {

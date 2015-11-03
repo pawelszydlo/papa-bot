@@ -31,6 +31,7 @@ import (
 
 const (
 	Version = "0.8.2"
+	Debug   = false
 )
 
 // New creates a new bot.
@@ -60,7 +61,7 @@ func New(configFile, textsFile string) *Bot {
 			UrlAnnounceIntervalLines:   50,
 			RejoinDelaySeconds:         15,
 			PageBodyMaxSize:            50 * 1024,
-			HttpUserAgent:              "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+			HttpDefaultUserAgent:       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
 		},
 
 		commands:        map[string]*BotCommand{},
@@ -291,15 +292,16 @@ func (bot *Bot) Scribe(channel string, message ...interface{}) {
 
 // GetPageBodyByURL is a convenience wrapper around GetPageBody.
 func (bot *Bot) GetPageBodyByURL(url string) ([]byte, error) {
-	urlinfo := &UrlInfo{url, "", "", []byte{}, "", ""}
-	if err := bot.GetPageBody(urlinfo); err != nil {
+	var urlinfo UrlInfo
+	urlinfo.URL = url
+	if err := bot.GetPageBody(&urlinfo, map[string]string{}); err != nil {
 		return urlinfo.Body, err
 	}
 	return urlinfo.Body, nil
 }
 
 // GetPageBody gets and returns a body of a page.
-func (bot *Bot) GetPageBody(urlinfo *UrlInfo) error {
+func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) error {
 	if urlinfo.URL == "" {
 		return errors.New("Empty URL")
 	}
@@ -308,7 +310,13 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", bot.Config.HttpUserAgent)
+	if customHeaders["User-Agent"] == "" {
+		customHeaders["User-Agent"] = bot.Config.HttpDefaultUserAgent
+	}
+	for k, v := range customHeaders {
+		req.Header.Set(k, v)
+	}
+	bot.log.Debug("HEADERS: %+v", req.Header)
 
 	// Get response.
 	resp, err := bot.HTTPClient.Do(req)
@@ -415,6 +423,9 @@ func (bot *Bot) HashPassword(password string) string {
 func (bot *Bot) runExtensionTickers() {
 	// Catch errors.
 	defer func() {
+		if Debug {
+			return
+		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
 			bot.log.Error("FATAL ERROR in tickers: %s", r)
 		}

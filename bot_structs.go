@@ -90,7 +90,7 @@ type Configuration struct {
 	UrlAnnounceIntervalLines   int
 	RejoinDelaySeconds         time.Duration
 	PageBodyMaxSize            uint
-	HttpUserAgent              string
+	HttpDefaultUserAgent       string
 }
 
 // Bot's core texts.

@@ -30,6 +30,9 @@ func (bot *Bot) initBotCommands() {
 func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	// Catch errors.
 	defer func() {
+		if Debug {
+			return
+		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
 			bot.log.Error("FATAL ERROR in bot command: %s", r)
 		}
@@ -114,12 +117,6 @@ func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, para
 
 // commandReloadTexts reloads texts from TOML file.
 func commandReloadTexts(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
-	// Silence possible text errors
-	defer func() {
-		if r := recover(); r != nil {
-			bot.log.Error("FATAL ERROR while reloading texts: %s", r)
-		}
-	}()
 	bot.log.Info("Reloading texts...")
 	bot.LoadTexts(bot.textsFile, bot.Texts)
 	bot.SendMessage(receiver, "Done.")

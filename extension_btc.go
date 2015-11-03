@@ -66,7 +66,7 @@ func (ext *ExtensionBtc) diffStr(diff float64) string {
 // Tick will monitor BTC price and warn if anything serious happens.
 func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 	// Fetch fresh data.
-	body, err := bot.GetPageBodyByURL("http://www.bitstamp.net/api/ticker/")
+	body, err := bot.GetPageBodyByURL("https://www.bitstamp.net/api/ticker/")
 	if err != nil {
 		bot.log.Warning("Error getting BTC data: %s", err)
 	}
@@ -121,13 +121,13 @@ func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 		}
 		if diff > thresh {
 			values := map[string]string{
-				"diff": "", "minutes": fmt.Sprintf("%.0f", time_diff), "price": fmt.Sprintf("$%.0f", price)}
+				"diff": "", "minutes": fmt.Sprintf("%.0f", time_diff), "price": fmt.Sprintf("$%.2f", price)}
 			if rise {
 				values["diff"] = ext.diffStr(diff)
-				bot.SendMassNotice(Format(ext.Texts.TempBtcSeriousRise, &values))
+				bot.SendMassNotice(Format(ext.Texts.TempBtcSeriousRise, values))
 			} else {
 				values["diff"] = ext.diffStr(-diff)
-				bot.SendMassNotice(Format(ext.Texts.TempBtcSeriousFall, &values))
+				bot.SendMassNotice(Format(ext.Texts.TempBtcSeriousFall, values))
 			}
 			ext.priceSeries = make([]float64, 12, 12) // Empty the series.
 		}
@@ -140,12 +140,11 @@ func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver stri
 		ext.LastAsk[channel] = time.Now()
 		ext.Warned[channel] = false
 		price, _ := strconv.ParseFloat(ext.HourlyData["last"].(string), 64)
-		//		open, _ := strconv.ParseFloat(btcHourlyData["open"].(string), 64)
 		diff := price - ext.HourlyData["open"].(float64)
-		diffstr := ext.diffStr(diff)
-		pricestr := fmt.Sprintf("$%.2f", price)
 
-		bot.SendNotice(receiver, Format(ext.Texts.TempBtcNotice, &map[string]string{"price": pricestr, "diff": diffstr}))
+		bot.SendNotice(receiver, Format(ext.Texts.TempBtcNotice, map[string]string{
+			"price": fmt.Sprintf("$%.2f", price),
+			"diff":  ext.diffStr(diff)}))
 	} else {
 		// Only warn once.
 		if !ext.Warned[channel] {

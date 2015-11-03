@@ -105,7 +105,7 @@ func DirExists(path string) (bool, error) {
 }
 
 // Format formats the template with passed string map values.
-func Format(tpl *template.Template, params *map[string]string) string {
+func Format(tpl *template.Template, params map[string]string) string {
 	var text bytes.Buffer
 	if err := tpl.Execute(&text, params); err != nil {
 		log.Fatalln("Error executing template", err)

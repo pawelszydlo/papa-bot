@@ -217,6 +217,9 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 	// Catch errors.
 	defer func() {
+		if Debug {
+			return
+		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
 			bot.log.Error("FATAL ERROR in URL processor: %s", r)
 		}
@@ -229,15 +232,16 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 		link := StandardizeURL(links[i])
 		bot.log.Debug("Standardized to: %s", link)
 		// Link info structure, it will be filled by the processors.
-		urlinfo := &UrlInfo{link, "", "", []byte{}, "", ""}
+		var urlinfo UrlInfo
+		urlinfo.URL = link
 		// Try to get the body of the page.
-		if err := bot.GetPageBody(urlinfo); err != nil {
+		if err := bot.GetPageBody(&urlinfo, map[string]string{}); err != nil {
 			bot.log.Warning("Could't fetch the body: %s", err)
 		}
 
 		// Run the extensions.
 		for i := range bot.extensions {
-			bot.extensions[i].ProcessURL(bot, urlinfo, channel, nick, msg)
+			bot.extensions[i].ProcessURL(bot, &urlinfo, channel, nick, msg)
 		}
 
 		// Insert URL into the db.
