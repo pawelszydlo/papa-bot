@@ -12,10 +12,11 @@ import (
 // ExtensionBtc - extension for getting BTC price from BitStamp.com.
 type ExtensionBtc struct {
 	HourlyData map[string]interface{}
-	LastAsk    map[string]time.Time
-	Warned     map[string]bool
 
-	lastHalfHour         []float64
+	LastAsk map[string]time.Time
+	Warned  map[string]bool
+
+	priceSeries          []float64
 	seriousChangePercent float64
 
 	Texts *extensionBtcTexts
@@ -40,8 +41,8 @@ func (ext *ExtensionBtc) Init(bot *Bot) error {
 	// Init variables.
 	ext.LastAsk = map[string]time.Time{}
 	ext.Warned = map[string]bool{}
-	ext.seriousChangePercent = 10
-	ext.lastHalfHour = make([]float64, 6, 6)
+	ext.seriousChangePercent = 5
+	ext.priceSeries = make([]float64, 12, 12)
 	// Load texts.
 	texts := new(extensionBtcTexts)
 	if err := bot.LoadTexts(bot.textsFile, texts); err != nil {
@@ -50,8 +51,6 @@ func (ext *ExtensionBtc) Init(bot *Bot) error {
 	ext.Texts = texts
 	return nil
 }
-
-func (ext *ExtensionBtc) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}
 
 // diffStr will get a string representing the rise/fall of price.
 func (ext *ExtensionBtc) diffStr(diff float64) string {
@@ -89,15 +88,15 @@ func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 	}
 
 	// Append to the FIFO series.
-	ext.lastHalfHour = ext.lastHalfHour[1:]
-	ext.lastHalfHour = append(ext.lastHalfHour, price)
+	ext.priceSeries = ext.priceSeries[1:]
+	ext.priceSeries = append(ext.priceSeries, price)
 
 	// Check if we have a serious change
 	min_price := 99999.9 // Hopefully soon we'll have to use math.MaxFloat64
 	max_price := 0.0
-	min_index := 9
-	max_index := 9
-	for i, v := range ext.lastHalfHour {
+	min_index := -1
+	max_index := -1
+	for i, v := range ext.priceSeries {
 		if v == 0.0 {
 			continue
 		}
@@ -111,20 +110,26 @@ func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 		}
 	}
 	// Was anything found?
-	if min_index != 9 {
+	if min_index != max_index {
 		diff := max_price - min_price
+		rise := min_index < max_index
 		time_diff := math.Abs(float64(max_index)-float64(min_index)) * 5
-		if math.Abs(diff) > float64(ext.seriousChangePercent)/100*max_price {
+		// Announce threshold.
+		thresh := float64(ext.seriousChangePercent) / 100 * max_price
+		if rise {
+			thresh = float64(ext.seriousChangePercent) / 100 * min_price
+		}
+		if diff > thresh {
 			values := map[string]string{
 				"diff": "", "minutes": fmt.Sprintf("%.0f", time_diff), "price": fmt.Sprintf("$%.0f", price)}
-			if max_index > min_index {
+			if rise {
 				values["diff"] = ext.diffStr(diff)
 				bot.SendMassNotice(Format(ext.Texts.TempBtcSeriousRise, &values))
-			} else if min_index > max_index {
+			} else {
 				values["diff"] = ext.diffStr(-diff)
 				bot.SendMassNotice(Format(ext.Texts.TempBtcSeriousFall, &values))
 			}
-			ext.lastHalfHour = make([]float64, 6, 6) // Empty the series.
+			ext.priceSeries = make([]float64, 12, 12) // Empty the series.
 		}
 	}
 }
@@ -150,3 +155,6 @@ func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver stri
 	}
 
 }
+
+// Not implemented.
+func (ext *ExtensionBtc) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}

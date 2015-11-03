@@ -18,8 +18,6 @@ func (ext *ExtensionMeta) Init(bot *Bot) error {
 	return nil
 }
 
-func (ext *ExtensionMeta) Tick(bot *Bot, daily bool) {}
-
 // getTitle find the title and description.
 func (ext *ExtensionMeta) getTitle(body string) (string, string, error) {
 	// Iterate over meta tags to get the description
@@ -59,3 +57,6 @@ func (ext *ExtensionMeta) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender
 	urlinfo.ShortInfo = title
 	urlinfo.LongInfo = description
 }
+
+// Not implemented.
+func (ext *ExtensionMeta) Tick(bot *Bot, daily bool) {}

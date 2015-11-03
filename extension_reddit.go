@@ -7,16 +7,9 @@ import (
 	"time"
 )
 
-// Planned:
-// https://www.reddit.com/r/wtf/hot.json?limit=1
-// TrueReddit
-// foodforthought
-// Futurology
-// longtext
-
 // ExtensionReddit - extension for getting link information from reddit.com.
 type ExtensionReddit struct {
-	announced map[string]bool // TODO: this map is never cleaned.
+	announced map[string]bool
 	Texts     *ExtensionRedditTexts
 }
 
@@ -36,8 +29,14 @@ func (ext *ExtensionReddit) Init(bot *Bot) error {
 	return nil
 }
 
-func (ext *ExtensionReddit) Tick(bot *Bot, daily bool) {}
+// Tick will clear the announces table.
+func (ext *ExtensionReddit) Tick(bot *Bot, daily bool) {
+	if daily {
+		ext.announced = map[string]bool{}
+	}
+}
 
+// getRedditInfo fetches information about a link from Reddit.
 func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel string) string {
 	// Catch errors.
 	defer func() {
@@ -119,3 +118,10 @@ func (ext *ExtensionReddit) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 		}()
 	}
 }
+
+// Planned:
+// https://www.reddit.com/r/wtf/hot.json?limit=1
+// TrueReddit
+// foodforthought
+// Futurology
+// longtext

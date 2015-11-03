@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"errors"
+
 	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nickvanw/ircx"
@@ -418,7 +419,7 @@ func (bot *Bot) runExtensionTickers() {
 			bot.log.Error("FATAL ERROR in tickers: %s", r)
 		}
 	}()
-	bot.log.Debug("Tick...")
+
 	// Run the tickers.
 	for i := range bot.extensions {
 		bot.extensions[i].Tick(bot, false)

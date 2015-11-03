@@ -9,7 +9,7 @@ import (
 // ExtensionDuplicates checks for duplicate URLs posted.
 type ExtensionDuplicates struct {
 	Texts     *ExtensionDuplicatesTexts
-	announced map[string]time.Time // TODO: this map is never cleaned.
+	announced map[string]time.Time
 }
 
 type ExtensionDuplicatesTexts struct {
@@ -32,8 +32,6 @@ func (ext *ExtensionDuplicates) Init(bot *Bot) error {
 	ext.announced = map[string]time.Time{}
 	return nil
 }
-
-func (ext *ExtensionDuplicates) Tick(bot *Bot, daily bool) {}
 
 // checkForDuplicates checks for duplicates of the url in the database.
 func (ext *ExtensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
@@ -87,4 +85,11 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, 
 		}
 	}
 	return
+}
+
+// Tick will clean announces table once per day.
+func (ext *ExtensionDuplicates) Tick(bot *Bot, daily bool) {
+	if daily {
+		ext.announced = map[string]time.Time{}
+	}
 }

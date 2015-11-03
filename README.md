@@ -60,4 +60,4 @@ extensions: []Extension{
 
 ###TODO
 
-* Better memory management - some maps can grow infinitely.
+* Daily tick implementation.
