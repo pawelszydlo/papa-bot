@@ -316,7 +316,6 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	for k, v := range customHeaders {
 		req.Header.Set(k, v)
 	}
-	bot.log.Debug("HEADERS: %+v", req.Header)
 
 	// Get response.
 	resp, err := bot.HTTPClient.Do(req)
