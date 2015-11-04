@@ -34,6 +34,8 @@ type Bot struct {
 	lastURLAnnouncedTime        map[string]time.Time
 	lastURLAnnouncedLinesPassed map[string]int
 	urlMoreInfo                 map[string]string
+
+	nextDailyTick time.Time
 }
 
 // Extensions must implement these methods.
@@ -91,6 +93,8 @@ type Configuration struct {
 	RejoinDelaySeconds         time.Duration
 	PageBodyMaxSize            uint
 	HttpDefaultUserAgent       string
+	DailyTickHour              int
+	DailyTickMinute            int
 }
 
 // Bot's core texts.

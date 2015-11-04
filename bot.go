@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	Version = "0.8.2"
+	Version = "0.9.0"
 	Debug   = false
 )
 
@@ -62,6 +62,8 @@ func New(configFile, textsFile string) *Bot {
 			RejoinDelaySeconds:         15,
 			PageBodyMaxSize:            50 * 1024,
 			HttpDefaultUserAgent:       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+			DailyTickHour:              8,
+			DailyTickMinute:            0,
 		},
 
 		commands:        map[string]*BotCommand{},
@@ -132,6 +134,15 @@ func New(configFile, textsFile string) *Bot {
 			bot.log.Fatal("Error loading extensions: %s", err)
 		}
 	}
+
+	// Get next daily tick.
+	now := time.Now()
+	bot.nextDailyTick = time.Date(
+		now.Year(), now.Month(), now.Day(), bot.Config.DailyTickHour, bot.Config.DailyTickMinute, 0, 0, now.Location())
+	if time.Since(bot.nextDailyTick) >= 0 {
+		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
+	}
+	bot.log.Debug("Next daily tick: %s", bot.nextDailyTick)
 
 	return bot
 }
@@ -430,9 +441,16 @@ func (bot *Bot) runExtensionTickers() {
 		}
 	}()
 
+	// Check if it's time for a daily ticker.
+	daily := false
+	if time.Since(bot.nextDailyTick) >= 0 {
+		daily = true
+		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
+	}
+
 	// Run the tickers.
 	for i := range bot.extensions {
-		bot.extensions[i].Tick(bot, false)
+		bot.extensions[i].Tick(bot, daily)
 	}
 }
 

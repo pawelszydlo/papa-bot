@@ -57,7 +57,3 @@ extensions: []Extension{
     // Your extension goes here.
 },
 ```
-
-###TODO
-
-* Daily tick implementation.

@@ -60,6 +60,7 @@ func (ext *ExtensionReddit) getRedditListing(bot *Bot, url string, listing *Redd
 	// Get response
 	var urlinfo UrlInfo
 	urlinfo.URL = url
+	// Reddit API doesn't like it when you pretend to be someone else.
 	headers := map[string]string{"User-Agent": "PapaBot version " + Version}
 	if err := bot.GetPageBody(&urlinfo, headers); err != nil {
 		return err

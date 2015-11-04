@@ -38,6 +38,10 @@ func (ext *ExtensionBtc) Init(bot *Bot) error {
 		false, false,
 		"btc", "Show current BTC price.",
 		ext.commandBtc}
+	bot.commands["kierda"] = &BotCommand{
+		false, false,
+		"btc", "Show current BTC price.",
+		ext.commandBtc}
 	// Init variables.
 	ext.LastAsk = map[string]time.Time{}
 	ext.Warned = map[string]bool{}
@@ -85,6 +89,15 @@ func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 	if err != nil {
 		bot.log.Warning("Error in the BTC ticker: %s", err)
 		return
+	}
+
+	// On daily tick, announce.
+	if daily {
+		diff := price - ext.HourlyData["open"].(float64)
+
+		bot.SendMassNotice(Format(ext.Texts.TempBtcNotice, map[string]string{
+			"price": fmt.Sprintf("$%.2f", price),
+			"diff":  ext.diffStr(diff)}))
 	}
 
 	// Append to the FIFO series.
