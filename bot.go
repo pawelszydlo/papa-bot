@@ -446,6 +446,7 @@ func (bot *Bot) runExtensionTickers() {
 	if time.Since(bot.nextDailyTick) >= 0 {
 		daily = true
 		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
+		bot.log.Debug("Daily tick now. Next at %s.", bot.nextDailyTick)
 	}
 
 	// Run the tickers.
