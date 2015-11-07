@@ -35,12 +35,12 @@ type extensionBtcTexts struct {
 func (ext *ExtensionBtc) Init(bot *Bot) error {
 	// Register new command.
 	bot.commands["btc"] = &BotCommand{
-		false, false,
+		false, false, false,
 		"btc", "Show current BTC price.",
 		ext.commandBtc}
 	bot.commands["kierda"] = &BotCommand{
-		false, false,
-		"btc", "Show current BTC price.",
+		false, false, false,
+		"kierda", "Show current BTC price.",
 		ext.commandBtc}
 	// Init variables.
 	ext.LastAsk = map[string]time.Time{}
@@ -70,7 +70,7 @@ func (ext *ExtensionBtc) diffStr(diff float64) string {
 // Tick will monitor BTC price and warn if anything serious happens.
 func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 	// Fetch fresh data.
-	body, err := bot.GetPageBodyByURL("https://www.bitstamp.net/api/ticker/")
+	body, err := bot.getPageBodyByURL("https://www.bitstamp.net/api/ticker/")
 	if err != nil {
 		bot.log.Warning("Error getting BTC data: %s", err)
 	}

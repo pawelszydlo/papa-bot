@@ -1,5 +1,7 @@
 package papaBot
 
+// All structures used by bot (sans extensions).
+
 import (
 	"database/sql"
 	"github.com/nickvanw/ircx"
@@ -18,13 +20,18 @@ type Bot struct {
 	configFile string
 	Config     Configuration
 
-	BotOwner       string
 	floodSemaphore chan int
 	kickedFrom     map[string]bool
 
-	commands        map[string]*BotCommand
-	commandUseLimit map[string]int
-	commandWarn     map[string]bool
+	authenticatedAdmins map[string]bool
+	authenticatedOwners map[string]bool
+
+	commands           map[string]*BotCommand
+	commandUseLimit    map[string]int
+	commandWarn        map[string]bool
+	commandsHideParams map[string]bool
+
+	customVars map[string]string
 
 	extensions []Extension
 
@@ -70,6 +77,8 @@ type BotCommand struct {
 	Private bool
 	// This command can only be run by the owner?
 	Owner bool
+	// This command can only be run by an admin?
+	Admin bool
 	// Help string showing the usage.
 	HelpUsage string
 	// Help string with the description.
@@ -83,7 +92,6 @@ type Configuration struct {
 	Server                     string
 	Name                       string
 	User                       string
-	OwnerPassword              string
 	Channels                   []string
 	AntiFloodDelay             int
 	CommandsPer5               int
@@ -100,7 +108,7 @@ type Configuration struct {
 // Bot's core texts.
 type BotTexts struct {
 	NeedsPriv           string
-	NeedsOwner          string
+	NeedsAdmin          string
 	PasswordOk          string
 	SearchResults       string
 	SearchNoResults     string

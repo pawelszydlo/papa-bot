@@ -27,14 +27,14 @@ func (ext *ExtensionMeta) getTitle(body string) (string, string, error) {
 		if len(metas[i]) > 1 {
 			isDesc := ext.descRe.FindString(metas[i][0])
 			if isDesc != "" && (len(metas[i][1]) > len(description)) {
-				description = CleanString(metas[i][1])
+				description = CleanString(metas[i][1], true)
 			}
 		}
 	}
 	// Get the title
 	match := ext.titleRe.FindStringSubmatch(string(body))
 	if len(match) > 1 {
-		title := CleanString(match[1])
+		title := CleanString(match[1], true)
 		return title, description, nil
 	}
 

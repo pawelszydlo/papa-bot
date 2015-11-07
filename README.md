@@ -17,6 +17,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Stores all the links posted on the channel.
 * Allows full text search through the links.
 * Logs all channel activity.
+* User account handling.
 
 ###Bundled extensions
 
@@ -61,3 +62,4 @@ extensions: []Extension{
 ####TODO
 
 * Split handling.
+* Alt nicks handling.

@@ -29,7 +29,7 @@ func (ext *ExtensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 		user := match[1]
 		repo := match[2]
 		// Get response
-		body, err := bot.GetPageBodyByURL(fmt.Sprintf("https://api.github.com/repos/%s/%s", user, repo))
+		body, err := bot.getPageBodyByURL(fmt.Sprintf("https://api.github.com/repos/%s/%s", user, repo))
 		if err != nil {
 			bot.log.Warning("Error getting response from GitHub: %s", err)
 			return

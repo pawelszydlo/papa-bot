@@ -1,5 +1,7 @@
 package papaBot
 
+// Handlers for default bot commands.
+
 import (
 	"fmt"
 	"math/rand"
@@ -9,21 +11,27 @@ import (
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
 	bot.commands["auth"] = &BotCommand{
-		true, false,
+		true, false, false,
 		"auth password", "Authenticate with the bot.",
 		commandAuth}
 	bot.commands["reload_texts"] = &BotCommand{
-		true, true,
+		true, false, true,
 		"reload_texts", "Reload bot's texts from file.",
 		commandReloadTexts}
 	bot.commands["find"] = &BotCommand{
-		false, false,
+		false, false, false,
 		"find token1 token2 token3 ...", "Look for URLs containing all the tokens.",
 		commandFindUrl}
 	bot.commands["more"] = &BotCommand{
-		false, false,
+		false, false, false,
 		"more", "Say more about last link.",
 		commandSayMore}
+	bot.commands["var"] = &BotCommand{
+		true, true, false,
+		"var list | get [name] | set [name] [value]", "Controls custom variables",
+		commandVar}
+
+	bot.commandsHideParams["auth"] = true
 }
 
 // handleBotCommand handles commands directed at the bot.
@@ -38,30 +46,33 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 		}
 	}()
 	receiver := channel
+
 	// Was this command sent on a private query?
 	private := false
-	if bot.IsMe(channel) {
+	if bot.userIsMe(channel) {
 		private = true
 		receiver = nick
 	}
 	// Was the command sent by the owner?
 	sender_complete := nick + "!" + user
-	owner := false
-	if sender_complete == bot.BotOwner {
-		owner = true
-	}
+	owner := bot.userIsOwner(sender_complete)
+	admin := bot.userIsAdmin(sender_complete)
 
 	params := strings.Split(command, " ")
 	command = params[0]
 	params = params[1:]
 
-	bot.log.Info("Received command '%s' from '%s' on '%s' with params %s", command, nick, channel, params)
+	if bot.commandsHideParams[command] {
+		bot.log.Info("Received command '%s' from '%s' on '%s' with params <params hidden>.", command, nick, channel)
+	} else {
+		bot.log.Info("Received command '%s' from '%s' on '%s' with params %s.", command, nick, channel, params)
+	}
 
 	if len(command) < 3 {
 		return
 	}
 
-	if !private && !owner { // Command limits apply.
+	if !private && !owner && !admin { // Command limits apply.
 		if bot.commandUseLimit[command+nick] >= bot.Config.CommandsPer5 {
 			if !bot.commandWarn[channel] { // Warning was not yet sent.
 				bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.CommandLimit))
@@ -83,6 +94,9 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 			if cmd.Owner && !owner {
 				continue
 			}
+			if cmd.Admin && !admin {
+				continue
+			}
 			bot.SendMessage(nick, fmt.Sprintf("%s - %s%s", cmd.HelpUsage, cmd.HelpDescription, options))
 		}
 		return
@@ -95,8 +109,8 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 			return
 		}
 		// Check if command needs to be run by the owner.
-		if cmd.Owner && !owner {
-			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsOwner))
+		if cmd.Owner && !owner || cmd.Admin && !admin {
+			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsAdmin))
 			return
 		}
 		cmd.CommandFunc(bot, nick, user, channel, receiver, private, params)
@@ -106,12 +120,14 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 	}
 }
 
-// commandAuth is a command for authenticating a user as bot's owner.
+// commandAuth is a command for authenticating an user with the bot.
 func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
-	if len(params) == 1 && bot.HashPassword(params[0]) == bot.Config.OwnerPassword {
+	if len(params) == 1 {
+		if err := bot.authenticateUser(nick, nick+"!"+user, params[0]); err != nil {
+			bot.log.Warning("Couldn't authenticate %s: %s", nick, err)
+			return
+		}
 		bot.SendMessage(receiver, bot.Texts.PasswordOk)
-		bot.BotOwner = nick + "!" + user
-		bot.log.Info("Owner set to: %s", bot.BotOwner)
 	}
 }
 
@@ -120,6 +136,33 @@ func commandReloadTexts(bot *Bot, nick, user, channel, receiver string, priv boo
 	bot.log.Info("Reloading texts...")
 	bot.LoadTexts(bot.textsFile, bot.Texts)
 	bot.SendMessage(receiver, "Done.")
+}
+
+// commandVar gets, sets and lists custom variables.
+func commandVar(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+	if len(params) < 1 {
+		return
+	}
+	command := params[0]
+	if command == "list" {
+		bot.SendMessage(receiver, "Custom variables:")
+		bot.SendMessage(receiver, fmt.Sprintf("%+v", bot.customVars))
+		return
+	}
+
+	if len(params) == 2 && command == "get" {
+		name := params[1]
+		bot.SendMessage(receiver, fmt.Sprintf("%s = %s", name, bot.getVar(name)))
+		return
+	}
+
+	if len(params) > 3 && command == "set" {
+		name := params[1]
+		value := strings.Join(params[2:], " ")
+		bot.setVar(name, value)
+		bot.SendMessage(receiver, fmt.Sprintf("%s = %s", name, bot.getVar(name)))
+		return
+	}
 }
 
 // commandSayMore gives more info, if bot has any.

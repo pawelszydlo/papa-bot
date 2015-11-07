@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -30,7 +29,7 @@ import (
 )
 
 const (
-	Version = "0.9.0"
+	Version = "0.9.1"
 	Debug   = false
 )
 
@@ -40,10 +39,12 @@ func New(configFile, textsFile string) *Bot {
 
 	// Init bot struct.
 	bot := &Bot{
-		log:            logging.MustGetLogger("bot"),
-		HTTPClient:     &http.Client{Timeout: 5 * time.Second},
-		floodSemaphore: make(chan int, 5),
-		kickedFrom:     map[string]bool{},
+		log:                 logging.MustGetLogger("bot"),
+		HTTPClient:          &http.Client{Timeout: 5 * time.Second},
+		floodSemaphore:      make(chan int, 5),
+		kickedFrom:          map[string]bool{},
+		authenticatedAdmins: map[string]bool{},
+		authenticatedOwners: map[string]bool{},
 
 		textsFile: textsFile,
 		Texts:     &BotTexts{},
@@ -66,9 +67,12 @@ func New(configFile, textsFile string) *Bot {
 			DailyTickMinute:            0,
 		},
 
-		commands:        map[string]*BotCommand{},
-		commandUseLimit: map[string]int{},
-		commandWarn:     map[string]bool{},
+		commands:           map[string]*BotCommand{},
+		commandUseLimit:    map[string]int{},
+		commandWarn:        map[string]bool{},
+		commandsHideParams: map[string]bool{},
+
+		customVars: map[string]string{},
 
 		// Register extensions (ordering matters!)
 		extensions: []Extension{
@@ -90,8 +94,8 @@ func New(configFile, textsFile string) *Bot {
 	bot.log.Info("I am papaBot, version %s", Version)
 
 	// Load config.
-	if err := bot.loadConfig(); err != nil {
-		bot.log.Error("Can't load config: %s", err)
+	if _, err := toml.DecodeFile(bot.configFile, &bot.Config); err != nil {
+		bot.log.Fatal("Can't load config: %s", err)
 	}
 
 	// Load texts.
@@ -103,6 +107,7 @@ func New(configFile, textsFile string) *Bot {
 	if err := bot.initDb(); err != nil {
 		bot.log.Fatal("Can't init database: %s", err)
 	}
+	bot.ensureOwnerExists()
 
 	// Create log folder.
 	if bot.Config.LogChannel {
@@ -121,6 +126,9 @@ func New(configFile, textsFile string) *Bot {
 	bot.irc = ircx.Classic(bot.Config.Server, bot.Config.Name)
 	bot.irc.Config.User = bot.Config.User
 	bot.irc.Config.MaxRetries = 9999
+
+	// Load custom vars.
+	bot.loadVars()
 
 	// Attach event handlers.
 	bot.attachEventHandlers()
@@ -147,45 +155,6 @@ func New(configFile, textsFile string) *Bot {
 	return bot
 }
 
-// loadConfig loads JSON configuration for the bot.
-func (bot *Bot) loadConfig() error {
-
-	// Load raw config file.
-	configFile, err := ioutil.ReadFile(bot.configFile)
-	if err != nil {
-		bot.log.Fatal("Can't load config file: %s", err)
-	}
-
-	// Decode TOML.
-	if _, err := toml.Decode(string(configFile), &bot.Config); err != nil {
-		return err
-	}
-
-	// Bot owners password.
-	if bot.Config.OwnerPassword == "" { // Don't allow empty passwords.
-		bot.log.Fatal("You must set OwnerPassword in your config.")
-	}
-	if !strings.HasPrefix(bot.Config.OwnerPassword, "hash:") { // Password needs to be hashed.
-		bot.log.Info("Pasword not hashed. Hashing and saving.")
-		bot.Config.OwnerPassword = bot.HashPassword(bot.Config.OwnerPassword)
-		// Now rewrite the password line in the config.
-		lines := strings.Split(string(configFile), "\n")
-
-		for i, line := range lines {
-			if strings.HasPrefix(strings.Trim(line, " \t"), "ownerpassword") {
-				lines[i] = fmt.Sprintf("ownerpassword = \"%s\"", bot.Config.OwnerPassword)
-			}
-		}
-		output := strings.Join(lines, "\n")
-		err = ioutil.WriteFile(bot.configFile, []byte(output), 0644)
-		if err != nil {
-			bot.log.Fatal("Can't save config: %s", err)
-		}
-	}
-
-	return nil
-}
-
 // initDb initializes the bot's database.
 func (bot *Bot) initDb() error {
 	db, err := sql.Open("sqlite3", "papabot.db")
@@ -195,6 +164,7 @@ func (bot *Bot) initDb() error {
 
 	// Create URLs tables and triggers, if needed.
 	query := `
+		-- Main URLs table.
 		CREATE TABLE IF NOT EXISTS "urls" (
 			"id" INTEGER PRIMARY KEY  AUTOINCREMENT  NOT NULL,
 			"channel" VARCHAR NOT NULL,
@@ -205,9 +175,11 @@ func (bot *Bot) initDb() error {
 			"timestamp" DATETIME DEFAULT (datetime('now','localtime'))
 		);
 
+		-- Virtual table for FTS.
 		CREATE VIRTUAL TABLE IF NOT EXISTS urls_search
 		USING fts4(channel, nick, link, title, timestamp, search);
 
+		-- Triggers for FTS updating.
 		CREATE TRIGGER IF NOT EXISTS url_add AFTER INSERT ON urls BEGIN
 			INSERT INTO urls_search(channel, nick, link, title, timestamp, search)
 			VALUES(new.channel, new.nick, new.link, new.title, new.timestamp, new.link || ' ' || new.title);
@@ -216,7 +188,24 @@ func (bot *Bot) initDb() error {
 		CREATE TRIGGER IF NOT EXISTS url_update AFTER UPDATE ON urls BEGIN
 			UPDATE urls_search SET title = new.title, search = new.link || ' ' || new.title
 			WHERE timestamp = new.timestamp;
-		END;`
+		END;
+
+		-- Users table.
+		CREATE TABLE IF NOT EXISTS "users" (
+			"nick" VARCHAR PRIMARY KEY NOT NULL UNIQUE,
+			"password" VARCHAR,
+			"alt_nicks" VARCHAR,
+			"owner" boolean DEFAULT 0,
+			"admin" boolean DEFAULT 0,
+			"joined" DATETIME DEFAULT (datetime('now','localtime'))
+		);
+
+		-- Custom variables.
+		CREATE TABLE IF NOT EXISTS "vars" (
+			"name" VARCHAR PRIMARY KEY NOT NULL UNIQUE,
+			"value" VARCHAR
+		);
+	`
 	if _, err := db.Exec(query); err != nil {
 		bot.log.Panic(err)
 	}
@@ -270,20 +259,52 @@ func (bot *Bot) SendMassNotice(message string) {
 	}
 }
 
-// isMe checks if the sender is the bot.
-func (bot *Bot) IsMe(name string) bool {
-	return name == bot.irc.OriginalName
+// loadVars loads all custom variables from the database.
+func (bot *Bot) loadVars() {
+	result, err := bot.Db.Query(`SELECT name, value FROM vars`)
+	if err != nil {
+		return
+	}
+	defer result.Close()
+
+	// Get vars.
+	for result.Next() {
+		var name string
+		var value string
+		if err = result.Scan(&name, &value); err != nil {
+			bot.log.Warning("Can't load var.")
+			continue
+		}
+		bot.customVars[name] = value
+	}
 }
 
-// areSamePeople checks if two nicks belong to the same person.
-func (bot *Bot) AreSamePeople(nick1, nick2 string) bool {
-	nick1 = strings.Trim(nick1, "_~")
-	nick2 = strings.Trim(nick2, "_~")
-	return nick1 == nick2
+// setVar will set a custom variable. Set to empty string to delete.
+func (bot *Bot) setVar(name, value string) {
+	if name == "" {
+		return
+	}
+	// Delete.
+	if value == "" {
+		delete(bot.customVars, name)
+		if _, err := bot.Db.Exec(`DELETE FROM vars WHERE name=?`, name); err != nil {
+			bot.log.Error("Can't delete custom variable %s: %s", name, err)
+		}
+		return
+	}
+	bot.customVars[name] = value
+	if _, err := bot.Db.Exec(`INSERT OR REPLACE INTO vars VALUES(?, ?)`, name, value); err != nil {
+		bot.log.Error("Can't add custom variable %s: %s", name, err)
+	}
+}
+
+// getVar returns the value of a custom variable.
+func (bot *Bot) getVar(name string) string {
+	return bot.customVars[name]
 }
 
 // scribe saves the message into appropriate channel log file.
-func (bot *Bot) Scribe(channel string, message ...interface{}) {
+func (bot *Bot) scribe(channel string, message ...interface{}) {
 	if !bot.Config.LogChannel {
 		return
 	}
@@ -301,18 +322,18 @@ func (bot *Bot) Scribe(channel string, message ...interface{}) {
 	}()
 }
 
-// GetPageBodyByURL is a convenience wrapper around GetPageBody.
-func (bot *Bot) GetPageBodyByURL(url string) ([]byte, error) {
+// getPageBodyByURL is a convenience wrapper around GetPageBody.
+func (bot *Bot) getPageBodyByURL(url string) ([]byte, error) {
 	var urlinfo UrlInfo
 	urlinfo.URL = url
-	if err := bot.GetPageBody(&urlinfo, map[string]string{}); err != nil {
+	if err := bot.getPageBody(&urlinfo, map[string]string{}); err != nil {
 		return urlinfo.Body, err
 	}
 	return urlinfo.Body, nil
 }
 
-// GetPageBody gets and returns a body of a page.
-func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) error {
+// getPageBody gets and returns a body of a page.
+func (bot *Bot) getPageBody(urlinfo *UrlInfo, customHeaders map[string]string) error {
 	if urlinfo.URL == "" {
 		return errors.New("Empty URL")
 	}
@@ -423,10 +444,10 @@ func (bot *Bot) LoadTexts(filename string, data interface{}) error {
 	return nil
 }
 
-// HashPassword hashes the password.
-func (bot *Bot) HashPassword(password string) string {
-	return fmt.Sprintf("hash:%s", base64.StdEncoding.EncodeToString(
-		pbkdf2.Key([]byte(password), []byte(password), 4096, sha256.Size, sha256.New)))
+// hashPassword hashes a password.
+func (bot *Bot) hashPassword(password string) string {
+	return base64.StdEncoding.EncodeToString(
+		pbkdf2.Key([]byte(password), []byte(password), 4096, sha256.Size, sha256.New))
 }
 
 // runExtensionTickers will asynchronously run all extension tickers.

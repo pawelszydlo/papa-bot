@@ -58,13 +58,13 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, 
 		duplicate := ""
 		// Only one duplicate
 		if count == 1 {
-			if bot.AreSamePeople(nick, sender) {
+			if bot.areSamePeople(nick, sender) {
 				nick = ext.Texts.DuplicateYou
 			}
 			elapsed := HumanizedSince(MustForceLocalTimezone(timestamp))
 			duplicate = Format(ext.Texts.TempDuplicateFirst, map[string]string{"nick": nick, "elapsed": elapsed})
 		} else if count > 1 { // More duplicates exist
-			if bot.AreSamePeople(nick, sender) {
+			if bot.areSamePeople(nick, sender) {
 				nick = ext.Texts.DuplicateYou
 			}
 			elapsed := HumanizedSince(MustForceLocalTimezone(timestamp))

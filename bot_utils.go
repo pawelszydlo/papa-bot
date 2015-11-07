@@ -1,5 +1,7 @@
 package papaBot
 
+// Various utility functions.
+
 import (
 	"bytes"
 	"fmt"
@@ -115,8 +117,10 @@ func Format(tpl *template.Template, params map[string]string) string {
 }
 
 // CleanString cleans a string from new lines and caret returns, un-escapes HTML entities and trims spaces.
-func CleanString(str string) string {
-	str = html.UnescapeString(str)
+func CleanString(str string, unescape bool) string {
+	if unescape {
+		str = html.UnescapeString(str)
+	}
 	str = strings.Replace(str, "\n", "", -1)
 	str = strings.Replace(str, "\r", "", -1)
 	return strings.Trim(str, " ")
