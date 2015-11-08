@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/mvdan/xurls"
 	"github.com/nickvanw/ircx"
+	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/sorcix/irc"
 	"math/rand"
 	"strings"
@@ -212,6 +213,8 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 		// Handle links in the message.
 		go bot.handlerMsgURLs(channel, nick, msg)
 
+		// Run full message processors.
+		go bot.handlerMsgFull(channel, nick, msg)
 	}
 }
 
@@ -226,12 +229,15 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 			bot.log.Error("FATAL ERROR in URL processor: %s", r)
 		}
 	}()
+
 	// Find all URLs in the message.
 	links := xurls.Relaxed.FindAllString(msg, -1)
+	// Remove multiple same links from one message.
+	links = utils.RemoveDuplicates(links)
 	for i := range links {
 		// Validate the url.
 		bot.log.Info("Got link %s", links[i])
-		link := StandardizeURL(links[i])
+		link := utils.StandardizeURL(links[i])
 		bot.log.Debug("Standardized to: %s", link)
 		// Link info structure, it will be filled by the processors.
 		var urlinfo UrlInfo
@@ -273,5 +279,23 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 			// Keep the long info for later.
 			bot.urlMoreInfo[channel] = urlinfo.LongInfo
 		}
+	}
+}
+
+// handlerMsgFull runs the processors on the whole message.
+func (bot *Bot) handlerMsgFull(channel, nick, msg string) {
+	// Catch errors.
+	defer func() {
+		if Debug {
+			return
+		} // When in debug mode fail on all errors.
+		if r := recover(); r != nil {
+			bot.log.Error("FATAL ERROR in msg processor: %s", r)
+		}
+	}()
+
+	// Run the extensions.
+	for i := range bot.extensions {
+		bot.extensions[i].ProcessMessage(bot, channel, nick, msg)
 	}
 }

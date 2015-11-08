@@ -2,6 +2,7 @@ package papaBot
 
 import (
 	"fmt"
+	"github.com/pawelszydlo/papa-bot/utils"
 	"text/template"
 	"time"
 )
@@ -61,14 +62,14 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, 
 			if bot.areSamePeople(nick, sender) {
 				nick = ext.Texts.DuplicateYou
 			}
-			elapsed := HumanizedSince(MustForceLocalTimezone(timestamp))
-			duplicate = Format(ext.Texts.TempDuplicateFirst, map[string]string{"nick": nick, "elapsed": elapsed})
+			elapsed := HumanizedSince(utils.MustForceLocalTimezone(timestamp))
+			duplicate = utils.Format(ext.Texts.TempDuplicateFirst, map[string]string{"nick": nick, "elapsed": elapsed})
 		} else if count > 1 { // More duplicates exist
 			if bot.areSamePeople(nick, sender) {
 				nick = ext.Texts.DuplicateYou
 			}
-			elapsed := HumanizedSince(MustForceLocalTimezone(timestamp))
-			duplicate = Format(ext.Texts.TempDuplicateMulti,
+			elapsed := HumanizedSince(utils.MustForceLocalTimezone(timestamp))
+			duplicate = utils.Format(ext.Texts.TempDuplicateMulti,
 				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
 		}
 		// Only announce once per 5 minutes per link.
@@ -93,3 +94,6 @@ func (ext *ExtensionDuplicates) Tick(bot *Bot, daily bool) {
 		ext.announced = map[string]time.Time{}
 	}
 }
+
+// Not implemented.
+func (ext *ExtensionDuplicates) ProcessMessage(bot *Bot, channel, sender, msg string) {}

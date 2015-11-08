@@ -49,4 +49,5 @@ func (ext *ExtensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 }
 
 // Not implemented.
-func (ext *ExtensionGitHub) Tick(bot *Bot, daily bool) {}
+func (ext *ExtensionGitHub) Tick(bot *Bot, daily bool)                            {}
+func (ext *ExtensionGitHub) ProcessMessage(bot *Bot, channel, sender, msg string) {}

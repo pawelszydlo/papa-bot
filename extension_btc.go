@@ -3,6 +3,7 @@ package papaBot
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pawelszydlo/papa-bot/utils"
 	"math"
 	"strconv"
 	"text/template"
@@ -73,6 +74,7 @@ func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 	body, err := bot.getPageBodyByURL("https://www.bitstamp.net/api/ticker/")
 	if err != nil {
 		bot.log.Warning("Error getting BTC data: %s", err)
+		return
 	}
 
 	// Convert from JSON
@@ -95,7 +97,7 @@ func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 	if daily {
 		diff := price - ext.HourlyData["open"].(float64)
 
-		bot.SendMassNotice(Format(ext.Texts.TempBtcNotice, map[string]string{
+		bot.SendMassNotice(utils.Format(ext.Texts.TempBtcNotice, map[string]string{
 			"price": fmt.Sprintf("$%.2f", price),
 			"diff":  ext.diffStr(diff)}))
 	}
@@ -137,10 +139,10 @@ func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 				"diff": "", "minutes": fmt.Sprintf("%.0f", time_diff), "price": fmt.Sprintf("$%.2f", price)}
 			if rise {
 				values["diff"] = ext.diffStr(diff)
-				bot.SendMassNotice(Format(ext.Texts.TempBtcSeriousRise, values))
+				bot.SendMassNotice(utils.Format(ext.Texts.TempBtcSeriousRise, values))
 			} else {
 				values["diff"] = ext.diffStr(-diff)
-				bot.SendMassNotice(Format(ext.Texts.TempBtcSeriousFall, values))
+				bot.SendMassNotice(utils.Format(ext.Texts.TempBtcSeriousFall, values))
 			}
 			ext.priceSeries = make([]float64, 12, 12) // Empty the series.
 		}
@@ -155,7 +157,7 @@ func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver stri
 		price, _ := strconv.ParseFloat(ext.HourlyData["last"].(string), 64)
 		diff := price - ext.HourlyData["open"].(float64)
 
-		bot.SendNotice(receiver, Format(ext.Texts.TempBtcNotice, map[string]string{
+		bot.SendNotice(receiver, utils.Format(ext.Texts.TempBtcNotice, map[string]string{
 			"price": fmt.Sprintf("$%.2f", price),
 			"diff":  ext.diffStr(diff)}))
 	} else {
@@ -170,3 +172,4 @@ func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver stri
 
 // Not implemented.
 func (ext *ExtensionBtc) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}
+func (ext *ExtensionBtc) ProcessMessage(bot *Bot, channel, sender, msg string)               {}

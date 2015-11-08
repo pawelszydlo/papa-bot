@@ -32,6 +32,7 @@ type Bot struct {
 	commandsHideParams map[string]bool
 
 	customVars map[string]string
+	stopWords  map[string]bool
 
 	extensions []Extension
 
@@ -51,6 +52,8 @@ type Extension interface {
 	Init(bot *Bot) error
 	// Will be run whenever an URL is found in the message.
 	ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string)
+	// Will be run on every public message the bot receives.
+	ProcessMessage(bot *Bot, channel, nick, msg string)
 	// Will be run every 5 minutes. Daily will be set to true once per day.
 	Tick(bot *Bot, daily bool)
 }
@@ -92,6 +95,7 @@ type Configuration struct {
 	Server                     string
 	Name                       string
 	User                       string
+	Language                   string
 	Channels                   []string
 	AntiFloodDelay             int
 	CommandsPer5               int

@@ -1,6 +1,7 @@
 package papaBot
 
 import (
+	"github.com/pawelszydlo/papa-bot/utils"
 	"regexp"
 	"strings"
 )
@@ -27,14 +28,14 @@ func (ext *ExtensionMeta) getTitle(body string) (string, string, error) {
 		if len(metas[i]) > 1 {
 			isDesc := ext.descRe.FindString(metas[i][0])
 			if isDesc != "" && (len(metas[i][1]) > len(description)) {
-				description = CleanString(metas[i][1], true)
+				description = utils.CleanString(metas[i][1], true)
 			}
 		}
 	}
 	// Get the title
 	match := ext.titleRe.FindStringSubmatch(string(body))
 	if len(match) > 1 {
-		title := CleanString(match[1], true)
+		title := utils.CleanString(match[1], true)
 		return title, description, nil
 	}
 
@@ -59,4 +60,5 @@ func (ext *ExtensionMeta) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender
 }
 
 // Not implemented.
-func (ext *ExtensionMeta) Tick(bot *Bot, daily bool) {}
+func (ext *ExtensionMeta) Tick(bot *Bot, daily bool)                            {}
+func (ext *ExtensionMeta) ProcessMessage(bot *Bot, channel, sender, msg string) {}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/pawelszydlo/papa-bot/utils"
 	"math/rand"
 	"text/template"
 	"time"
@@ -114,7 +115,7 @@ func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel strin
 			if len(postData.Title) > 100 {
 				postData.Title = postData.Title[:100] + "…"
 			}
-			message = Format(ext.Texts.TempRedditAnnounce, postData.toStrings())
+			message = utils.Format(ext.Texts.TempRedditAnnounce, postData.toStrings())
 			bestScore = postData.Score
 		}
 	}
@@ -158,7 +159,7 @@ func (ext *ExtensionReddit) Tick(bot *Bot, daily bool) {
 	// Get the article.
 	if len(listing.Data.Children) > 0 {
 		post := listing.Data.Children[0].Data
-		bot.SendMassNotice(Format(ext.Texts.TempRedditDaily, post.toStrings()))
+		bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
 	}
 }
 
@@ -186,3 +187,6 @@ func (ext *ExtensionReddit) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 		}()
 	}
 }
+
+// Not implemented.
+func (ext *ExtensionReddit) ProcessMessage(bot *Bot, channel, sender, msg string) {}

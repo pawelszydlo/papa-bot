@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/pawelszydlo/papa-bot/utils"
 	"os"
 	"os/exec"
 	"strings"
@@ -65,7 +66,7 @@ func (bot *Bot) ensureOwnerExists() {
 
 			result.Close()
 
-			bot.addUser(CleanString(nick, false), CleanString(pass1, false), true, true)
+			bot.addUser(utils.CleanString(nick, false), utils.CleanString(pass1, false), true, true)
 		}
 	}
 }
@@ -74,7 +75,7 @@ func (bot *Bot) ensureOwnerExists() {
 func (bot *Bot) addUser(nick, password string, owner, admin bool) error {
 	// Insert user into the db.
 	if _, err := bot.Db.Exec(`INSERT INTO users(nick, password, owner, admin) VALUES(?, ?, ?, ?)`,
-		nick, bot.hashPassword(password), owner, admin); err != nil {
+		nick, utils.HashPassword(password), owner, admin); err != nil {
 		bot.log.Warning("Can't add user to database: %s", err)
 		return err
 	}
@@ -121,7 +122,7 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 		return errors.New(fmt.Sprintf("Error when getting user data for %s: %s", nick, err))
 	}
 	// Check the password
-	if bot.hashPassword(password) != dbPassword {
+	if utils.HashPassword(password) != dbPassword {
 		return errors.New("Invalid password for user")
 	}
 	// Check if user has any privileges

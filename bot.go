@@ -2,9 +2,6 @@
 package papaBot
 
 import (
-	"crypto/sha256"
-	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -19,17 +16,17 @@ import (
 	"errors"
 
 	"github.com/BurntSushi/toml"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/nickvanw/ircx"
 	"github.com/op/go-logging"
+	"github.com/pawelszydlo/papa-bot/lexical"
+	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/sorcix/irc"
-	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
 )
 
 const (
-	Version = "0.9.1"
+	Version = "0.9.2"
 	Debug   = false
 )
 
@@ -48,6 +45,7 @@ func New(configFile, textsFile string) *Bot {
 
 		textsFile: textsFile,
 		Texts:     &BotTexts{},
+		stopWords: map[string]bool{},
 
 		lastURLAnnouncedTime:        map[string]time.Time{},
 		lastURLAnnouncedLinesPassed: map[string]int{},
@@ -65,6 +63,7 @@ func New(configFile, textsFile string) *Bot {
 			HttpDefaultUserAgent:       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
 			DailyTickHour:              8,
 			DailyTickMinute:            0,
+			Language:                   "en",
 		},
 
 		commands:           map[string]*BotCommand{},
@@ -81,6 +80,7 @@ func New(configFile, textsFile string) *Bot {
 			new(ExtensionGitHub),
 			new(ExtensionBtc),
 			new(ExtensionReddit),
+			new(ExtensionMovies),
 		},
 	}
 	// Logging init.
@@ -111,7 +111,7 @@ func New(configFile, textsFile string) *Bot {
 
 	// Create log folder.
 	if bot.Config.LogChannel {
-		exists, err := DirExists("logs")
+		exists, err := utils.DirExists("logs")
 		if err != nil {
 			bot.log.Fatal("Can't check if logs dir exists: %s", err)
 		}
@@ -152,66 +152,16 @@ func New(configFile, textsFile string) *Bot {
 	}
 	bot.log.Debug("Next daily tick: %s", bot.nextDailyTick)
 
+	// Load stopwords.
+	if err := lexical.LoadStopWords(bot.Config.Language, bot.stopWords); err != nil {
+		bot.log.Warning("Can't load stop words for language %s: %s", bot.Config.Language, err)
+		bot.log.Warning("Lexical functions will be handicapped.")
+	}
+	bot.log.Debug("Loaded %d stopwords for language %s.", len(bot.stopWords), bot.Config.Language)
+
+	bot.log.Info("Bot init done.")
+
 	return bot
-}
-
-// initDb initializes the bot's database.
-func (bot *Bot) initDb() error {
-	db, err := sql.Open("sqlite3", "papabot.db")
-	if err != nil {
-		return err
-	}
-
-	// Create URLs tables and triggers, if needed.
-	query := `
-		-- Main URLs table.
-		CREATE TABLE IF NOT EXISTS "urls" (
-			"id" INTEGER PRIMARY KEY  AUTOINCREMENT  NOT NULL,
-			"channel" VARCHAR NOT NULL,
-			"nick" VARCHAR NOT NULL,
-			"link" VARCHAR NOT NULL,
-			"quote" VARCHAR NOT NULL,
-			"title" VARCHAR,
-			"timestamp" DATETIME DEFAULT (datetime('now','localtime'))
-		);
-
-		-- Virtual table for FTS.
-		CREATE VIRTUAL TABLE IF NOT EXISTS urls_search
-		USING fts4(channel, nick, link, title, timestamp, search);
-
-		-- Triggers for FTS updating.
-		CREATE TRIGGER IF NOT EXISTS url_add AFTER INSERT ON urls BEGIN
-			INSERT INTO urls_search(channel, nick, link, title, timestamp, search)
-			VALUES(new.channel, new.nick, new.link, new.title, new.timestamp, new.link || ' ' || new.title);
-		END;
-
-		CREATE TRIGGER IF NOT EXISTS url_update AFTER UPDATE ON urls BEGIN
-			UPDATE urls_search SET title = new.title, search = new.link || ' ' || new.title
-			WHERE timestamp = new.timestamp;
-		END;
-
-		-- Users table.
-		CREATE TABLE IF NOT EXISTS "users" (
-			"nick" VARCHAR PRIMARY KEY NOT NULL UNIQUE,
-			"password" VARCHAR,
-			"alt_nicks" VARCHAR,
-			"owner" boolean DEFAULT 0,
-			"admin" boolean DEFAULT 0,
-			"joined" DATETIME DEFAULT (datetime('now','localtime'))
-		);
-
-		-- Custom variables.
-		CREATE TABLE IF NOT EXISTS "vars" (
-			"name" VARCHAR PRIMARY KEY NOT NULL UNIQUE,
-			"value" VARCHAR
-		);
-	`
-	if _, err := db.Exec(query); err != nil {
-		bot.log.Panic(err)
-	}
-
-	bot.Db = db
-	return nil
 }
 
 // resetFloodSemaphore flushes bot's flood semaphore.
@@ -442,12 +392,6 @@ func (bot *Bot) LoadTexts(filename string, data interface{}) error {
 	}
 
 	return nil
-}
-
-// hashPassword hashes a password.
-func (bot *Bot) hashPassword(password string) string {
-	return base64.StdEncoding.EncodeToString(
-		pbkdf2.Key([]byte(password), []byte(password), 4096, sha256.Size, sha256.New))
 }
 
 // runExtensionTickers will asynchronously run all extension tickers.
