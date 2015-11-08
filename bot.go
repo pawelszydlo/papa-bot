@@ -15,6 +15,7 @@ import (
 
 	"errors"
 
+	"bytes"
 	"github.com/BurntSushi/toml"
 	"github.com/nickvanw/ircx"
 	"github.com/op/go-logging"
@@ -23,10 +24,11 @@ import (
 	"github.com/sorcix/irc"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
+	"regexp"
 )
 
 const (
-	Version = "0.9.2"
+	Version = "0.9.3"
 	Debug   = false
 )
 
@@ -45,7 +47,6 @@ func New(configFile, textsFile string) *Bot {
 
 		textsFile: textsFile,
 		Texts:     &BotTexts{},
-		stopWords: map[string]bool{},
 
 		lastURLAnnouncedTime:        map[string]time.Time{},
 		lastURLAnnouncedLinesPassed: map[string]int{},
@@ -153,11 +154,11 @@ func New(configFile, textsFile string) *Bot {
 	bot.log.Debug("Next daily tick: %s", bot.nextDailyTick)
 
 	// Load stopwords.
-	if err := lexical.LoadStopWords(bot.Config.Language, bot.stopWords); err != nil {
+	if err := lexical.LoadStopWords(bot.Config.Language); err != nil {
 		bot.log.Warning("Can't load stop words for language %s: %s", bot.Config.Language, err)
 		bot.log.Warning("Lexical functions will be handicapped.")
 	}
-	bot.log.Debug("Loaded %d stopwords for language %s.", len(bot.stopWords), bot.Config.Language)
+	bot.log.Debug("Loaded %d stopwords for language %s.", len(lexical.StopWords), bot.Config.Language)
 
 	bot.log.Info("Bot init done.")
 
@@ -330,7 +331,15 @@ func (bot *Bot) getPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 
 	// If type is text, decode the body to UTF-8.
 	if strings.Contains(content_type, "text/html") || strings.Contains(content_type, "text/plain") {
-		encoding, _, _ := charset.DetermineEncoding(body, content_type)
+		// Try to get more significant part for encoding detection.
+		metaRe := regexp.MustCompile(`<.*(description|title).*<`)
+		texts := metaRe.FindAll(body, -1)
+		sample := bytes.Join(texts, []byte{})
+		if len(sample) < 100 {
+			sample = body
+		}
+		// Detect encoding and transform.
+		encoding, _, _ := charset.DetermineEncoding(sample, content_type)
 		decodedBody, _, _ := transform.Bytes(encoding.NewDecoder(), body)
 		urlinfo.Body = decodedBody
 	} else if strings.Contains(content_type, "application/json") {

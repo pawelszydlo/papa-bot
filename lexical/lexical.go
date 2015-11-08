@@ -10,13 +10,14 @@ import (
 	"strings"
 )
 
+var StopWords = map[string]bool{}
 var wordRe = regexp.MustCompile(`(\pL+)`)
 
 // TODO(pawelszydlo): find out why \pLu doesn't work for matching uppercase letter.
 var nameRe = regexp.MustCompile(`("[\pL| |\pP]{1,40}?"|'[\pL| |\pP]{1,40}?'|([A-Z][\pL]+[ |$|,|\:|\.|-]*)+)`)
 
 // LoadStopWords will load stop words for a given language.
-func LoadStopWords(lang string, stopWords map[string]bool) error {
+func LoadStopWords(lang string) error {
 	// Load stopwords from file.
 	file, err := os.Open(fmt.Sprintf("stopwords/%s.csv", lang))
 	if err != nil {
@@ -32,17 +33,17 @@ func LoadStopWords(lang string, stopWords map[string]bool) error {
 	}
 
 	for _, word := range words {
-		stopWords[strings.ToLower(word[0])] = true
+		StopWords[strings.ToLower(word[0])] = true
 	}
 
 	return nil
 }
 
 // RemoveStopWords will remove stop words from a word list.
-func RemoveStopWords(tokenized []string, stopWords map[string]bool) []string {
+func RemoveStopWords(tokenized []string) []string {
 	replaced := []string{}
 	for _, word := range tokenized {
-		if !stopWords[strings.ToLower(word)] {
+		if !StopWords[strings.ToLower(word)] {
 			replaced = append(replaced, word)
 		}
 	}

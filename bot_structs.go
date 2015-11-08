@@ -12,37 +12,48 @@ import (
 
 // Bot itself.
 type Bot struct {
-	irc        *ircx.Bot
-	Db         *sql.DB
+	// Underlying irc bot.
+	irc *ircx.Bot
+	// Database connection.
+	Db *sql.DB
+	// HTTP client.
 	HTTPClient *http.Client
-	log        *logging.Logger
-
+	// Logger.
+	log *logging.Logger
+	// Path to config file.
 	configFile string
-	Config     Configuration
-
+	// Configuration struct.
+	Config Configuration
+	// Anti flood buffered semaphore
 	floodSemaphore chan int
-	kickedFrom     map[string]bool
-
+	// Channels bot was kicked from.
+	kickedFrom map[string]bool
+	// Currently authenticated users.
 	authenticatedAdmins map[string]bool
 	authenticatedOwners map[string]bool
-
-	commands           map[string]*BotCommand
-	commandUseLimit    map[string]int
-	commandWarn        map[string]bool
+	// Registered bot commands.
+	commands map[string]*BotCommand
+	// Number of uses per command.
+	commandUseLimit map[string]int
+	// Was the warning sent, per command.
+	commandWarn map[string]bool
+	// Commands that will not have their params listed in the logs (auth etc.)
 	commandsHideParams map[string]bool
-
+	// Custom variables for use in extensions.
 	customVars map[string]string
-	stopWords  map[string]bool
-
+	// Registered bot extensions,
 	extensions []Extension
-
+	// Path to texts file.
 	textsFile string
-	Texts     *BotTexts
-
-	lastURLAnnouncedTime        map[string]time.Time
+	// Bot texts struct.
+	Texts *BotTexts
+	// Time when URL info was last announced, per channel + link.
+	lastURLAnnouncedTime map[string]time.Time
+	// Lines passed since URL info was last announced, per channel + link.
 	lastURLAnnouncedLinesPassed map[string]int
-	urlMoreInfo                 map[string]string
-
+	// More information to give about last link, per channel.
+	urlMoreInfo map[string]string
+	// Time for next daily tick.
 	nextDailyTick time.Time
 }
 

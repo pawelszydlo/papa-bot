@@ -177,45 +177,43 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 		return
 	}
 
-	// Is it a private query?
-	if bot.userIsMe(channel) {
-		go bot.handleBotCommand(channel, nick, user, msg)
-	} else { // Message on a channel.
-		bot.scribe(channel, fmt.Sprintf("<%s> %s", nick, msg))
+	// Message on a channel.
+	bot.scribe(channel, fmt.Sprintf("<%s> %s", nick, msg))
 
-		// Is someone talking to the bot?
-		true_nick := bot.irc.OriginalName
-		if strings.HasPrefix(msg, true_nick) {
-			msg = strings.TrimLeft(msg[len(true_nick):], ",:; ")
-			if msg != "" {
-				go bot.handleBotCommand(channel, nick, user, msg)
-				return
-			}
+	// Is someone talking to the bot?
+	true_nick := bot.irc.OriginalName
+	if strings.HasPrefix(msg, true_nick) {
+		msg = strings.TrimLeft(msg[len(true_nick):], ",:; ")
+		if msg != "" {
+			go bot.handleBotCommand(channel, nick, user, msg, true)
+			return
 		}
-		// Maybe a dot command?
-		if strings.HasPrefix(msg, ".") {
-			msg = strings.TrimPrefix(msg, ".")
-			if msg != "" {
-				go bot.handleBotCommand(channel, nick, user, msg)
-				return
-			}
-		}
-		// Increase lines count for all announcements.
-		for k := range bot.lastURLAnnouncedLinesPassed {
-			bot.lastURLAnnouncedLinesPassed[k] += 1
-			// After 100 lines pass, forget it ever happened.
-			if bot.lastURLAnnouncedLinesPassed[k] > 100 {
-				delete(bot.lastURLAnnouncedLinesPassed, k)
-				delete(bot.lastURLAnnouncedTime, k)
-			}
-		}
-
-		// Handle links in the message.
-		go bot.handlerMsgURLs(channel, nick, msg)
-
-		// Run full message processors.
-		go bot.handlerMsgFull(channel, nick, msg)
 	}
+
+	// Maybe a dot command?
+	if strings.HasPrefix(msg, ".") {
+		msg = strings.TrimPrefix(msg, ".")
+		if msg != "" {
+			go bot.handleBotCommand(channel, nick, user, msg, false)
+			return
+		}
+	}
+
+	// Increase lines count for all announcements.
+	for k := range bot.lastURLAnnouncedLinesPassed {
+		bot.lastURLAnnouncedLinesPassed[k] += 1
+		// After 100 lines pass, forget it ever happened.
+		if bot.lastURLAnnouncedLinesPassed[k] > 100 {
+			delete(bot.lastURLAnnouncedLinesPassed, k)
+			delete(bot.lastURLAnnouncedTime, k)
+		}
+	}
+
+	// Handle links in the message.
+	go bot.handlerMsgURLs(channel, nick, msg)
+
+	// Run full message processors.
+	go bot.handlerMsgFull(channel, nick, msg)
 }
 
 // handlerMsgURLs finds all URLs in the message and executes the URL processors on them.

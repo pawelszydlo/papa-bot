@@ -35,7 +35,7 @@ func (bot *Bot) initBotCommands() {
 }
 
 // handleBotCommand handles commands directed at the bot.
-func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
+func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack bool) {
 	// Catch errors.
 	defer func() {
 		if Debug {
@@ -114,9 +114,11 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string) {
 			return
 		}
 		cmd.CommandFunc(bot, nick, user, channel, receiver, private, params)
-	} else { // Unknown command, say something.
-		bot.SendMessage(receiver, fmt.Sprintf(
-			"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
+	} else { // Unknown command.
+		if talkBack {
+			bot.SendMessage(receiver, fmt.Sprintf(
+				"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
+		}
 	}
 }
 
