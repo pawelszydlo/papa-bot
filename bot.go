@@ -1,4 +1,4 @@
-// Package papaBot provides an easily extensible IRC bot written mostly for handling URLs posted on the channels.
+// Package papaBot provides an IRC bot with focus on easy extension and customization.
 package papaBot
 
 import (
@@ -36,6 +36,23 @@ const (
 func New(configFile, textsFile string) *Bot {
 	rand.Seed(time.Now().Unix())
 
+	// Default configuration.
+	config := Configuration{
+		AntiFloodDelay:             5,
+		ChatLogging:                true,
+		CommandsPer5:               3,
+		UrlAnnounceIntervalMinutes: 15,
+		UrlAnnounceIntervalLines:   50,
+		RejoinDelaySeconds:         15,
+		PageBodyMaxSize:            50 * 1024,
+		HttpDefaultUserAgent:       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+		DailyTickHour:              8,
+		DailyTickMinute:            0,
+		Language:                   "en",
+		Name:                       "papaBot",
+		User:                       "papaBot",
+	}
+
 	// Init bot struct.
 	bot := &Bot{
 		log:                 logging.MustGetLogger("bot"),
@@ -53,19 +70,7 @@ func New(configFile, textsFile string) *Bot {
 		urlMoreInfo:                 map[string]string{},
 
 		configFile: configFile,
-		Config: Configuration{
-			AntiFloodDelay:             5,
-			LogChannel:                 true,
-			CommandsPer5:               3,
-			UrlAnnounceIntervalMinutes: 15,
-			UrlAnnounceIntervalLines:   50,
-			RejoinDelaySeconds:         15,
-			PageBodyMaxSize:            50 * 1024,
-			HttpDefaultUserAgent:       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-			DailyTickHour:              8,
-			DailyTickMinute:            0,
-			Language:                   "en",
-		},
+		Config:     &config,
 
 		commands:           map[string]*BotCommand{},
 		commandUseLimit:    map[string]int{},
@@ -111,7 +116,7 @@ func New(configFile, textsFile string) *Bot {
 	bot.ensureOwnerExists()
 
 	// Create log folder.
-	if bot.Config.LogChannel {
+	if bot.Config.ChatLogging {
 		exists, err := utils.DirExists("logs")
 		if err != nil {
 			bot.log.Fatal("Can't check if logs dir exists: %s", err)
@@ -256,7 +261,7 @@ func (bot *Bot) getVar(name string) string {
 
 // scribe saves the message into appropriate channel log file.
 func (bot *Bot) scribe(channel string, message ...interface{}) {
-	if !bot.Config.LogChannel {
+	if !bot.Config.ChatLogging {
 		return
 	}
 	go func() {
@@ -332,9 +337,8 @@ func (bot *Bot) getPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	// If type is text, decode the body to UTF-8.
 	if strings.Contains(content_type, "text/html") || strings.Contains(content_type, "text/plain") {
 		// Try to get more significant part for encoding detection.
-		metaRe := regexp.MustCompile(`<.*(description|title).*<`)
-		texts := metaRe.FindAll(body, -1)
-		sample := bytes.Join(texts, []byte{})
+		webContentSampleRe := regexp.MustCompile(`<.*(og\:description|title|description).*<`)
+		sample := bytes.Join(webContentSampleRe.FindAll(body, -1), []byte{})
 		if len(sample) < 100 {
 			sample = body
 		}

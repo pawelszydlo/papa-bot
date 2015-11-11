@@ -64,8 +64,9 @@ func (bot *Bot) handlerPing(s ircx.Sender, m *irc.Message) {
 }
 
 func (bot *Bot) handlerNickTaken(s ircx.Sender, m *irc.Message) {
-	bot.log.Warning("Server at %s said that my nick is already taken. Changing nick...", m.Prefix.Name)
 	bot.irc.OriginalName = bot.Config.Name + "_"
+	bot.log.Warning(
+		"Server at %s said that my nick is already taken. Changing nick to %s", m.Prefix.Name, bot.irc.OriginalName)
 }
 
 func (bot *Bot) handlerCantJoin(s ircx.Sender, m *irc.Message) {

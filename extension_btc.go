@@ -35,14 +35,12 @@ type extensionBtcTexts struct {
 
 func (ext *ExtensionBtc) Init(bot *Bot) error {
 	// Register new command.
-	bot.commands["btc"] = &BotCommand{
+	cmdBtc := BotCommand{
 		false, false, false,
 		"btc", "Show current BTC price.",
 		ext.commandBtc}
-	bot.commands["kierda"] = &BotCommand{
-		false, false, false,
-		"kierda", "Show current BTC price.",
-		ext.commandBtc}
+	bot.commands["btc"] = &cmdBtc
+	bot.commands["kierda"] = &cmdBtc
 	// Init variables.
 	ext.LastAsk = map[string]time.Time{}
 	ext.Warned = map[string]bool{}

@@ -22,8 +22,8 @@ type Bot struct {
 	log *logging.Logger
 	// Path to config file.
 	configFile string
-	// Configuration struct.
-	Config Configuration
+	// Bot's configuration.
+	Config *Configuration
 	// Anti flood buffered semaphore
 	floodSemaphore chan int
 	// Channels bot was kicked from.
@@ -110,7 +110,7 @@ type Configuration struct {
 	Channels                   []string
 	AntiFloodDelay             int
 	CommandsPer5               int
-	LogChannel                 bool
+	ChatLogging                bool
 	UrlAnnounceIntervalMinutes time.Duration
 	UrlAnnounceIntervalLines   int
 	RejoinDelaySeconds         time.Duration

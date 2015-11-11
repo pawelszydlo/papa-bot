@@ -22,10 +22,14 @@ func (bot *Bot) initBotCommands() {
 		false, false, false,
 		"find token1 token2 token3 ...", "Look for URLs containing all the tokens.",
 		commandFindUrl}
-	bot.commands["more"] = &BotCommand{
+
+	cmdMore := BotCommand{
 		false, false, false,
 		"more", "Say more about last link.",
 		commandSayMore}
+	bot.commands["more"] = &cmdMore
+	bot.commands["moar"] = &cmdMore
+
 	bot.commands["var"] = &BotCommand{
 		true, true, false,
 		"var list | get [name] | set [name] [value]", "Controls custom variables",
