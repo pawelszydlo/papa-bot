@@ -27,6 +27,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * GitHub repository information.
 * BTC price command.
 * Movie information.
+* Custom counters/countdowns.
 
 ###Adding your own extensions
 

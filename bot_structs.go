@@ -29,8 +29,8 @@ type Bot struct {
 	// Channels bot was kicked from.
 	kickedFrom map[string]bool
 	// Currently authenticated users.
-	authenticatedAdmins map[string]bool
-	authenticatedOwners map[string]bool
+	authenticatedAdmins map[string]string
+	authenticatedOwners map[string]string
 	// Registered bot commands.
 	commands map[string]*BotCommand
 	// Number of uses per command.

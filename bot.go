@@ -59,8 +59,8 @@ func New(configFile, textsFile string) *Bot {
 		HTTPClient:          &http.Client{Timeout: 5 * time.Second},
 		floodSemaphore:      make(chan int, 5),
 		kickedFrom:          map[string]bool{},
-		authenticatedAdmins: map[string]bool{},
-		authenticatedOwners: map[string]bool{},
+		authenticatedAdmins: map[string]string{},
+		authenticatedOwners: map[string]string{},
 
 		textsFile: textsFile,
 		Texts:     &BotTexts{},
@@ -81,6 +81,7 @@ func New(configFile, textsFile string) *Bot {
 
 		// Register extensions (ordering matters!)
 		extensions: []Extension{
+			new(ExtensionCounters),
 			new(ExtensionMeta),
 			new(ExtensionDuplicates),
 			new(ExtensionGitHub),
@@ -142,13 +143,6 @@ func New(configFile, textsFile string) *Bot {
 	// Init bot commands.
 	bot.initBotCommands()
 
-	// Init extensions.
-	for i := range bot.extensions {
-		if err := bot.extensions[i].Init(bot); err != nil {
-			bot.log.Fatal("Error loading extensions: %s", err)
-		}
-	}
-
 	// Get next daily tick.
 	now := time.Now()
 	bot.nextDailyTick = time.Date(
@@ -164,6 +158,13 @@ func New(configFile, textsFile string) *Bot {
 		bot.log.Warning("Lexical functions will be handicapped.")
 	}
 	bot.log.Debug("Loaded %d stopwords for language %s.", len(lexical.StopWords), bot.Config.Language)
+
+	// Init extensions.
+	for i := range bot.extensions {
+		if err := bot.extensions[i].Init(bot); err != nil {
+			bot.log.Fatal("Error loading extensions: %s", err)
+		}
+	}
 
 	bot.log.Info("Bot init done.")
 
@@ -228,7 +229,7 @@ func (bot *Bot) loadVars() {
 		var name string
 		var value string
 		if err = result.Scan(&name, &value); err != nil {
-			bot.log.Warning("Can't load var.")
+			bot.log.Warning("Can't load var: %s", err)
 			continue
 		}
 		bot.customVars[name] = value
@@ -337,13 +338,14 @@ func (bot *Bot) getPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	// If type is text, decode the body to UTF-8.
 	if strings.Contains(content_type, "text/html") || strings.Contains(content_type, "text/plain") {
 		// Try to get more significant part for encoding detection.
-		webContentSampleRe := regexp.MustCompile(`<.*(og\:description|title|description).*<`)
+		webContentSampleRe := regexp.MustCompile(`(?i)<[^>]*?description[^<]*?>|<title>.*?</title>`)
 		sample := bytes.Join(webContentSampleRe.FindAll(body, -1), []byte{})
 		if len(sample) < 100 {
 			sample = body
 		}
 		// Detect encoding and transform.
 		encoding, _, _ := charset.DetermineEncoding(sample, content_type)
+		bot.log.Debug("Encoding detected: %s, content_type: %s", encoding, content_type)
 		decodedBody, _, _ := transform.Bytes(encoding.NewDecoder(), body)
 		urlinfo.Body = decodedBody
 	} else if strings.Contains(content_type, "application/json") {

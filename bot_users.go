@@ -117,7 +117,7 @@ func (bot *Bot) getUserData(nick string) (
 
 // authenticateUser authenticates the user as an owner or admin
 func (bot *Bot) authenticateUser(nick, fullName, password string) error {
-	_, dbPassword, _, owner, admin, err := bot.getUserData(nick)
+	dbNick, dbPassword, _, owner, admin, err := bot.getUserData(nick)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Error when getting user data for %s: %s", nick, err))
 	}
@@ -128,14 +128,15 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 	// Check if user has any privileges
 	if owner {
 		bot.log.Info("Authenticating %s as an owner.", nick)
-		bot.authenticatedOwners[fullName] = true
+		bot.authenticatedOwners[fullName] = dbNick
 	}
 	if admin {
 		bot.log.Info("Authenticating %s as an admin.", nick)
-		bot.authenticatedAdmins[fullName] = true
+		bot.authenticatedAdmins[fullName] = dbNick
 	}
 	if !admin && !owner {
 		bot.log.Info("Authenticating %s with no special privileges.", nick)
+		// TBI
 	}
 	return nil
 }
@@ -147,12 +148,12 @@ func (bot *Bot) userIsMe(nick string) bool {
 
 // userIsOwner checks if the user is an authenticated owner.
 func (bot *Bot) userIsOwner(fullName string) bool {
-	return bot.authenticatedOwners[fullName]
+	return bot.authenticatedOwners[fullName] != ""
 }
 
 // userIsOwner checks if the user is an authenticated admin.
 func (bot *Bot) userIsAdmin(fullName string) bool {
-	return bot.authenticatedAdmins[fullName]
+	return bot.authenticatedAdmins[fullName] != ""
 }
 
 // areSamePeople checks if two nicks belong to the same person.
