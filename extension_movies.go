@@ -117,7 +117,7 @@ func (ext *ExtensionMovies) ProcessMessage(bot *Bot, channel, sender, msg string
 	if !hasTrigger {
 		return
 	}
-	names := lexical.FindNames(msg)
+	names := lexical.FindQuotes(msg)
 	for _, title := range names {
 		ext.findAndAnnounce(bot, channel, title)
 	}

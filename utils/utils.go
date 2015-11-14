@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"unicode"
 )
 
 // MustForceLocalTimezone adds current timezone to passed date, without recalculating the date.
@@ -60,7 +61,7 @@ func CleanString(str string, unescape bool) string {
 	}
 	str = strings.Replace(str, "\n", "", -1)
 	str = strings.Replace(str, "\r", "", -1)
-	return strings.Trim(str, " ")
+	return strings.TrimFunc(str, unicode.IsSpace)
 }
 
 // StandardizeURL standardizes the url by making sure it has a schema and converting IDNA domains into ASCII.

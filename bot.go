@@ -24,6 +24,7 @@ import (
 	"github.com/sorcix/irc"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
+	"html"
 	"regexp"
 )
 
@@ -329,29 +330,39 @@ func (bot *Bot) getPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 		body = body[:num]
 	}
 	// Get the content-type
-	content_type := resp.Header.Get("Content-Type")
-	if content_type == "" {
-		content_type = http.DetectContentType(body)
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = http.DetectContentType(body)
 	}
-	urlinfo.ContentType = content_type
+	urlinfo.ContentType = contentType
 
 	// If type is text, decode the body to UTF-8.
-	if strings.Contains(content_type, "text/html") || strings.Contains(content_type, "text/plain") {
+	if strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/plain") {
 		// Try to get more significant part for encoding detection.
 		webContentSampleRe := regexp.MustCompile(`(?i)<[^>]*?description[^<]*?>|<title>.*?</title>`)
 		sample := bytes.Join(webContentSampleRe.FindAll(body, -1), []byte{})
 		if len(sample) < 100 {
 			sample = body
 		}
+		// Unescape HTML tokens.
+		sample = []byte(html.UnescapeString(string(sample)))
+		// Try to only get charset from content type. Needed because some pages serve broken Content-Type header.
+		detectionContentType := contentType
+		tokens := strings.Split(contentType, ";")
+		for _, t := range tokens {
+			if strings.Contains(strings.ToLower(t), "charset") {
+				detectionContentType = "text/html; " + t
+				break
+			}
+		}
 		// Detect encoding and transform.
-		encoding, _, _ := charset.DetermineEncoding(sample, content_type)
-		bot.log.Debug("Encoding detected: %s, content_type: %s", encoding, content_type)
+		encoding, _, _ := charset.DetermineEncoding(sample, detectionContentType)
 		decodedBody, _, _ := transform.Bytes(encoding.NewDecoder(), body)
 		urlinfo.Body = decodedBody
-	} else if strings.Contains(content_type, "application/json") {
+	} else if strings.Contains(contentType, "application/json") {
 		urlinfo.Body = body
 	} else {
-		bot.log.Debug("Not fetching the body for Content-Type: %s", content_type)
+		bot.log.Debug("Not fetching the body for Content-Type: %s", contentType)
 	}
 	return nil
 }

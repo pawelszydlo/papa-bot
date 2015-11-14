@@ -12,9 +12,7 @@ import (
 
 var StopWords = map[string]bool{}
 var wordRe = regexp.MustCompile(`(\pL+)`)
-
-// TODO(pawelszydlo): find out why \pLu doesn't work for matching uppercase letter.
-var nameRe = regexp.MustCompile(`("[\pL| |\pP]{1,40}?"|'[\pL| |\pP]{1,40}?'|([A-Z][\pL]+[ |$|,|\:|\.|-]*)+)`)
+var quoteRe = regexp.MustCompile(`("[\pL| |\pP]{1,40}?"|'[\pL| |\pP]{1,40}?')`)
 
 // LoadStopWords will load stop words for a given language.
 func LoadStopWords(lang string) error {
@@ -61,12 +59,11 @@ func Tokenize(text string) []string {
 	return words
 }
 
-// FindNames will return names found in the text (text in quotes or capitalized).
-func FindNames(text string) []string {
-	namesArray := nameRe.FindAllStringSubmatch(text, -1)
+// FindQuotes will return all texts in quotes.
+func FindQuotes(text string) []string {
+	namesArray := quoteRe.FindAllStringSubmatch(text, -1)
 	names := []string{}
 	for _, word := range namesArray {
-		fmt.Println(word)
 		names = append(names, strings.Trim(word[1], `"' `))
 	}
 	return names
