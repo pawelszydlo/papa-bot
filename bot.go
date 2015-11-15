@@ -30,7 +30,7 @@ import (
 
 const (
 	Version = "0.9.4"
-	Debug   = false
+	Debug   = false // Set to true to crash on runtime errors.
 )
 
 // New creates a new bot.

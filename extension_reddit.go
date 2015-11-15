@@ -46,7 +46,7 @@ type RedditListing struct {
 func (postData *RedditPostData) toStrings() map[string]string {
 	return map[string]string{
 		"id":           postData.Id,
-		"created":      HumanizedSince(time.Unix(int64(postData.Created), 0)),
+		"created":      utils.HumanizedSince(time.Unix(int64(postData.Created), 0)),
 		"author":       postData.Author,
 		"subreddit":    postData.Subreddit,
 		"score":        fmt.Sprintf("%d", postData.Score),

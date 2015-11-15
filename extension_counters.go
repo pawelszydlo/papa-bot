@@ -36,7 +36,7 @@ func (cs *extensionCountersCounter) message() string {
 		"days":    fmt.Sprintf("%d", days),
 		"hours":   fmt.Sprintf("%d", hours),
 		"minutes": fmt.Sprintf("%d", minutes),
-		"since":   HumanizedSince(cs.date),
+		"since":   utils.HumanizedSince(cs.date),
 	}
 	return utils.Format(cs.textTmp, vars)
 }
