@@ -60,6 +60,7 @@ func New(configFile, textsFile string) *Bot {
 		HTTPClient:          &http.Client{Timeout: 5 * time.Second},
 		floodSemaphore:      make(chan int, 5),
 		kickedFrom:          map[string]bool{},
+		onChannel:           map[string]bool{},
 		authenticatedAdmins: map[string]string{},
 		authenticatedOwners: map[string]string{},
 
@@ -89,6 +90,7 @@ func New(configFile, textsFile string) *Bot {
 			new(ExtensionBtc),
 			new(ExtensionReddit),
 			new(ExtensionMovies),
+			new(ExtensionRaw),
 		},
 	}
 	// Logging init.

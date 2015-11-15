@@ -168,7 +168,3 @@ func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver stri
 	}
 
 }
-
-// Not implemented.
-func (ext *ExtensionBtc) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}
-func (ext *ExtensionBtc) ProcessMessage(bot *Bot, channel, sender, msg string)               {}

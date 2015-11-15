@@ -12,7 +12,7 @@ import (
 func (bot *Bot) initBotCommands() {
 	bot.commands["auth"] = &BotCommand{
 		true, false, false,
-		"auth password", "Authenticate with the bot.",
+		"auth [user] [password]", "Authenticate with the bot.",
 		commandAuth}
 	bot.commands["reload_texts"] = &BotCommand{
 		true, false, true,
@@ -128,8 +128,8 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 
 // commandAuth is a command for authenticating an user with the bot.
 func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
-	if len(params) == 1 {
-		if err := bot.authenticateUser(nick, nick+"!"+user, params[0]); err != nil {
+	if len(params) == 2 {
+		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
 			bot.log.Warning("Couldn't authenticate %s: %s", nick, err)
 			return
 		}

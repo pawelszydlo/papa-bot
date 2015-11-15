@@ -88,6 +88,9 @@ func (bot *Bot) handlerBadNick(s ircx.Sender, m *irc.Message) {
 }
 
 func (bot *Bot) handlerPart(s ircx.Sender, m *irc.Message) {
+	if bot.userIsMe(m.Prefix.Name) {
+		delete(bot.onChannel, m.Params[0])
+	}
 	bot.log.Info("%s has left %s: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 	bot.scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
 }
@@ -110,6 +113,7 @@ func (bot *Bot) handlerJoin(s ircx.Sender, m *irc.Message) {
 			bot.log.Info("I have joined %s", m.Trailing)
 			bot.SendMessage(m.Trailing, bot.Texts.Hellos[rand.Intn(len(bot.Texts.Hellos))])
 		}
+		bot.onChannel[m.Trailing] = true
 	} else {
 		bot.log.Info("%s has joined %s", m.Prefix.Name, m.Trailing)
 	}
@@ -122,7 +126,7 @@ func (bot *Bot) handlerMode(s ircx.Sender, m *irc.Message) {
 }
 
 func (bot *Bot) handlerTopic(s ircx.Sender, m *irc.Message) {
-	bot.log.Info("%s has set topic on %s to:", m.Prefix.Name, m.Params[0], m.Trailing)
+	bot.log.Info("%s has set topic on %s to: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 	bot.scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
 }
 
@@ -130,6 +134,7 @@ func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
 	if bot.userIsMe(m.Params[1]) {
 		bot.log.Info("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 		bot.kickedFrom[m.Params[0]] = true
+		delete(bot.onChannel, m.Params[0])
 		// Rejoin
 		timer := time.NewTimer(bot.Config.RejoinDelaySeconds * time.Second)
 		go func() {

@@ -28,6 +28,8 @@ type Bot struct {
 	floodSemaphore chan int
 	// Channels bot was kicked from.
 	kickedFrom map[string]bool
+	// Channels the bot is on.
+	onChannel map[string]bool
 	// Currently authenticated users.
 	authenticatedAdmins map[string]string
 	authenticatedOwners map[string]string

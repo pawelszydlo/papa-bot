@@ -17,7 +17,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Stores all the links posted on the channel.
 * Allows full text search through the links.
 * Logs all channel activity.
-* User account handling.
+* User accounts and permissions handling.
 
 ###Bundled extensions
 
@@ -28,6 +28,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * BTC price command.
 * Movie information.
 * Custom counters/countdowns.
+* Raw IRC commands.
 
 ###Adding your own extensions
 
@@ -56,7 +57,7 @@ func (ext *YourExtension) Tick(bot *Bot, daily bool) {}
 
 To enable your extension, add it to the list in the bot's Run function:
 ```go
-extensions: []Extension{
+extensions: []ExtensionInterface{
     new(ExtensionMeta),
     new(ExtensionGitHub),
     new(ExtensionBtc),

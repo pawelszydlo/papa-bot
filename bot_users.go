@@ -89,8 +89,7 @@ func (bot *Bot) getUserData(nick string) (
 	altNicks = map[string]bool{}
 	result, err := bot.Db.Query(`
 		SELECT nick, password, IFNULL(alt_nicks, ""), owner, admin
-		FROM users WHERE nick=? OR alt_nicks LIKE ?
-		LIMIT 1`, nick, "%"+nick+"%")
+		FROM users WHERE nick=? LIMIT 1`, nick)
 	if err != nil {
 		return
 	}
@@ -108,16 +107,17 @@ func (bot *Bot) getUserData(nick string) (
 	}
 
 	// Check if the nick is indeed what we want.
-	if dbNick != nick && !altNicks[nick] {
+	if dbNick != nick {
 		err = errors.New("User not in the database.")
 		return
 	}
+
 	return
 }
 
 // authenticateUser authenticates the user as an owner or admin
 func (bot *Bot) authenticateUser(nick, fullName, password string) error {
-	dbNick, dbPassword, _, owner, admin, err := bot.getUserData(nick)
+	_, dbPassword, _, owner, admin, err := bot.getUserData(nick)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Error when getting user data for %s: %s", nick, err))
 	}
@@ -128,11 +128,11 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 	// Check if user has any privileges
 	if owner {
 		bot.log.Info("Authenticating %s as an owner.", nick)
-		bot.authenticatedOwners[fullName] = dbNick
+		bot.authenticatedOwners[fullName] = nick
 	}
 	if admin {
 		bot.log.Info("Authenticating %s as an admin.", nick)
-		bot.authenticatedAdmins[fullName] = dbNick
+		bot.authenticatedAdmins[fullName] = nick
 	}
 	if !admin && !owner {
 		bot.log.Info("Authenticating %s with no special privileges.", nick)

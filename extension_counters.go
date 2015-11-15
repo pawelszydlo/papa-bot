@@ -213,8 +213,8 @@ func (ext *ExtensionCounters) commandCounters(
 			return
 		}
 		channel = params[4]
-		if !strings.HasPrefix(channel, "#") {
-			bot.SendMessage(receiver, "invalid channel name: "+channel)
+		if !bot.onChannel[channel] {
+			bot.SendMessage(receiver, "I am not on channel: "+channel)
 			return
 		}
 
