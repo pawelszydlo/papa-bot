@@ -8,6 +8,7 @@ import (
 
 // ExtensionGitHub - extension for getting basic repository information.
 type ExtensionGitHub struct {
+	Extension
 	gitHubRe *regexp.Regexp
 }
 
@@ -47,7 +48,3 @@ func (ext *ExtensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 			data["subscribers_count"], data["open_issues_count"])
 	}()
 }
-
-// Not implemented.
-func (ext *ExtensionGitHub) Tick(bot *Bot, daily bool)                            {}
-func (ext *ExtensionGitHub) ProcessMessage(bot *Bot, channel, sender, msg string) {}

@@ -9,6 +9,7 @@ import (
 
 // ExtensionDuplicates checks for duplicate URLs posted.
 type ExtensionDuplicates struct {
+	Extension
 	Texts     *ExtensionDuplicatesTexts
 	announced map[string]time.Time
 }
@@ -94,6 +95,3 @@ func (ext *ExtensionDuplicates) Tick(bot *Bot, daily bool) {
 		ext.announced = map[string]time.Time{}
 	}
 }
-
-// Not implemented.
-func (ext *ExtensionDuplicates) ProcessMessage(bot *Bot, channel, sender, msg string) {}

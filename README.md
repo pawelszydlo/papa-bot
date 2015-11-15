@@ -31,27 +31,30 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 
 ###Adding your own extensions
 
-To add your own extension you just need to create a struct that will implement these methods:
+To add your own extension you just need to create a struct that will embed the Extension struct:
 ```go
-// Will be run on bot init.
-func (ext *YourExtension) Init(bot *Bot) error {
-    // Extension initialization goes here.
-}
-
-// Will be run for each URL found in the message.
-func (ext *YourExtension) ProcessURL(
-    bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
-    // Here you can do something with the data in the urlinfo struct.
-}
-
-// Will be run every 5 minutes. Daily will be set to true once per day.
-func (ext *YourExtension) Tick(bot *Bot, daily bool) {
-    // Anything you want to do periodically goes here.
+type YourExtension struct {
+    Extension
 }
 ```
-(If you don't want to implement any of those just leave them empty)
 
-Then add your extension to the list in the bot's Run function:
+Then you can override the methods you need.
+```go
+// Will be run on bot's init.
+func (ext *YourExtension) Init(bot *Bot) error { return nil }
+
+// Will be run whenever an URL is found in the message.
+func (ext *YourExtension) ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string) {}
+
+// Will be run on every public message the bot receives.
+func (ext *YourExtension) ProcessMessage(bot *Bot, channel, nick, msg string) {}
+
+// Will be run every 5 minutes. Daily will be set to true once per day.
+func (ext *YourExtension) Tick(bot *Bot, daily bool) {}
+```
+(You don't need to implement all of them.)
+
+To enable your extension, add it to the list in the bot's Run function:
 ```go
 extensions: []Extension{
     new(ExtensionMeta),

@@ -10,6 +10,7 @@ import (
 
 // ExtensionMovies - finds movie titles in the messages and provides other movie related commands.
 type ExtensionMovies struct {
+	Extension
 	announced map[string]bool
 	Texts     *extensionMoviesTexts
 }
@@ -122,7 +123,3 @@ func (ext *ExtensionMovies) ProcessMessage(bot *Bot, channel, sender, msg string
 		ext.findAndAnnounce(bot, channel, title)
 	}
 }
-
-// Not implemented.
-func (ext *ExtensionMovies) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}
-func (ext *ExtensionMovies) Tick(bot *Bot, daily bool)                                          {}

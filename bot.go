@@ -81,7 +81,7 @@ func New(configFile, textsFile string) *Bot {
 		customVars: map[string]string{},
 
 		// Register extensions (ordering matters!)
-		extensions: []Extension{
+		extensions: []ExtensionInterface{
 			new(ExtensionCounters),
 			new(ExtensionMeta),
 			new(ExtensionDuplicates),

@@ -42,7 +42,7 @@ type Bot struct {
 	// Custom variables for use in extensions.
 	customVars map[string]string
 	// Registered bot extensions,
-	extensions []Extension
+	extensions []ExtensionInterface
 	// Path to texts file.
 	textsFile string
 	// Bot texts struct.
@@ -57,15 +57,26 @@ type Bot struct {
 	nextDailyTick time.Time
 }
 
-// Extensions must implement these methods.
-type Extension interface {
-	// Will be run on bot's init.
+// Extensions should embed this struct and override any methods necessary.
+type Extension struct{}
+
+// Will be run on bot's init.
+func (ext *Extension) Init(bot *Bot) error { return nil }
+
+// Will be run whenever an URL is found in the message.
+func (ext *Extension) ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string) {}
+
+// Will be run on every public message the bot receives.
+func (ext *Extension) ProcessMessage(bot *Bot, channel, nick, msg string) {}
+
+// Will be run every 5 minutes. Daily will be set to true once per day.
+func (ext *Extension) Tick(bot *Bot, daily bool) {}
+
+// Interface for easier handling of extensions.
+type ExtensionInterface interface {
 	Init(bot *Bot) error
-	// Will be run whenever an URL is found in the message.
 	ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string)
-	// Will be run on every public message the bot receives.
 	ProcessMessage(bot *Bot, channel, nick, msg string)
-	// Will be run every 5 minutes. Daily will be set to true once per day.
 	Tick(bot *Bot, daily bool)
 }
 

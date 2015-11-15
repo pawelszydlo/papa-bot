@@ -12,6 +12,7 @@ import (
 
 // ExtensionReddit - extension for getting link information from reddit.com.
 type ExtensionReddit struct {
+	Extension
 	announced          map[string]bool
 	Texts              *ExtensionRedditTexts
 	InterestingReddits []string
@@ -187,6 +188,3 @@ func (ext *ExtensionReddit) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 		}()
 	}
 }
-
-// Not implemented.
-func (ext *ExtensionReddit) ProcessMessage(bot *Bot, channel, sender, msg string) {}

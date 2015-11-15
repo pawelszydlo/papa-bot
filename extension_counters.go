@@ -12,6 +12,7 @@ import (
 
 // ExtensionCounters - enables the creation of custom counters.
 type ExtensionCounters struct {
+	Extension
 	counters map[int]*extensionCountersCounter
 }
 
@@ -235,7 +236,3 @@ func (ext *ExtensionCounters) commandCounters(
 		return
 	}
 }
-
-// Not implemented.
-func (ext *ExtensionCounters) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {}
-func (ext *ExtensionCounters) ProcessMessage(bot *Bot, channel, sender, msg string)               {}

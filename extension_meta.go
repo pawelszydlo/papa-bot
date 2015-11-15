@@ -8,6 +8,7 @@ import (
 
 // ExtensionMeta - extension for getting title and description from html links.
 type ExtensionMeta struct {
+	Extension
 	titleRe, metaRe, descRe *regexp.Regexp
 }
 
@@ -58,7 +59,3 @@ func (ext *ExtensionMeta) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender
 	urlinfo.ShortInfo = title
 	urlinfo.LongInfo = description
 }
-
-// Not implemented.
-func (ext *ExtensionMeta) Tick(bot *Bot, daily bool)                            {}
-func (ext *ExtensionMeta) ProcessMessage(bot *Bot, channel, sender, msg string) {}

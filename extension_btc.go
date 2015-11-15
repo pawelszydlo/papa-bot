@@ -12,6 +12,7 @@ import (
 
 // ExtensionBtc - extension for getting BTC price from BitStamp.com.
 type ExtensionBtc struct {
+	Extension
 	HourlyData map[string]interface{}
 
 	LastAsk map[string]time.Time
