@@ -100,10 +100,10 @@ func (ext *ExtensionCounters) loadCounters(bot *Bot) {
 	// Get vars.
 	for result.Next() {
 		var c extensionCountersCounter
-		var date string
+		var dateStr string
 		var id int
 		var interval int
-		if err = result.Scan(&id, &c.channel, &c.creator, &c.text, &interval, &date); err != nil {
+		if err = result.Scan(&id, &c.channel, &c.creator, &c.text, &interval, &dateStr); err != nil {
 			bot.log.Warning("Can't load counter: %s", err)
 			continue
 		}
@@ -114,7 +114,10 @@ func (ext *ExtensionCounters) loadCounters(bot *Bot) {
 			bot.log.Warning("Can't parse counter template '%s': %s", c.text, err)
 		}
 		// Handle the date.
-		c.date, _ = time.Parse("2006-01-02 15:04:05", date)
+		c.date, err = time.Parse("2006-01-02 15:04:05", dateStr)
+		if err != nil {
+			bot.log.Fatal("Can't parse counter date %s: %s", dateStr, err)
+		}
 		c.date = utils.MustForceLocalTimezone(c.date)
 		// Calculate next tick. Start from next daily tick and move backwards.
 		nextTick := bot.nextDailyTick
