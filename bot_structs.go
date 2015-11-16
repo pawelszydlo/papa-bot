@@ -31,6 +31,7 @@ type Bot struct {
 	// Channels the bot is on.
 	onChannel map[string]bool
 	// Currently authenticated users.
+	authenticatedUsers  map[string]string
 	authenticatedAdmins map[string]string
 	authenticatedOwners map[string]string
 	// Registered bot commands.
@@ -106,8 +107,8 @@ type BotCommand struct {
 	Owner bool
 	// This command can only be run by an admin?
 	Admin bool
-	// Help string showing the usage.
-	HelpUsage string
+	// Help string showing possible parameters.
+	HelpParams string
 	// Help string with the description.
 	HelpDescription string
 	// Function to be executed.

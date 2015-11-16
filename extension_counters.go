@@ -61,11 +61,13 @@ func (ext *ExtensionCounters) Init(bot *Bot) error {
 	}
 
 	// Add commands for handling the counters.
-	bot.commands["counter"] = &BotCommand{
+	cmd := BotCommand{
 		true, false, true,
 		"counter help | list | announce [id] | del [id] | add [date] [time] [interval] [channel] [text]",
 		"Controls custom counters.",
 		ext.commandCounters}
+	bot.commands["counter"] = &cmd
+	bot.commands["c"] = &cmd
 
 	// Load counters from the db.
 	ext.loadCounters(bot)

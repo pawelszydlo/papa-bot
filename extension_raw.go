@@ -12,10 +12,12 @@ type ExtensionRaw struct {
 
 func (ext *ExtensionRaw) Init(bot *Bot) error {
 	// Register new command.
-	bot.commands["raw"] = &BotCommand{
+	cmd := BotCommand{
 		true, true, false,
-		"raw [command] [params] : [trailing]", "Execute raw IRC command.",
+		"[command] [params] : [trailing]", "Execute raw IRC command.",
 		ext.commandRaw}
+	bot.commands["raw"] = &cmd
+	bot.commands["r"] = &cmd
 	return nil
 }
 

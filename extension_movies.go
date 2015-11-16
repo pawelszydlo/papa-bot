@@ -47,10 +47,12 @@ func (ext *ExtensionMovies) Init(bot *Bot) error {
 	}
 	ext.Texts = texts
 	// Register new command.
-	bot.commands["imdb"] = &BotCommand{
+	cmd := BotCommand{
 		false, false, false,
-		"imdb [title]", "Get movie info for [title].",
+		"[title]", "Get movie info for [title].",
 		ext.commandMovie}
+	bot.commands["imdb"] = &cmd
+	bot.commands["i"] = &cmd
 	return nil
 }
 

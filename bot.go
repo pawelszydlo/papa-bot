@@ -61,6 +61,7 @@ func New(configFile, textsFile string) *Bot {
 		floodSemaphore:      make(chan int, 5),
 		kickedFrom:          map[string]bool{},
 		onChannel:           map[string]bool{},
+		authenticatedUsers:  map[string]string{},
 		authenticatedAdmins: map[string]string{},
 		authenticatedOwners: map[string]string{},
 

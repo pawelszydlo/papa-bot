@@ -10,29 +10,40 @@ import (
 
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
+	// Auth.
 	bot.commands["auth"] = &BotCommand{
 		true, false, false,
-		"auth [user] [password]", "Authenticate with the bot.",
+		"[user] [password]", "Authenticate with the bot.",
 		commandAuth}
+	// Useradd.
+	bot.commands["useradd"] = &BotCommand{
+		true, false, false,
+		"[user] [password]", "Create user account.",
+		commandUserAdd}
+	// Reload.
 	bot.commands["reload_texts"] = &BotCommand{
 		true, false, true,
-		"reload_texts", "Reload bot's texts from file.",
+		"", "Reload bot's texts from file.",
 		commandReloadTexts}
-	bot.commands["find"] = &BotCommand{
+	// Find.
+	cmdFind := BotCommand{
 		false, false, false,
-		"find token1 token2 token3 ...", "Look for URLs containing all the tokens.",
+		"token1 token2 token3 ...", "Look for URLs containing all the tokens.",
 		commandFindUrl}
-
+	bot.commands["find"] = &cmdFind
+	bot.commands["f"] = &cmdFind
+	// More.
 	cmdMore := BotCommand{
 		false, false, false,
-		"more", "Say more about last link.",
+		"", "Say more about last link.",
 		commandSayMore}
 	bot.commands["more"] = &cmdMore
 	bot.commands["moar"] = &cmdMore
-
+	bot.commands["m"] = &cmdMore
+	// Var.
 	bot.commands["var"] = &BotCommand{
 		true, true, false,
-		"var list | get [name] | set [name] [value]", "Controls custom variables",
+		"list | get [name] | set [name] [value]", "Controls custom variables",
 		commandVar}
 
 	bot.commandsHideParams["auth"] = true
@@ -90,7 +101,17 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 
 	// Print help.
 	if command == "help" {
-		for _, cmd := range bot.commands {
+		// Build a list of all command aliases.
+		helpCommandKeys := map[string][]string{}
+		helpCommands := map[string]*BotCommand{}
+		for key, cmd := range bot.commands {
+			pointerStr := fmt.Sprintf("%p", cmd)
+			helpCommandKeys[pointerStr] = append(helpCommandKeys[pointerStr], key)
+			helpCommands[pointerStr] = cmd
+		}
+		// Print help.
+		for pointerStr, cmd := range helpCommands {
+			commands := strings.Join(helpCommandKeys[pointerStr], ", ")
 			options := ""
 			if cmd.Private {
 				options = " (query only)"
@@ -101,7 +122,8 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 			if cmd.Admin && !admin {
 				continue
 			}
-			bot.SendMessage(nick, fmt.Sprintf("%s - %s%s", cmd.HelpUsage, cmd.HelpDescription, options))
+			bot.SendMessage(
+				nick, fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options))
 		}
 		return
 	}
@@ -133,7 +155,28 @@ func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, para
 			bot.log.Warning("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
-		bot.SendMessage(receiver, bot.Texts.PasswordOk)
+		bot.SendMessage(receiver, "You are now logged in.")
+	}
+}
+
+// commandUserAdd will add a new user to bot's database and authenticate.
+func commandUserAdd(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+	if len(params) == 2 {
+		if bot.userIsAuthenticated(nick + "!" + user) {
+			bot.SendMessage(receiver, "You are already authenticated.")
+			return
+		}
+
+		if err := bot.addUser(params[0], params[1], false, false); err != nil {
+			bot.log.Warning("Couldn't add user %s: %s", params[0], err)
+			bot.SendMessage(receiver, fmt.Sprintf("Can't add user: %s", err))
+			return
+		}
+		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
+			bot.log.Warning("Couldn't authenticate %s: %s", nick, err)
+			return
+		}
+		bot.SendMessage(receiver, "User added. You are now logged in.")
 	}
 }
 

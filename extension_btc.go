@@ -38,9 +38,11 @@ func (ext *ExtensionBtc) Init(bot *Bot) error {
 	// Register new command.
 	cmdBtc := BotCommand{
 		false, false, false,
-		"btc", "Show current BTC price.",
+		"", "Show current BTC price.",
 		ext.commandBtc}
 	bot.commands["btc"] = &cmdBtc
+	bot.commands["b"] = &cmdBtc
+	bot.commands["k"] = &cmdBtc
 	bot.commands["kierda"] = &cmdBtc
 	// Init variables.
 	ext.LastAsk = map[string]time.Time{}

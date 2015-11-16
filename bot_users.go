@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/mattn/go-sqlite3"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"os"
 	"os/exec"
@@ -54,9 +55,6 @@ func (bot *Bot) ensureOwnerExists() {
 			if pass1 != pass2 {
 				bot.log.Fatal("Passwords don't match.")
 			}
-			if pass1 == "" {
-				bot.log.Fatal("Password can't be empty.")
-			}
 			fmt.Print("\n")
 
 			// Enable echo.
@@ -66,18 +64,27 @@ func (bot *Bot) ensureOwnerExists() {
 
 			result.Close()
 
-			bot.addUser(utils.CleanString(nick, false), utils.CleanString(pass1, false), true, true)
+			if bot.addUser(utils.CleanString(nick, false), utils.CleanString(pass1, false), true, true); err != nil {
+				bot.log.Critical("%s", err)
+			}
 		}
 	}
 }
 
 // addUser adds new user to bot's database.
 func (bot *Bot) addUser(nick, password string, owner, admin bool) error {
+	if password == "" {
+		return errors.New("Password can't be empty.")
+	}
 	// Insert user into the db.
 	if _, err := bot.Db.Exec(`INSERT INTO users(nick, password, owner, admin) VALUES(?, ?, ?, ?)`,
 		nick, utils.HashPassword(password), owner, admin); err != nil {
-		bot.log.Warning("Can't add user to database: %s", err)
-		return err
+		// Get exact error.
+		driverErr := err.(sqlite3.Error)
+		if driverErr.Code == sqlite3.ErrConstraint {
+			return errors.New("User already exists.")
+		}
+		return errors.New("Error while adding new user!")
 	}
 	return nil
 }
@@ -136,7 +143,7 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 	}
 	if !admin && !owner {
 		bot.log.Info("Authenticating %s with no special privileges.", nick)
-		// TBI
+		bot.authenticatedUsers[fullName] = nick
 	}
 	return nil
 }
@@ -144,6 +151,12 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 // userIsMe checks if the sender is the bot.
 func (bot *Bot) userIsMe(nick string) bool {
 	return nick == bot.irc.OriginalName
+}
+
+// userIsAuthenticated checks if the user is authenticated with the bot.
+func (bot *Bot) userIsAuthenticated(fullName string) bool {
+	return bot.authenticatedOwners[fullName] != "" || bot.authenticatedAdmins[fullName] != "" ||
+		bot.authenticatedUsers[fullName] != ""
 }
 
 // userIsOwner checks if the user is an authenticated owner.
