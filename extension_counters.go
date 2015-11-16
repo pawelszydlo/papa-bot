@@ -205,11 +205,11 @@ func (ext *ExtensionCounters) commandCounters(
 	// Add.
 	if len(params) > 5 && command == "add" {
 		// Sanity check parameters.
-		date, err := time.Parse("2006-01-0215:04:05", params[1]+params[2])
-		if err != nil {
+		if _, err := time.Parse("2006-01-0215:04:05", params[1]+params[2]); err != nil {
 			bot.SendMessage(receiver, "Date and time must be in format: 2015-12-31 12:54:00")
 			return
 		}
+		dateStr := params[1] + " " + params[2]
 		interval, err := strconv.ParseInt(params[3], 10, 32)
 		if err != nil {
 			bot.SendMessage(receiver, "interval parameter must be a number.")
@@ -228,7 +228,7 @@ func (ext *ExtensionCounters) commandCounters(
 			INSERT INTO counters (channel, creator, announce_text, interval, target_date)
 			VALUES (?, ?, ?, ?, ?);
 			`
-		if _, err := bot.Db.Exec(query, channel, nick, text, interval, date); err != nil {
+		if _, err := bot.Db.Exec(query, channel, nick, text, interval, dateStr); err != nil {
 			bot.log.Warning("Error while adding a counter: %s", err)
 			bot.SendMessage(receiver, fmt.Sprintf("Error: %s", err))
 			return
