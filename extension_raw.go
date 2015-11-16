@@ -1,7 +1,6 @@
 package papaBot
 
 import (
-	"github.com/sorcix/irc"
 	"strings"
 )
 
@@ -33,9 +32,5 @@ func (ext *ExtensionRaw) commandRaw(bot *Bot, nick, user, channel, receiver stri
 	}
 	arguments = strings.Split(strings.Trim(arguments[0], " "), " ")
 	bot.log.Debug("Executing raw command: %s, params: %v, trailing: %s", command, arguments, trailing)
-	bot.irc.Sender.Send(&irc.Message{
-		Command:  command,
-		Params:   params,
-		Trailing: trailing,
-	})
+	bot.SendRawMessage(command, params, trailing)
 }

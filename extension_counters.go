@@ -149,23 +149,23 @@ func (ext *ExtensionCounters) commandCounters(
 	// List.
 	if command == "list" {
 		if len(ext.counters) > 0 {
-			bot.SendMessage(receiver, "Counters:")
+			bot.SendPrivMessage(receiver, "Counters:")
 			for id, c := range ext.counters {
-				bot.SendMessage(receiver, fmt.Sprintf(
+				bot.SendPrivMessage(receiver, fmt.Sprintf(
 					"%d: %s | %s | interval %dh | %s", id, c.channel, c.date, c.interval, c.text))
 			}
 		} else {
-			bot.SendMessage(receiver, "No counters yet.")
+			bot.SendPrivMessage(receiver, "No counters yet.")
 		}
 		return
 	}
 
 	if command == "help" {
-		bot.SendMessage(nick, "To add a new counter:")
-		bot.SendMessage(nick, "add [date] [time] [interval] [channel] [text]")
-		bot.SendMessage(nick, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce
+		bot.SendPrivMessage(nick, "To add a new counter:")
+		bot.SendPrivMessage(nick, "add [date] [time] [interval] [channel] [text]")
+		bot.SendPrivMessage(nick, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce
 			interval in hours, channel is the name of the channel to announce on, text is the announcement text.`)
-		bot.SendMessage(
+		bot.SendPrivMessage(
 			nick, "Announcement text may contain placeholders: {{ .days }}, {{ .hours }}, {{ .minutes }}, {{ .since }}")
 		return
 	}
@@ -174,17 +174,17 @@ func (ext *ExtensionCounters) commandCounters(
 	if len(params) == 2 && command == "announce" {
 		id, err := strconv.Atoi(params[1])
 		if err != nil || ext.counters[id] == nil {
-			bot.SendMessage(receiver, "Wrong id.")
+			bot.SendPrivMessage(receiver, "Wrong id.")
 			return
 		}
-		bot.SendMessage(receiver, fmt.Sprintf("Announcing counter %d to %s...", id, ext.counters[id].channel))
-		bot.SendMessage(ext.counters[id].channel, ext.counters[id].message())
+		bot.SendPrivMessage(receiver, fmt.Sprintf("Announcing counter %d to %s...", id, ext.counters[id].channel))
+		bot.SendPrivMessage(ext.counters[id].channel, ext.counters[id].message())
 	}
 
 	// Delete.
 	if len(params) == 2 && command == "del" {
 		id := params[1]
-		bot.SendMessage(receiver, fmt.Sprintf("Deleting counter number %s...", id))
+		bot.SendPrivMessage(receiver, fmt.Sprintf("Deleting counter number %s...", id))
 		query := ""
 		// Bot owner can delete all counters.
 		if bot.userIsOwner(fullName) {
@@ -196,7 +196,7 @@ func (ext *ExtensionCounters) commandCounters(
 		}
 		if _, err := bot.Db.Exec(query, id); err != nil {
 			bot.log.Warning("Error while deleting a counter: %s", err)
-			bot.SendMessage(receiver, fmt.Sprintf("Error: %s", err))
+			bot.SendPrivMessage(receiver, fmt.Sprintf("Error: %s", err))
 			return
 		}
 		// Reload  counters.
@@ -208,18 +208,18 @@ func (ext *ExtensionCounters) commandCounters(
 	if len(params) > 5 && command == "add" {
 		// Sanity check parameters.
 		if _, err := time.Parse("2006-01-0215:04:05", params[1]+params[2]); err != nil {
-			bot.SendMessage(receiver, "Date and time must be in format: 2015-12-31 12:54:00")
+			bot.SendPrivMessage(receiver, "Date and time must be in format: 2015-12-31 12:54:00")
 			return
 		}
 		dateStr := params[1] + " " + params[2]
 		interval, err := strconv.ParseInt(params[3], 10, 32)
 		if err != nil {
-			bot.SendMessage(receiver, "interval parameter must be a number.")
+			bot.SendPrivMessage(receiver, "interval parameter must be a number.")
 			return
 		}
 		channel = params[4]
 		if !bot.onChannel[channel] {
-			bot.SendMessage(receiver, "I am not on channel: "+channel)
+			bot.SendPrivMessage(receiver, "I am not on channel: "+channel)
 			return
 		}
 
@@ -232,10 +232,10 @@ func (ext *ExtensionCounters) commandCounters(
 			`
 		if _, err := bot.Db.Exec(query, channel, nick, text, interval, dateStr); err != nil {
 			bot.log.Warning("Error while adding a counter: %s", err)
-			bot.SendMessage(receiver, fmt.Sprintf("Error: %s", err))
+			bot.SendPrivMessage(receiver, fmt.Sprintf("Error: %s", err))
 			return
 		}
-		bot.SendMessage(receiver, "Counter created.")
+		bot.SendPrivMessage(receiver, "Counter created.")
 		// Reload  counters.
 		ext.loadCounters(bot)
 		return

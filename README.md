@@ -1,7 +1,7 @@
 # papa-bot
 IRC bot written in Go. Quite comprehensive in design and IRC events handling, easily extensible.
 
-Built on top of [github.com/nickvanw/ircx](http://github.com/nickvanw/ircx), which in turn is built on top of [github.com/sorcix/irc](http://github.com/sorcix/irc).
+Built on top of [github.com/sorcix/irc](http://github.com/sorcix/irc) library.
 
 ###How good is it?
 

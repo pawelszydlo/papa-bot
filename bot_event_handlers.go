@@ -5,7 +5,6 @@ package papaBot
 import (
 	"fmt"
 	"github.com/mvdan/xurls"
-	"github.com/nickvanw/ircx"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/sorcix/irc"
 	"math/rand"
@@ -13,81 +12,71 @@ import (
 	"time"
 )
 
-// attachEventHandlers attaches event handlers to the bot.
-func (bot *Bot) attachEventHandlers() {
+// assignEventHandlers assigns appropriate event handlers.
+func (bot *Bot) assignEventHandlers() {
 	// Connected to server
-	bot.irc.HandleFunc(irc.RPL_WELCOME, bot.handlerConnect)
+	bot.eventHandlers[irc.RPL_WELCOME] = bot.handlerConnect
 	// Ping
-	bot.irc.HandleFunc(irc.PING, bot.handlerPing)
+	bot.eventHandlers[irc.PING] = bot.handlerPing
 	// Nickname taken
-	bot.irc.HandleFunc(irc.ERR_NICKCOLLISION, bot.handlerNickTaken)
-	bot.irc.HandleFunc(irc.ERR_NICKNAMEINUSE, bot.handlerNickTaken)
+	bot.eventHandlers[irc.ERR_NICKCOLLISION] = bot.handlerNickTaken
+	bot.eventHandlers[irc.ERR_NICKNAMEINUSE] = bot.handlerNickTaken
 	// Invalid nickname
-	bot.irc.HandleFunc(irc.ERR_NONICKNAMEGIVEN, bot.handlerBadNick)
-	bot.irc.HandleFunc(irc.ERR_ERRONEUSNICKNAME, bot.handlerBadNick)
+	bot.eventHandlers[irc.ERR_NONICKNAMEGIVEN] = bot.handlerBadNick
+	bot.eventHandlers[irc.ERR_ERRONEUSNICKNAME] = bot.handlerBadNick
 	// Various events that prevent the bot from joining a channel
-	bot.irc.HandleFunc(irc.ERR_CHANNELISFULL, bot.handlerCantJoin)
-	bot.irc.HandleFunc(irc.ERR_BANNEDFROMCHAN, bot.handlerCantJoin)
-	bot.irc.HandleFunc(irc.ERR_INVITEONLYCHAN, bot.handlerCantJoin)
+	bot.eventHandlers[irc.ERR_CHANNELISFULL] = bot.handlerCantJoin
+	bot.eventHandlers[irc.ERR_BANNEDFROMCHAN] = bot.handlerCantJoin
+	bot.eventHandlers[irc.ERR_INVITEONLYCHAN] = bot.handlerCantJoin
 	// Join channel
-	bot.irc.HandleFunc(irc.JOIN, bot.handlerJoin)
+	bot.eventHandlers[irc.JOIN] = bot.handlerJoin
 	// Part channel
-	bot.irc.HandleFunc(irc.PART, bot.handlerPart)
+	bot.eventHandlers[irc.PART] = bot.handlerPart
 	// Set mode
-	bot.irc.HandleFunc(irc.MODE, bot.handlerMode)
+	bot.eventHandlers[irc.MODE] = bot.handlerMode
 	// Set topic
-	bot.irc.HandleFunc(irc.TOPIC, bot.handlerTopic)
+	bot.eventHandlers[irc.TOPIC] = bot.handlerTopic
 	// Kick from channel
-	bot.irc.HandleFunc(irc.KICK, bot.handlerKick)
+	bot.eventHandlers[irc.KICK] = bot.handlerKick
 	// Message on channel
-	bot.irc.HandleFunc(irc.PRIVMSG, bot.handlerMsg)
+	bot.eventHandlers[irc.PRIVMSG] = bot.handlerMsg
 	// Notice
-	bot.irc.HandleFunc(irc.NOTICE, bot.handlerDummy)
+	bot.eventHandlers[irc.NOTICE] = bot.handlerDummy
 	// Error
-	bot.irc.HandleFunc(irc.ERROR, bot.handlerError)
+	bot.eventHandlers[irc.ERROR] = bot.handlerError
 }
 
-func (bot *Bot) handlerConnect(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerConnect(m *irc.Message) {
 	bot.log.Info("I have connected. Joining channels...")
-	s.Send(&irc.Message{
-		Command: irc.JOIN,
-		Params:  bot.Config.Channels,
-	})
+	bot.SendRawMessage(irc.JOIN, bot.Config.Channels, "")
 }
 
-func (bot *Bot) handlerPing(s ircx.Sender, m *irc.Message) {
-	s.Send(&irc.Message{
-		Command:  irc.PONG,
-		Params:   m.Params,
-		Trailing: m.Trailing,
-	})
+func (bot *Bot) handlerPing(m *irc.Message) {
+	bot.SendRawMessage(irc.PONG, m.Params, m.Trailing)
 }
 
-func (bot *Bot) handlerNickTaken(s ircx.Sender, m *irc.Message) {
-	bot.irc.OriginalName = bot.Config.Name + "_"
+func (bot *Bot) handlerNickTaken(m *irc.Message) {
+	bot.Config.Name = bot.Config.Name + "_"
 	bot.log.Warning(
-		"Server at %s said that my nick is already taken. Changing nick to %s", m.Prefix.Name, bot.irc.OriginalName)
+		"Server at %s said that my nick is already taken. Changing nick to %s", m.Prefix.Name, bot.Config.Name)
 }
 
-func (bot *Bot) handlerCantJoin(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerCantJoin(m *irc.Message) {
 	bot.log.Warning("Server at %s said that I can't join %s: %s", m.Prefix.Name, m.Params[1], m.Trailing)
 	// Rejoin
-	timer := time.NewTimer(bot.Config.RejoinDelaySeconds * time.Second)
+	timer := time.NewTimer(bot.Config.RejoinDelay)
 	go func() {
 		<-timer.C
 		bot.log.Debug("Trying to join %s...", m.Params[1])
-		s.Send(&irc.Message{
-			Command: irc.JOIN,
-			Params:  []string{m.Params[1]},
-		})
+		bot.SendRawMessage(irc.JOIN, []string{m.Params[1]}, "")
 	}()
 }
 
-func (bot *Bot) handlerBadNick(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerBadNick(m *irc.Message) {
 	bot.log.Fatal("Server at %s said that my nick is invalid.", m.Prefix.Name)
 }
 
-func (bot *Bot) handlerPart(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerPart(m *irc.Message) {
 	if bot.userIsMe(m.Prefix.Name) {
 		delete(bot.onChannel, m.Params[0])
 	}
@@ -95,23 +84,23 @@ func (bot *Bot) handlerPart(s ircx.Sender, m *irc.Message) {
 	bot.scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
 }
 
-func (bot *Bot) handlerError(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerError(m *irc.Message) {
 	bot.log.Error("Error from server:", m.Trailing)
 }
 
-func (bot *Bot) handlerDummy(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerDummy(m *irc.Message) {
 	bot.log.Info("MESSAGE: %+v", m)
 }
 
-func (bot *Bot) handlerJoin(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerJoin(m *irc.Message) {
 	if bot.userIsMe(m.Prefix.Name) {
 		if bot.kickedFrom[m.Trailing] {
 			bot.log.Info("I have rejoined %s", m.Trailing)
-			bot.SendMessage(m.Trailing, bot.Texts.HellosAfterKick[rand.Intn(len(bot.Texts.HellosAfterKick))])
+			bot.SendPrivMessage(m.Trailing, bot.Texts.HellosAfterKick[rand.Intn(len(bot.Texts.HellosAfterKick))])
 			delete(bot.kickedFrom, m.Trailing)
 		} else {
 			bot.log.Info("I have joined %s", m.Trailing)
-			bot.SendMessage(m.Trailing, bot.Texts.Hellos[rand.Intn(len(bot.Texts.Hellos))])
+			bot.SendPrivMessage(m.Trailing, bot.Texts.Hellos[rand.Intn(len(bot.Texts.Hellos))])
 		}
 		bot.onChannel[m.Trailing] = true
 	} else {
@@ -120,29 +109,26 @@ func (bot *Bot) handlerJoin(s ircx.Sender, m *irc.Message) {
 	bot.scribe(m.Trailing, m.Prefix.Name, " has joined ", m.Trailing)
 }
 
-func (bot *Bot) handlerMode(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerMode(m *irc.Message) {
 	bot.log.Info("%s has set mode %s on %s", m.Prefix.Name, m.Params[1:], m.Params[0])
 	bot.scribe(m.Params[0], m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
 }
 
-func (bot *Bot) handlerTopic(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerTopic(m *irc.Message) {
 	bot.log.Info("%s has set topic on %s to: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 	bot.scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
 }
 
-func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerKick(m *irc.Message) {
 	if bot.userIsMe(m.Params[1]) {
 		bot.log.Info("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 		bot.kickedFrom[m.Params[0]] = true
 		delete(bot.onChannel, m.Params[0])
 		// Rejoin
-		timer := time.NewTimer(bot.Config.RejoinDelaySeconds * time.Second)
+		timer := time.NewTimer(bot.Config.RejoinDelay)
 		go func() {
 			<-timer.C
-			s.Send(&irc.Message{
-				Command: irc.JOIN,
-				Params:  []string{m.Params[0]},
-			})
+			bot.SendRawMessage(irc.JOIN, []string{m.Params[0]}, "")
 		}()
 	} else {
 		bot.log.Info("%s was kicked from %s by %s for: %s", m.Params[1], m.Prefix.Name, m.Params[0], m.Trailing)
@@ -150,7 +136,7 @@ func (bot *Bot) handlerKick(s ircx.Sender, m *irc.Message) {
 	bot.scribe(m.Params[0], m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
 }
 
-func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
+func (bot *Bot) handlerMsg(m *irc.Message) {
 	msg := m.Trailing
 	if msg == "" {
 		return
@@ -187,9 +173,8 @@ func (bot *Bot) handlerMsg(s ircx.Sender, m *irc.Message) {
 	bot.scribe(channel, fmt.Sprintf("<%s> %s", nick, msg))
 
 	// Is someone talking to the bot?
-	true_nick := bot.irc.OriginalName
-	if strings.HasPrefix(msg, true_nick) {
-		msg = strings.TrimLeft(msg[len(true_nick):], ",:; ")
+	if strings.HasPrefix(msg, bot.Config.Name) {
+		msg = strings.TrimLeft(msg[len(bot.Config.Name):], ",:; ")
 		if msg != "" {
 			go bot.handleBotCommand(channel, nick, user, msg, true)
 			return

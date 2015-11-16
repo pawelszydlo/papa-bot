@@ -3,33 +3,25 @@ package papaBot
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
-	"text/template"
 	"time"
 
-	"errors"
+	"crypto/tls"
+	"net"
 
-	"bytes"
 	"github.com/BurntSushi/toml"
-	"github.com/nickvanw/ircx"
 	"github.com/op/go-logging"
 	"github.com/pawelszydlo/papa-bot/lexical"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/sorcix/irc"
-	"golang.org/x/net/html/charset"
-	"golang.org/x/text/transform"
-	"html"
-	"regexp"
 )
 
 const (
-	Version = "0.9.4"
+	Version = "0.9.5"
 	Debug   = false // Set to true to crash on runtime errors.
 )
 
@@ -44,7 +36,8 @@ func New(configFile, textsFile string) *Bot {
 		CommandsPer5:               3,
 		UrlAnnounceIntervalMinutes: 15,
 		UrlAnnounceIntervalLines:   50,
-		RejoinDelaySeconds:         15,
+		RejoinDelay:                15 * time.Second,
+		ReconnectDelay:             10 * time.Second,
 		PageBodyMaxSize:            50 * 1024,
 		HttpDefaultUserAgent:       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
 		DailyTickHour:              8,
@@ -56,6 +49,7 @@ func New(configFile, textsFile string) *Bot {
 
 	// Init bot struct.
 	bot := &Bot{
+		irc:                 &ircConnection{messages: make(chan *irc.Message)},
 		log:                 logging.MustGetLogger("bot"),
 		HTTPClient:          &http.Client{Timeout: 5 * time.Second},
 		floodSemaphore:      make(chan int, 5),
@@ -75,6 +69,7 @@ func New(configFile, textsFile string) *Bot {
 		configFile: configFile,
 		Config:     &config,
 
+		eventHandlers:      map[string]func(msg *irc.Message){},
 		commands:           map[string]*BotCommand{},
 		commandUseLimit:    map[string]int{},
 		commandWarn:        map[string]bool{},
@@ -133,16 +128,11 @@ func New(configFile, textsFile string) *Bot {
 		}
 	}
 
-	// Init underlying irc bot.
-	bot.irc = ircx.Classic(bot.Config.Server, bot.Config.Name)
-	bot.irc.Config.User = bot.Config.User
-	bot.irc.Config.MaxRetries = 9999
-
 	// Load custom vars.
 	bot.loadVars()
 
 	// Attach event handlers.
-	bot.attachEventHandlers()
+	bot.assignEventHandlers()
 
 	// Init bot commands.
 	bot.initBotCommands()
@@ -175,6 +165,63 @@ func New(configFile, textsFile string) *Bot {
 	return bot
 }
 
+// connect attempts to connect to the given IRC server.
+func (bot *Bot) connect() error {
+	var conn net.Conn
+	var err error
+	// Establish the connection.
+	bot.log.Info("Connecting to %s...", bot.Config.Server)
+	if bot.Config.TLSConfig == nil {
+		conn, err = net.Dial("tcp", bot.Config.Server)
+	} else {
+		conn, err = tls.Dial("tcp", bot.Config.Server, bot.Config.TLSConfig)
+	}
+	if err != nil {
+		return err
+	}
+
+	// Store connection.
+	bot.irc.connection = conn
+	bot.irc.decoder = irc.NewDecoder(conn)
+	bot.irc.encoder = irc.NewEncoder(conn)
+
+	// Send initial messages.
+	if bot.Config.Password != "" {
+		bot.SendRawMessage(irc.PASS, []string{bot.Config.Password}, "")
+	}
+	bot.SendRawMessage(irc.NICK, []string{bot.Config.Name}, "")
+	bot.SendRawMessage(irc.USER, []string{bot.Config.User, "0", "*"}, bot.Config.User)
+
+	// Run the message receiver loop.
+	go bot.receiverLoop()
+
+	bot.log.Debug("Succesfully connected.")
+	return nil
+}
+
+// receiverLoop attempts to read from the IRC server and keep the connection open.
+func (bot *Bot) receiverLoop() {
+	for {
+		bot.irc.connection.SetDeadline(time.Now().Add(300 * time.Second))
+		msg, err := bot.irc.decoder.Decode()
+		if err != nil { // Error or timeout.
+			bot.log.Warning("Disconnected from server.")
+			bot.irc.connection.Close()
+			retries := 0
+			for {
+				time.Sleep(bot.Config.ReconnectDelay * time.Duration(retries))
+				bot.log.Info("Reconnecting...")
+				if err := bot.connect(); err == nil {
+					break
+				}
+				retries += 1
+			}
+		} else {
+			bot.irc.messages <- msg
+		}
+	}
+}
+
 // resetFloodSemaphore flushes bot's flood semaphore.
 func (bot *Bot) resetFloodSemaphore() {
 	for {
@@ -187,22 +234,28 @@ func (bot *Bot) resetFloodSemaphore() {
 	}
 }
 
-// sendFloodProtected is a flood protected sender.
+// SendRawMessage sends raw command to the server.
+func (bot *Bot) SendRawMessage(command string, params []string, trailing string) {
+	if err := bot.irc.encoder.Encode(&irc.Message{
+		Command:  command,
+		Params:   params,
+		Trailing: trailing,
+	}); err != nil {
+		bot.log.Error("Can't send message %s: %s", command, err)
+	}
+}
+
+// sendFloodProtected is a flood protected message sender.
 func (bot *Bot) sendFloodProtected(mType, channel, message string) {
 	messages := strings.Split(message, "\n")
 	for i := range messages {
 		bot.floodSemaphore <- 1
-		bot.irc.Sender.Send(&irc.Message{
-			Command:  mType,
-			Params:   []string{channel},
-			Trailing: messages[i],
-		})
+		bot.SendRawMessage(mType, []string{channel}, messages[i])
 	}
-
 }
 
 // SendMessage sends a message to the channel.
-func (bot *Bot) SendMessage(channel, message string) {
+func (bot *Bot) SendPrivMessage(channel, message string) {
 	bot.log.Debug("Sending message to %s: %s", channel, message)
 	bot.sendFloodProtected(irc.PRIVMSG, channel, message)
 }
@@ -240,30 +293,6 @@ func (bot *Bot) loadVars() {
 	}
 }
 
-// setVar will set a custom variable. Set to empty string to delete.
-func (bot *Bot) setVar(name, value string) {
-	if name == "" {
-		return
-	}
-	// Delete.
-	if value == "" {
-		delete(bot.customVars, name)
-		if _, err := bot.Db.Exec(`DELETE FROM vars WHERE name=?`, name); err != nil {
-			bot.log.Error("Can't delete custom variable %s: %s", name, err)
-		}
-		return
-	}
-	bot.customVars[name] = value
-	if _, err := bot.Db.Exec(`INSERT OR REPLACE INTO vars VALUES(?, ?)`, name, value); err != nil {
-		bot.log.Error("Can't add custom variable %s: %s", name, err)
-	}
-}
-
-// getVar returns the value of a custom variable.
-func (bot *Bot) getVar(name string) string {
-	return bot.customVars[name]
-}
-
 // scribe saves the message into appropriate channel log file.
 func (bot *Bot) scribe(channel string, message ...interface{}) {
 	if !bot.Config.ChatLogging {
@@ -281,146 +310,6 @@ func (bot *Bot) scribe(channel string, message ...interface{}) {
 		scribe := log.New(f, "", log.Ldate|log.Ltime)
 		scribe.Println(message...)
 	}()
-}
-
-// getPageBodyByURL is a convenience wrapper around GetPageBody.
-func (bot *Bot) getPageBodyByURL(url string) ([]byte, error) {
-	var urlinfo UrlInfo
-	urlinfo.URL = url
-	if err := bot.getPageBody(&urlinfo, map[string]string{}); err != nil {
-		return urlinfo.Body, err
-	}
-	return urlinfo.Body, nil
-}
-
-// getPageBody gets and returns a body of a page.
-func (bot *Bot) getPageBody(urlinfo *UrlInfo, customHeaders map[string]string) error {
-	if urlinfo.URL == "" {
-		return errors.New("Empty URL")
-	}
-	// Build the request.
-	req, err := http.NewRequest("GET", urlinfo.URL, nil)
-	if err != nil {
-		return err
-	}
-	if customHeaders["User-Agent"] == "" {
-		customHeaders["User-Agent"] = bot.Config.HttpDefaultUserAgent
-	}
-	for k, v := range customHeaders {
-		req.Header.Set(k, v)
-	}
-
-	// Get response.
-	resp, err := bot.HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	// Update the URL if it changed after redirects.
-	final_link := resp.Request.URL.String()
-	if final_link != "" && final_link != urlinfo.URL {
-		bot.log.Debug("%s becomes %s", urlinfo.URL, final_link)
-		urlinfo.URL = final_link
-	}
-
-	// Load the body up to PageBodyMaxSize.
-	body := make([]byte, bot.Config.PageBodyMaxSize, bot.Config.PageBodyMaxSize)
-	if num, err := io.ReadFull(resp.Body, body); err != nil && err != io.ErrUnexpectedEOF {
-		return err
-	} else {
-		// Trim unneeded 0 bytes so that JSON unmarshaller won't complain.
-		body = body[:num]
-	}
-	// Get the content-type
-	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = http.DetectContentType(body)
-	}
-	urlinfo.ContentType = contentType
-
-	// If type is text, decode the body to UTF-8.
-	if strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/plain") {
-		// Try to get more significant part for encoding detection.
-		webContentSampleRe := regexp.MustCompile(`(?i)<[^>]*?description[^<]*?>|<title>.*?</title>`)
-		sample := bytes.Join(webContentSampleRe.FindAll(body, -1), []byte{})
-		if len(sample) < 100 {
-			sample = body
-		}
-		// Unescape HTML tokens.
-		sample = []byte(html.UnescapeString(string(sample)))
-		// Try to only get charset from content type. Needed because some pages serve broken Content-Type header.
-		detectionContentType := contentType
-		tokens := strings.Split(contentType, ";")
-		for _, t := range tokens {
-			if strings.Contains(strings.ToLower(t), "charset") {
-				detectionContentType = "text/html; " + t
-				break
-			}
-		}
-		// Detect encoding and transform.
-		encoding, _, _ := charset.DetermineEncoding(sample, detectionContentType)
-		decodedBody, _, _ := transform.Bytes(encoding.NewDecoder(), body)
-		urlinfo.Body = decodedBody
-	} else if strings.Contains(contentType, "application/json") {
-		urlinfo.Body = body
-	} else {
-		bot.log.Debug("Not fetching the body for Content-Type: %s", contentType)
-	}
-	return nil
-}
-
-// LoadTexts loads texts from a file into a struct, auto handling the templates.
-func (bot *Bot) LoadTexts(filename string, data interface{}) error {
-
-	// Decode TOML
-	if _, err := toml.DecodeFile(filename, data); err != nil {
-		return err
-	}
-
-	// Fields starting with "Tpl" with be parsed into templates and saved in the field starting with "Temp".
-	rData := reflect.ValueOf(data).Elem()
-	missingTexts := false
-	for i := 0; i < rData.NumField(); i++ {
-		// Get field and it's value.
-		field := rData.Type().Field(i)
-		fieldValue := rData.Field(i)
-
-		// Check if all fields were filled.
-		if !strings.HasPrefix(field.Name, "Temp") {
-			if fieldValue.String() == "" {
-				bot.log.Warning("Field left empty %s!", field.Name)
-				missingTexts = true
-			}
-		}
-
-		if strings.HasPrefix(field.Name, "Tpl") {
-			temp, err := template.New(field.Name).Parse(fieldValue.String())
-			if err != nil {
-				return err
-			} else {
-				tempFieldName := strings.TrimPrefix(field.Name, "Tpl")
-				tempFieldName = "Temp" + tempFieldName
-				// Set template field value.
-				tempField := rData.FieldByName(tempFieldName)
-				if !tempField.IsValid() {
-					bot.log.Fatal("Can't find field %s to store template from %s.", tempFieldName, field.Name)
-				}
-				if !tempField.CanSet() {
-					bot.log.Fatal("Field %s is not settable.", tempFieldName)
-				}
-				if reflect.ValueOf(temp).Type() != tempField.Type() {
-					bot.log.Fatalf("Incompatible types %s and %s", reflect.ValueOf(temp).Type(), tempField.Type())
-				}
-				tempField.Set(reflect.ValueOf(temp))
-			}
-		}
-	}
-	if missingTexts {
-		bot.log.Fatal("Missing texts.")
-	}
-
-	return nil
 }
 
 // runExtensionTickers will asynchronously run all extension tickers.
@@ -452,6 +341,8 @@ func (bot *Bot) runExtensionTickers() {
 // Close cleans up after the bot.
 func (bot *Bot) Close() {
 	bot.Db.Close()
+	close(bot.irc.messages)
+	close(bot.floodSemaphore)
 }
 
 // Run starts the bot's main loop.
@@ -459,9 +350,8 @@ func (bot *Bot) Run() {
 	defer bot.Close()
 
 	// Connect to server.
-	bot.log.Info("Connecting to %s...", bot.Config.Server)
-	if err := bot.irc.Connect(); err != nil {
-		bot.log.Fatal("Error creating connection: %s", err)
+	if err := bot.connect(); err != nil {
+		bot.log.Fatal("Error creating connection: ", err)
 	}
 
 	// Semaphore clearing ticker.
@@ -493,5 +383,18 @@ func (bot *Bot) Run() {
 	go bot.runExtensionTickers()
 
 	// Main loop.
-	bot.irc.HandleLoop()
+	for {
+		select {
+		case msg, ok := <-bot.irc.messages:
+			if ok {
+				if bot.eventHandlers[msg.Command] != nil {
+					bot.eventHandlers[msg.Command](msg)
+				}
+			} else {
+				break
+			}
+		}
+	}
+
+	bot.log.Info("Exiting...")
 }

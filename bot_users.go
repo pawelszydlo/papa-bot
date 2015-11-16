@@ -150,7 +150,7 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 
 // userIsMe checks if the sender is the bot.
 func (bot *Bot) userIsMe(nick string) bool {
-	return nick == bot.irc.OriginalName
+	return nick == bot.Config.Name
 }
 
 // userIsAuthenticated checks if the user is authenticated with the bot.

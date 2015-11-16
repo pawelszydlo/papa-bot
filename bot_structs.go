@@ -3,17 +3,19 @@ package papaBot
 // All structures used by bot (sans extensions).
 
 import (
+	"crypto/tls"
 	"database/sql"
-	"github.com/nickvanw/ircx"
 	"github.com/op/go-logging"
+	"github.com/sorcix/irc"
+	"net"
 	"net/http"
 	"time"
 )
 
 // Bot itself.
 type Bot struct {
-	// Underlying irc bot.
-	irc *ircx.Bot
+	// IRC network connection.
+	irc *ircConnection
 	// Database connection.
 	Db *sql.DB
 	// HTTP client.
@@ -34,6 +36,8 @@ type Bot struct {
 	authenticatedUsers  map[string]string
 	authenticatedAdmins map[string]string
 	authenticatedOwners map[string]string
+	// Registered event handlers.
+	eventHandlers map[string]func(msg *irc.Message)
 	// Registered bot commands.
 	commands map[string]*BotCommand
 	// Number of uses per command.
@@ -58,6 +62,17 @@ type Bot struct {
 	urlMoreInfo map[string]string
 	// Time for next daily tick.
 	nextDailyTick time.Time
+}
+
+// Bot's connection to the network.
+type ircConnection struct {
+	// IRC messages stream.
+	messages chan *irc.Message
+	// Network connection.
+	connection net.Conn
+	// IO.
+	decoder *irc.Decoder
+	encoder *irc.Encoder
 }
 
 // Extensions should embed this struct and override any methods necessary.
@@ -117,9 +132,13 @@ type BotCommand struct {
 
 // Bot's configuration.
 type Configuration struct {
-	Server                     string
-	Name                       string
-	User                       string
+	// Connection parameters
+	Server    string
+	Name      string
+	User      string
+	Password  string
+	TLSConfig *tls.Config
+	// Other options.
 	Language                   string
 	Channels                   []string
 	AntiFloodDelay             int
@@ -127,7 +146,8 @@ type Configuration struct {
 	ChatLogging                bool
 	UrlAnnounceIntervalMinutes time.Duration
 	UrlAnnounceIntervalLines   int
-	RejoinDelaySeconds         time.Duration
+	RejoinDelay                time.Duration
+	ReconnectDelay             time.Duration
 	PageBodyMaxSize            uint
 	HttpDefaultUserAgent       string
 	DailyTickHour              int

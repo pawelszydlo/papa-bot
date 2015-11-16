@@ -90,7 +90,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 	if !private && !owner && !admin { // Command limits apply.
 		if bot.commandUseLimit[command+nick] >= bot.Config.CommandsPer5 {
 			if !bot.commandWarn[channel] { // Warning was not yet sent.
-				bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.CommandLimit))
+				bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.CommandLimit))
 				bot.commandWarn[channel] = true
 			}
 			return
@@ -122,7 +122,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 			if cmd.Admin && !admin {
 				continue
 			}
-			bot.SendMessage(
+			bot.SendPrivMessage(
 				nick, fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options))
 		}
 		return
@@ -131,18 +131,18 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 	if cmd, exists := bot.commands[command]; exists {
 		// Check if command needs to be run through query.
 		if cmd.Private && !private {
-			bot.SendMessage(channel, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsPriv))
+			bot.SendPrivMessage(channel, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsPriv))
 			return
 		}
 		// Check if command needs to be run by the owner.
 		if cmd.Owner && !owner || cmd.Admin && !admin {
-			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsAdmin))
+			bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsAdmin))
 			return
 		}
 		cmd.CommandFunc(bot, nick, user, channel, receiver, private, params)
 	} else { // Unknown command.
 		if talkBack {
-			bot.SendMessage(receiver, fmt.Sprintf(
+			bot.SendPrivMessage(receiver, fmt.Sprintf(
 				"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
 		}
 	}
@@ -155,7 +155,7 @@ func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, para
 			bot.log.Warning("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
-		bot.SendMessage(receiver, "You are now logged in.")
+		bot.SendPrivMessage(receiver, "You are now logged in.")
 	}
 }
 
@@ -163,20 +163,20 @@ func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, para
 func commandUserAdd(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) == 2 {
 		if bot.userIsAuthenticated(nick + "!" + user) {
-			bot.SendMessage(receiver, "You are already authenticated.")
+			bot.SendPrivMessage(receiver, "You are already authenticated.")
 			return
 		}
 
 		if err := bot.addUser(params[0], params[1], false, false); err != nil {
 			bot.log.Warning("Couldn't add user %s: %s", params[0], err)
-			bot.SendMessage(receiver, fmt.Sprintf("Can't add user: %s", err))
+			bot.SendPrivMessage(receiver, fmt.Sprintf("Can't add user: %s", err))
 			return
 		}
 		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
 			bot.log.Warning("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
-		bot.SendMessage(receiver, "User added. You are now logged in.")
+		bot.SendPrivMessage(receiver, "User added. You are now logged in.")
 	}
 }
 
@@ -184,7 +184,7 @@ func commandUserAdd(bot *Bot, nick, user, channel, receiver string, priv bool, p
 func commandReloadTexts(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	bot.log.Info("Reloading texts...")
 	bot.LoadTexts(bot.textsFile, bot.Texts)
-	bot.SendMessage(receiver, "Done.")
+	bot.SendPrivMessage(receiver, "Done.")
 }
 
 // commandVar gets, sets and lists custom variables.
@@ -194,22 +194,22 @@ func commandVar(bot *Bot, nick, user, channel, receiver string, priv bool, param
 	}
 	command := params[0]
 	if command == "list" {
-		bot.SendMessage(receiver, "Custom variables:")
-		bot.SendMessage(receiver, fmt.Sprintf("%+v", bot.customVars))
+		bot.SendPrivMessage(receiver, "Custom variables:")
+		bot.SendPrivMessage(receiver, fmt.Sprintf("%+v", bot.customVars))
 		return
 	}
 
 	if len(params) == 2 && command == "get" {
 		name := params[1]
-		bot.SendMessage(receiver, fmt.Sprintf("%s = %s", name, bot.getVar(name)))
+		bot.SendPrivMessage(receiver, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
 		return
 	}
 
 	if len(params) > 3 && command == "set" {
 		name := params[1]
 		value := strings.Join(params[2:], " ")
-		bot.setVar(name, value)
-		bot.SendMessage(receiver, fmt.Sprintf("%s = %s", name, bot.getVar(name)))
+		bot.SetVar(name, value)
+		bot.SendPrivMessage(receiver, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
 		return
 	}
 }
@@ -217,7 +217,7 @@ func commandVar(bot *Bot, nick, user, channel, receiver string, priv bool, param
 // commandSayMore gives more info, if bot has any.
 func commandSayMore(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if bot.urlMoreInfo[receiver] == "" {
-		bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
+		bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
 		return
 	} else {
 		if len(bot.urlMoreInfo[receiver]) > 500 {
@@ -267,13 +267,13 @@ func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, p
 	}
 	if len(found) > 0 {
 		if priv {
-			bot.SendMessage(receiver, bot.Texts.SearchPrivateNotice)
+			bot.SendPrivMessage(receiver, bot.Texts.SearchPrivateNotice)
 		}
-		bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchResults))
+		bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchResults))
 		for i := range found {
-			bot.SendMessage(receiver, found[i])
+			bot.SendPrivMessage(receiver, found[i])
 		}
 	} else {
-		bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchNoResults))
+		bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchNoResults))
 	}
 }

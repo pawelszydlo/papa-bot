@@ -164,7 +164,7 @@ func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver stri
 	} else {
 		// Only warn once.
 		if !ext.Warned[channel] {
-			bot.SendMessage(receiver, fmt.Sprintf("%s, %s", nick, ext.Texts.NothingHasChanged))
+			bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, ext.Texts.NothingHasChanged))
 			ext.Warned[channel] = true
 		}
 	}
