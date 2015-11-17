@@ -45,12 +45,13 @@ func (ext *MyExtension) Init(bot *papaBot.Bot) error {
 }
 
 func (ext *MyExtension) Tick(bot *papaBot.Bot, daily bool) {
-	bot.SendMassNotice(fmt.Sprintf("I have been running for %.0f minutes now.", time.Since(ext.startTime).Minutes()))
+	bot.SendMassNotice(
+		fmt.Sprintf("I have been running for %.0f minutes now.", time.Since(ext.startTime).Minutes()))
 }
 
 // Entry point
 func main() {
 	bot := papaBot.New(*configFile, *textsFile)
-	bot.RegisterExtension(&MyExtension{})
+	bot.RegisterExtension(new(MyExtension))
 	bot.Run()
 }

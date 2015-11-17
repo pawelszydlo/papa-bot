@@ -73,7 +73,7 @@ func (bot *Bot) handlerCantJoin(m *irc.Message) {
 }
 
 func (bot *Bot) handlerBadNick(m *irc.Message) {
-	bot.log.Fatal("Server at %s said that my nick is invalid.", m.Prefix.Name)
+	bot.log.Fatalf("Server at %s said that my nick is invalid.", m.Prefix.Name)
 }
 
 func (bot *Bot) handlerPart(m *irc.Message) {

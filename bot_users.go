@@ -18,14 +18,14 @@ import (
 func (bot *Bot) ensureOwnerExists() {
 	result, err := bot.Db.Query(`SELECT EXISTS(SELECT 1 FROM users WHERE owner=1 LIMIT 1);`)
 	if err != nil {
-		bot.log.Fatal("Can't check if owner exists: %s", err)
+		bot.log.Fatalf("Can't check if owner exists: %s", err)
 	}
 	defer result.Close()
 
 	if result.Next() {
 		var ownerExists bool
 		if err = result.Scan(&ownerExists); err != nil {
-			bot.log.Fatal("Can't check if owner exists: %s", err)
+			bot.log.Fatalf("Can't check if owner exists: %s", err)
 		}
 		if !ownerExists {
 			bot.log.Warning("No owner found in the database. Must create one.")

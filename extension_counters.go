@@ -117,7 +117,7 @@ func (ext *extensionCounters) loadCounters(bot *Bot) {
 		// Handle the date.
 		c.date, err = time.Parse("2006-01-02 15:04:05", dateStr)
 		if err != nil {
-			bot.log.Fatal("Can't parse counter date %s: %s", dateStr, err)
+			bot.log.Fatalf("Can't parse counter date %s: %s", dateStr, err)
 		}
 		c.date = utils.MustForceLocalTimezone(c.date)
 		// Calculate next tick. Start from next daily tick and move backwards.

@@ -51,7 +51,7 @@ type Bot struct {
 	// Custom variables for use in extensions.
 	customVars map[string]string
 	// Registered bot extensions,
-	extensions []ExtensionInterface
+	extensions []extensionInterface
 	// Path to texts file.
 	textsFile string
 	// Bot texts struct.
@@ -93,7 +93,7 @@ func (ext *Extension) ProcessMessage(bot *Bot, channel, nick, msg string) {}
 func (ext *Extension) Tick(bot *Bot, daily bool) {}
 
 // Interface for easier handling of extensions.
-type ExtensionInterface interface {
+type extensionInterface interface {
 	Init(bot *Bot) error
 	ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string)
 	ProcessMessage(bot *Bot, channel, nick, msg string)
@@ -134,7 +134,7 @@ type BotCommand struct {
 	CommandFunc func(bot *Bot, nick, user, channel, receiver string, priv bool, params []string)
 }
 
-// Bot's configuration.
+// Bot's configuration. It will be loaded from the provided file on New(), overwriting any defaults.
 type Configuration struct {
 	// Connection parameters
 	Server    string
@@ -151,7 +151,6 @@ type Configuration struct {
 	UrlAnnounceIntervalMinutes time.Duration
 	UrlAnnounceIntervalLines   int
 	RejoinDelay                time.Duration
-	ReconnectDelay             time.Duration
 	PageBodyMaxSize            uint
 	HttpDefaultUserAgent       string
 	DailyTickHour              int

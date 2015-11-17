@@ -17,7 +17,7 @@ import (
 )
 
 // RegisterExtension will register a new extension with the bot.
-func (bot *Bot) RegisterExtension(ext ExtensionInterface) error {
+func (bot *Bot) RegisterExtension(ext extensionInterface) error {
 	if ext == nil {
 		return errors.New("Nil extension provided.")
 	}
@@ -174,10 +174,10 @@ func (bot *Bot) LoadTexts(filename string, data interface{}) error {
 				// Set template field value.
 				tempField := rData.FieldByName(tempFieldName)
 				if !tempField.IsValid() {
-					bot.log.Fatal("Can't find field %s to store template from %s.", tempFieldName, field.Name)
+					bot.log.Fatalf("Can't find field %s to store template from %s.", tempFieldName, field.Name)
 				}
 				if !tempField.CanSet() {
-					bot.log.Fatal("Field %s is not settable.", tempFieldName)
+					bot.log.Fatalf("Field %s is not settable.", tempFieldName)
 				}
 				if reflect.ValueOf(temp).Type() != tempField.Type() {
 					bot.log.Fatalf("Incompatible types %s and %s", reflect.ValueOf(temp).Type(), tempField.Type())

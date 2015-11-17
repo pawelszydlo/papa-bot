@@ -37,7 +37,6 @@ func New(configFile, textsFile string) *Bot {
 		UrlAnnounceIntervalMinutes: 15,
 		UrlAnnounceIntervalLines:   50,
 		RejoinDelay:                15 * time.Second,
-		ReconnectDelay:             10 * time.Second,
 		PageBodyMaxSize:            50 * 1024,
 		HttpDefaultUserAgent:       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
 		DailyTickHour:              8,
@@ -79,7 +78,7 @@ func New(configFile, textsFile string) *Bot {
 		customVars: map[string]string{},
 
 		// Register built-in extensions (ordering matters!).
-		extensions: []ExtensionInterface{
+		extensions: []extensionInterface{
 			new(extensionCounters),
 			new(extensionMeta),
 			new(extensionDuplicates),
@@ -100,12 +99,12 @@ func New(configFile, textsFile string) *Bot {
 
 	// Load config.
 	if _, err := toml.DecodeFile(bot.configFile, &bot.Config); err != nil {
-		bot.log.Fatal("Can't load config: %s", err)
+		bot.log.Fatalf("Can't load config: %s", err)
 	}
 
 	// Load texts.
 	if err := bot.LoadTexts(bot.textsFile, bot.Texts); err != nil {
-		bot.log.Fatal("Can't load texts: %s", err)
+		bot.log.Fatalf("Can't load texts: %s", err)
 	}
 
 	return bot
@@ -117,7 +116,7 @@ func (bot *Bot) initialize() {
 
 	// Init database.
 	if err := bot.initDb(); err != nil {
-		bot.log.Fatal("Can't init database: %s", err)
+		bot.log.Fatalf("Can't init database: %s", err)
 	}
 	bot.ensureOwnerExists()
 
@@ -125,11 +124,11 @@ func (bot *Bot) initialize() {
 	if bot.Config.ChatLogging {
 		exists, err := utils.DirExists("logs")
 		if err != nil {
-			bot.log.Fatal("Can't check if logs dir exists: %s", err)
+			bot.log.Fatalf("Can't check if logs dir exists: %s", err)
 		}
 		if !exists {
 			if err := os.Mkdir("logs", 0700); err != nil {
-				bot.log.Fatal("Can't create logs folder: %s", err)
+				bot.log.Fatalf("Can't create logs folder: %s", err)
 			}
 		}
 	}
@@ -162,7 +161,7 @@ func (bot *Bot) initialize() {
 	// Init extensions.
 	for i := range bot.extensions {
 		if err := bot.extensions[i].Init(bot); err != nil {
-			bot.log.Fatal("Error loading extensions: %s", err)
+			bot.log.Fatalf("Error loading extensions: %s", err)
 		}
 	}
 
@@ -214,7 +213,7 @@ func (bot *Bot) receiverLoop() {
 			bot.irc.connection.Close()
 			retries := 0
 			for {
-				time.Sleep(bot.Config.ReconnectDelay * time.Duration(retries))
+				time.Sleep(time.Duration(retries*retries) * time.Second)
 				bot.log.Info("Reconnecting...")
 				if err := bot.connect(); err == nil {
 					break
@@ -359,7 +358,7 @@ func (bot *Bot) Run() {
 
 	// Connect to server.
 	if err := bot.connect(); err != nil {
-		bot.log.Fatal("Error creating connection: ", err)
+		bot.log.Fatalf("Error creating connection: ", err)
 	}
 
 	// Semaphore clearing ticker.
