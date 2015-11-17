@@ -34,7 +34,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 
 ###Adding your own extensions
 
-Very simple, just take a look [at the example](https://github.com/pawelszydlo/papa-bot/blob/master/example/main.go). 
+Very simple, just take a look [at the example](https://github.com/pawelszydlo/papa-bot/blob/master/example/example.go). 
 
 ####TODO
 
