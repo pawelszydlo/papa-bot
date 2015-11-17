@@ -1,3 +1,4 @@
+// Example usage of papaBot.
 package main
 
 import (

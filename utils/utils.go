@@ -1,3 +1,4 @@
+// Helpful utility functions.
 package utils
 
 import (
