@@ -3,6 +3,7 @@ package papaBot
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/BurntSushi/toml"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
@@ -15,18 +16,55 @@ import (
 	"text/template"
 )
 
-// getPageBodyByURL is a convenience wrapper around GetPageBody.
-func (bot *Bot) getPageBodyByURL(url string) ([]byte, error) {
+// RegisterExtension will register a new extension with the bot.
+func (bot *Bot) RegisterExtension(ext ExtensionInterface) error {
+	if ext == nil {
+		return errors.New("Nil extension provided.")
+	}
+	bot.extensions = append(bot.extensions, ext)
+	// If bot's init was already done, all other extensions have already been initialized.
+	if bot.initDone {
+		return ext.Init(bot)
+	}
+	return nil
+}
+
+// RegisterCommand will register a new command with the bot.
+func (bot *Bot) RegisterCommand(cmd *BotCommand) error {
+	for _, name := range cmd.CommandNames {
+		for existingName, _ := range bot.commands {
+			if name == existingName {
+				return errors.New(fmt.Sprintf("Command under alias '%s' already exists.", name))
+			}
+		}
+		bot.commands[name] = cmd
+	}
+	return nil
+}
+
+// GetChannelsOn will return a list of channels the bot is currently on.
+func (bot *Bot) GetChannelsOn() []string {
+	channelsOn := []string{}
+	for channel, on := range bot.onChannel {
+		if on {
+			channelsOn = append(channelsOn, channel)
+		}
+	}
+	return channelsOn
+}
+
+// GetPageBodyByURL is a convenience wrapper around GetPageBody.
+func (bot *Bot) GetPageBodyByURL(url string) ([]byte, error) {
 	var urlinfo UrlInfo
 	urlinfo.URL = url
-	if err := bot.getPageBody(&urlinfo, map[string]string{}); err != nil {
+	if err := bot.GetPageBody(&urlinfo, map[string]string{}); err != nil {
 		return urlinfo.Body, err
 	}
 	return urlinfo.Body, nil
 }
 
-// getPageBody gets and returns a body of a page.
-func (bot *Bot) getPageBody(urlinfo *UrlInfo, customHeaders map[string]string) error {
+// GetPageBody gets and returns a body of a page.
+func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) error {
 	if urlinfo.URL == "" {
 		return errors.New("Empty URL")
 	}

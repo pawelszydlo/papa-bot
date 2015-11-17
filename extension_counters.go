@@ -11,7 +11,7 @@ import (
 )
 
 // ExtensionCounters - enables the creation of custom counters.
-type ExtensionCounters struct {
+type extensionCounters struct {
 	Extension
 	counters map[int]*extensionCountersCounter
 }
@@ -42,7 +42,7 @@ func (cs *extensionCountersCounter) message() string {
 }
 
 // Init initializes the extension.
-func (ext *ExtensionCounters) Init(bot *Bot) error {
+func (ext *extensionCounters) Init(bot *Bot) error {
 	// Create database table to hold the counters.
 	query := `
 		-- Main URLs table.
@@ -61,13 +61,12 @@ func (ext *ExtensionCounters) Init(bot *Bot) error {
 	}
 
 	// Add commands for handling the counters.
-	cmd := BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"c", "counter"},
 		true, false, true,
 		"counter help | list | announce [id] | del [id] | add [date] [time] [interval] [channel] [text]",
 		"Controls custom counters.",
-		ext.commandCounters}
-	bot.commands["counter"] = &cmd
-	bot.commands["c"] = &cmd
+		ext.commandCounters})
 
 	// Load counters from the db.
 	ext.loadCounters(bot)
@@ -76,7 +75,7 @@ func (ext *ExtensionCounters) Init(bot *Bot) error {
 }
 
 // Tick will announce all the counters if needed.
-func (ext *ExtensionCounters) Tick(bot *Bot, daily bool) {
+func (ext *extensionCounters) Tick(bot *Bot, daily bool) {
 	// Check if it's time to announce the counter.
 	for id, c := range ext.counters {
 		if time.Since(c.nextTick) > 0 {
@@ -88,7 +87,7 @@ func (ext *ExtensionCounters) Tick(bot *Bot, daily bool) {
 }
 
 // loadCounters will load the counters from the database.
-func (ext *ExtensionCounters) loadCounters(bot *Bot) {
+func (ext *extensionCounters) loadCounters(bot *Bot) {
 	ext.counters = map[int]*extensionCountersCounter{}
 
 	result, err := bot.Db.Query(
@@ -137,7 +136,7 @@ func (ext *ExtensionCounters) loadCounters(bot *Bot) {
 }
 
 // commandCounters is a command for handling the counters.
-func (ext *ExtensionCounters) commandCounters(
+func (ext *extensionCounters) commandCounters(
 	bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 
 	if len(params) < 1 {

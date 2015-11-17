@@ -11,7 +11,7 @@ import (
 )
 
 // ExtensionBtc - extension for getting BTC price from BitStamp.com.
-type ExtensionBtc struct {
+type extensionBtc struct {
 	Extension
 	HourlyData map[string]interface{}
 
@@ -34,16 +34,13 @@ type extensionBtcTexts struct {
 	TempBtcSeriousFall *template.Template
 }
 
-func (ext *ExtensionBtc) Init(bot *Bot) error {
+func (ext *extensionBtc) Init(bot *Bot) error {
 	// Register new command.
-	cmdBtc := BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"b", "btc", "k", "kierda"},
 		false, false, false,
 		"", "Show current BTC price.",
-		ext.commandBtc}
-	bot.commands["btc"] = &cmdBtc
-	bot.commands["b"] = &cmdBtc
-	bot.commands["k"] = &cmdBtc
-	bot.commands["kierda"] = &cmdBtc
+		ext.commandBtc})
 	// Init variables.
 	ext.LastAsk = map[string]time.Time{}
 	ext.Warned = map[string]bool{}
@@ -59,7 +56,7 @@ func (ext *ExtensionBtc) Init(bot *Bot) error {
 }
 
 // diffStr will get a string representing the rise/fall of price.
-func (ext *ExtensionBtc) diffStr(diff float64) string {
+func (ext *extensionBtc) diffStr(diff float64) string {
 	diffstr := ""
 	if diff > 0 {
 		diffstr = fmt.Sprintf("⬆$%.2f", math.Abs(diff))
@@ -70,9 +67,9 @@ func (ext *ExtensionBtc) diffStr(diff float64) string {
 }
 
 // Tick will monitor BTC price and warn if anything serious happens.
-func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
+func (ext *extensionBtc) Tick(bot *Bot, daily bool) {
 	// Fetch fresh data.
-	body, err := bot.getPageBodyByURL("https://www.bitstamp.net/api/ticker/")
+	body, err := bot.GetPageBodyByURL("https://www.bitstamp.net/api/ticker/")
 	if err != nil {
 		bot.log.Warning("Error getting BTC data: %s", err)
 		return
@@ -150,7 +147,7 @@ func (ext *ExtensionBtc) Tick(bot *Bot, daily bool) {
 	}
 }
 
-func (ext *ExtensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func (ext *extensionBtc) commandBtc(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	// Answer only once per 5 minutes per channel.
 	if time.Since(ext.LastAsk[channel]) > 5*time.Minute {
 		ext.LastAsk[channel] = time.Now()

@@ -232,7 +232,7 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 		var urlinfo UrlInfo
 		urlinfo.URL = link
 		// Try to get the body of the page.
-		if err := bot.getPageBody(&urlinfo, map[string]string{}); err != nil {
+		if err := bot.GetPageBody(&urlinfo, map[string]string{}); err != nil {
 			bot.log.Warning("Could't fetch the body: %s", err)
 		}
 

@@ -11,14 +11,14 @@ import (
 )
 
 // ExtensionReddit - extension for getting link information from reddit.com.
-type ExtensionReddit struct {
+type extensionReddit struct {
 	Extension
 	announced          map[string]bool
-	Texts              *ExtensionRedditTexts
+	Texts              *extensionRedditTexts
 	InterestingReddits []string
 }
 
-type ExtensionRedditTexts struct {
+type extensionRedditTexts struct {
 	TplRedditAnnounce  string
 	TempRedditAnnounce *template.Template
 	TplRedditDaily     string
@@ -26,7 +26,7 @@ type ExtensionRedditTexts struct {
 }
 
 // Reddit structs.
-type RedditPostData struct {
+type redditPostData struct {
 	Id        string
 	Subreddit string
 	Author    string
@@ -36,14 +36,14 @@ type RedditPostData struct {
 	Url       string
 	Created   float64
 }
-type RedditListing struct {
+type redditListing struct {
 	Error int
 	Data  struct {
-		Children []struct{ Data RedditPostData }
+		Children []struct{ Data redditPostData }
 	}
 }
 
-func (postData *RedditPostData) toStrings() map[string]string {
+func (postData *redditPostData) toStrings() map[string]string {
 	return map[string]string{
 		"id":           postData.Id,
 		"created":      utils.HumanizedSince(time.Unix(int64(postData.Created), 0)),
@@ -58,13 +58,13 @@ func (postData *RedditPostData) toStrings() map[string]string {
 }
 
 // getRedditListing fetches a reddit listing data.
-func (ext *ExtensionReddit) getRedditListing(bot *Bot, url string, listing *RedditListing) error {
+func (ext *extensionReddit) getRedditListing(bot *Bot, url string, listing *redditListing) error {
 	// Get response
 	var urlinfo UrlInfo
 	urlinfo.URL = url
 	// Reddit API doesn't like it when you pretend to be someone else.
 	headers := map[string]string{"User-Agent": "PapaBot version " + Version}
-	if err := bot.getPageBody(&urlinfo, headers); err != nil {
+	if err := bot.GetPageBody(&urlinfo, headers); err != nil {
 		return err
 	}
 
@@ -81,7 +81,7 @@ func (ext *ExtensionReddit) getRedditListing(bot *Bot, url string, listing *Redd
 }
 
 // getRedditInfo fetches information about a link from Reddit.
-func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel string) string {
+func (ext *extensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel string) string {
 	// Catch errors.
 	defer func() {
 		if Debug {
@@ -94,7 +94,7 @@ func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel strin
 
 	// Get the listing.
 	url = fmt.Sprintf("https://www.reddit.com/api/info.json?url=%s", url)
-	var listing RedditListing
+	var listing redditListing
 	if err := ext.getRedditListing(bot, url, &listing); err != nil {
 		bot.log.Debug("Error getting reddit's response %d.", listing.Error)
 		return ""
@@ -125,7 +125,7 @@ func (ext *ExtensionReddit) getRedditInfo(bot *Bot, url, urlTitle, channel strin
 }
 
 // Init inits the extension.
-func (ext *ExtensionReddit) Init(bot *Bot) error {
+func (ext *extensionReddit) Init(bot *Bot) error {
 	ext.InterestingReddits = []string{
 		"TrueReddit",
 		"foodforthought",
@@ -134,7 +134,7 @@ func (ext *ExtensionReddit) Init(bot *Bot) error {
 	}
 	// Load texts.
 	ext.announced = map[string]bool{}
-	texts := &ExtensionRedditTexts{}
+	texts := &extensionRedditTexts{}
 	if err := bot.LoadTexts(bot.textsFile, texts); err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (ext *ExtensionReddit) Init(bot *Bot) error {
 }
 
 // Tick will clear the announces table and give post of the day.
-func (ext *ExtensionReddit) Tick(bot *Bot, daily bool) {
+func (ext *extensionReddit) Tick(bot *Bot, daily bool) {
 	if !daily {
 		return
 	}
@@ -152,7 +152,7 @@ func (ext *ExtensionReddit) Tick(bot *Bot, daily bool) {
 	subreddit := ext.InterestingReddits[rand.Intn(len(ext.InterestingReddits))]
 	// Get the listing.
 	url := fmt.Sprintf("https://www.reddit.com/r/%s/hot.json?limit=1", subreddit)
-	var listing RedditListing
+	var listing redditListing
 	if err := ext.getRedditListing(bot, url, &listing); err != nil {
 		bot.log.Debug("Error getting reddit's response %d.", listing.Error)
 		return
@@ -165,7 +165,7 @@ func (ext *ExtensionReddit) Tick(bot *Bot, daily bool) {
 }
 
 // ProcessURL will try to check if link was ever on reddit.
-func (ext *ExtensionReddit) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
+func (ext *extensionReddit) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
 	// Announce each link only once.
 	if ext.announced[channel+urlinfo.URL] {
 		return

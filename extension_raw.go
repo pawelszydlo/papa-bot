@@ -5,22 +5,21 @@ import (
 )
 
 // ExtensionRaw - extension for executing raw IRC commands by the bot.
-type ExtensionRaw struct {
+type extensionRaw struct {
 	Extension
 }
 
-func (ext *ExtensionRaw) Init(bot *Bot) error {
+func (ext *extensionRaw) Init(bot *Bot) error {
 	// Register new command.
-	cmd := BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"r", "raw"},
 		true, true, false,
 		"[command] [params] : [trailing]", "Execute raw IRC command.",
-		ext.commandRaw}
-	bot.commands["raw"] = &cmd
-	bot.commands["r"] = &cmd
+		ext.commandRaw})
 	return nil
 }
 
-func (ext *ExtensionRaw) commandRaw(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func (ext *extensionRaw) commandRaw(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) < 2 {
 		return
 	}

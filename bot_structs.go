@@ -14,6 +14,8 @@ import (
 
 // Bot itself.
 type Bot struct {
+	// Was initialization complete?
+	initDone bool
 	// IRC network connection.
 	irc *ircConnection
 	// Database connection.
@@ -53,7 +55,7 @@ type Bot struct {
 	// Path to texts file.
 	textsFile string
 	// Bot texts struct.
-	Texts *BotTexts
+	Texts *botTexts
 	// Time when URL info was last announced, per channel + link.
 	lastURLAnnouncedTime map[string]time.Time
 	// Lines passed since URL info was last announced, per channel + link.
@@ -78,7 +80,7 @@ type ircConnection struct {
 // Extensions should embed this struct and override any methods necessary.
 type Extension struct{}
 
-// Will be run on bot's init.
+// Will be run on bot's init or when extension is registered after bot's init.
 func (ext *Extension) Init(bot *Bot) error { return nil }
 
 // Will be run whenever an URL is found in the message.
@@ -116,6 +118,8 @@ type UrlInfo struct {
 
 // Bot's commands.
 type BotCommand struct {
+	// Names of the command (main and aliases).
+	CommandNames []string
 	// Does this command require private query?
 	Private bool
 	// This command can only be run by the owner?
@@ -155,7 +159,7 @@ type Configuration struct {
 }
 
 // Bot's core texts.
-type BotTexts struct {
+type botTexts struct {
 	NeedsPriv           string
 	NeedsAdmin          string
 	PasswordOk          string

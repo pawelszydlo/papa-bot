@@ -7,13 +7,13 @@ import (
 )
 
 // ExtensionMeta - extension for getting title and description from html links.
-type ExtensionMeta struct {
+type extensionMeta struct {
 	Extension
 	titleRe, metaRe, descRe *regexp.Regexp
 }
 
 // Init inits the extension.
-func (ext *ExtensionMeta) Init(bot *Bot) error {
+func (ext *extensionMeta) Init(bot *Bot) error {
 	ext.titleRe = regexp.MustCompile("(?is)<title.*?>(.+?)</title>")
 	ext.metaRe = regexp.MustCompile(`(?is)<\s*?meta.*?content\s*?=\s*?"(.*?)".*?>`)
 	ext.descRe = regexp.MustCompile(`(?is)(property|name)\s*?=.*?description`)
@@ -21,7 +21,7 @@ func (ext *ExtensionMeta) Init(bot *Bot) error {
 }
 
 // getTitle find the title and description.
-func (ext *ExtensionMeta) getTitle(body string) (string, string, error) {
+func (ext *extensionMeta) getTitle(body string) (string, string, error) {
 	// Iterate over meta tags to get the description
 	description := ""
 	metas := ext.metaRe.FindAllStringSubmatch(string(body), -1)
@@ -44,7 +44,7 @@ func (ext *ExtensionMeta) getTitle(body string) (string, string, error) {
 }
 
 // ProcessURL will try to get the title and description.
-func (ext *ExtensionMeta) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
+func (ext *extensionMeta) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
 	if len(urlinfo.Body) == 0 || !strings.Contains(urlinfo.ContentType, "html") {
 		return
 	}

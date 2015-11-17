@@ -49,6 +49,7 @@ func New(configFile, textsFile string) *Bot {
 
 	// Init bot struct.
 	bot := &Bot{
+		initDone:            false,
 		irc:                 &ircConnection{messages: make(chan *irc.Message)},
 		log:                 logging.MustGetLogger("bot"),
 		HTTPClient:          &http.Client{Timeout: 5 * time.Second},
@@ -60,7 +61,7 @@ func New(configFile, textsFile string) *Bot {
 		authenticatedOwners: map[string]string{},
 
 		textsFile: textsFile,
-		Texts:     &BotTexts{},
+		Texts:     &botTexts{},
 
 		lastURLAnnouncedTime:        map[string]time.Time{},
 		lastURLAnnouncedLinesPassed: map[string]int{},
@@ -77,27 +78,25 @@ func New(configFile, textsFile string) *Bot {
 
 		customVars: map[string]string{},
 
-		// Register extensions (ordering matters!)
+		// Register built-in extensions (ordering matters!).
 		extensions: []ExtensionInterface{
-			new(ExtensionCounters),
-			new(ExtensionMeta),
-			new(ExtensionDuplicates),
-			new(ExtensionGitHub),
-			new(ExtensionBtc),
-			new(ExtensionReddit),
-			new(ExtensionMovies),
-			new(ExtensionRaw),
+			new(extensionCounters),
+			new(extensionMeta),
+			new(extensionDuplicates),
+			new(extensionGitHub),
+			new(extensionBtc),
+			new(extensionReddit),
+			new(extensionMovies),
+			new(extensionRaw),
 		},
 	}
-	// Logging init.
+	// Logging configuration.
 	formatNorm := logging.MustStringFormatter(
 		"%{color}[%{time:2006/01/02 15:04:05}] %{level:.4s} ▶%{color:reset} %{message}",
 	)
 	backendNorm := logging.NewLogBackend(os.Stdout, "", 0)
 	backendNormFormatted := logging.NewBackendFormatter(backendNorm, formatNorm)
 	logging.SetBackend(backendNormFormatted)
-
-	bot.log.Info("I am papaBot, version %s", Version)
 
 	// Load config.
 	if _, err := toml.DecodeFile(bot.configFile, &bot.Config); err != nil {
@@ -108,6 +107,13 @@ func New(configFile, textsFile string) *Bot {
 	if err := bot.LoadTexts(bot.textsFile, bot.Texts); err != nil {
 		bot.log.Fatal("Can't load texts: %s", err)
 	}
+
+	return bot
+}
+
+// initialize performs initialization of bot's mechanisms.
+func (bot *Bot) initialize() {
+	bot.log.Info("I am papaBot, version %s", Version)
 
 	// Init database.
 	if err := bot.initDb(); err != nil {
@@ -160,9 +166,8 @@ func New(configFile, textsFile string) *Bot {
 		}
 	}
 
+	bot.initDone = true
 	bot.log.Info("Bot init done.")
-
-	return bot
 }
 
 // connect attempts to connect to the given IRC server.
@@ -268,6 +273,7 @@ func (bot *Bot) SendNotice(channel, message string) {
 
 // SendMassNotice sends a notice to all the channels bot is on.
 func (bot *Bot) SendMassNotice(message string) {
+	bot.log.Debug("Sending mass notice: %s", message)
 	for _, channel := range bot.Config.Channels {
 		bot.sendFloodProtected(irc.NOTICE, channel, message)
 	}
@@ -338,8 +344,8 @@ func (bot *Bot) runExtensionTickers() {
 	}
 }
 
-// Close cleans up after the bot.
-func (bot *Bot) Close() {
+// close cleans up after the bot.
+func (bot *Bot) close() {
 	bot.Db.Close()
 	close(bot.irc.messages)
 	close(bot.floodSemaphore)
@@ -347,7 +353,9 @@ func (bot *Bot) Close() {
 
 // Run starts the bot's main loop.
 func (bot *Bot) Run() {
-	defer bot.Close()
+	// Initialize bot mechanisms.
+	bot.initialize()
+	defer bot.close()
 
 	// Connect to server.
 	if err := bot.connect(); err != nil {

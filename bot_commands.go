@@ -10,43 +10,51 @@ import (
 
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
+	// Help.
+	bot.RegisterCommand(&BotCommand{
+		[]string{"help", "h"},
+		false, false, false,
+		"", "Print commands help.",
+		commandHelp})
 	// Auth.
-	bot.commands["auth"] = &BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"auth"},
 		true, false, false,
 		"[user] [password]", "Authenticate with the bot.",
-		commandAuth}
+		commandAuth})
 	// Useradd.
-	bot.commands["useradd"] = &BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"useradd"},
 		true, false, false,
 		"[user] [password]", "Create user account.",
-		commandUserAdd}
+		commandUserAdd})
 	// Reload.
-	bot.commands["reload_texts"] = &BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"reload"},
 		true, false, true,
 		"", "Reload bot's texts from file.",
-		commandReloadTexts}
+		commandReloadTexts})
 	// Find.
-	cmdFind := BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"f", "find"},
 		false, false, false,
 		"token1 token2 token3 ...", "Look for URLs containing all the tokens.",
-		commandFindUrl}
-	bot.commands["find"] = &cmdFind
-	bot.commands["f"] = &cmdFind
+		commandFindUrl})
 	// More.
-	cmdMore := BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"m", "more", "moar"},
 		false, false, false,
 		"", "Say more about last link.",
-		commandSayMore}
-	bot.commands["more"] = &cmdMore
-	bot.commands["moar"] = &cmdMore
-	bot.commands["m"] = &cmdMore
+		commandSayMore})
 	// Var.
-	bot.commands["var"] = &BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"var", "v"},
 		true, true, false,
 		"list | get [name] | set [name] [value]", "Controls custom variables",
-		commandVar}
+		commandVar})
 
 	bot.commandsHideParams["auth"] = true
+	bot.commandsHideParams["useradd"] = true
 }
 
 // handleBotCommand handles commands directed at the bot.
@@ -99,35 +107,6 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 		}
 	}
 
-	// Print help.
-	if command == "help" {
-		// Build a list of all command aliases.
-		helpCommandKeys := map[string][]string{}
-		helpCommands := map[string]*BotCommand{}
-		for key, cmd := range bot.commands {
-			pointerStr := fmt.Sprintf("%p", cmd)
-			helpCommandKeys[pointerStr] = append(helpCommandKeys[pointerStr], key)
-			helpCommands[pointerStr] = cmd
-		}
-		// Print help.
-		for pointerStr, cmd := range helpCommands {
-			commands := strings.Join(helpCommandKeys[pointerStr], ", ")
-			options := ""
-			if cmd.Private {
-				options = " (query only)"
-			}
-			if cmd.Owner && !owner {
-				continue
-			}
-			if cmd.Admin && !admin {
-				continue
-			}
-			bot.SendPrivMessage(
-				nick, fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options))
-		}
-		return
-	}
-
 	if cmd, exists := bot.commands[command]; exists {
 		// Check if command needs to be run through query.
 		if cmd.Private && !private {
@@ -146,6 +125,38 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 				"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
 		}
 	}
+}
+
+// commandHelp will print help for all the commands.
+func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+	sender_complete := nick + "!" + user
+	owner := bot.userIsOwner(sender_complete)
+	admin := bot.userIsAdmin(sender_complete)
+	// Build a list of all command aliases.
+	helpCommandKeys := map[string][]string{}
+	helpCommands := map[string]*BotCommand{}
+	for key, cmd := range bot.commands {
+		pointerStr := fmt.Sprintf("%p", cmd)
+		helpCommandKeys[pointerStr] = append(helpCommandKeys[pointerStr], key)
+		helpCommands[pointerStr] = cmd
+	}
+	// Print help.
+	for pointerStr, cmd := range helpCommands {
+		commands := strings.Join(helpCommandKeys[pointerStr], ", ")
+		options := ""
+		if cmd.Private {
+			options = " (query only)"
+		}
+		if cmd.Owner && !owner {
+			continue
+		}
+		if cmd.Admin && !admin {
+			continue
+		}
+		bot.SendPrivMessage(
+			nick, fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options))
+	}
+	return
 }
 
 // commandAuth is a command for authenticating an user with the bot.

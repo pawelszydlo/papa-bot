@@ -7,19 +7,19 @@ import (
 )
 
 // ExtensionGitHub - extension for getting basic repository information.
-type ExtensionGitHub struct {
+type extensionGitHub struct {
 	Extension
 	gitHubRe *regexp.Regexp
 }
 
 // Init inits the extension.
-func (ext *ExtensionGitHub) Init(bot *Bot) error {
+func (ext *extensionGitHub) Init(bot *Bot) error {
 	ext.gitHubRe = regexp.MustCompile(`(?i)github\.com/(.+?)/(.+?)(/|$)`)
 	return nil
 }
 
 // ProcessURL will try to get more info on GitHub links.
-func (ext *ExtensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
+func (ext *extensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
 	match := ext.gitHubRe.FindStringSubmatch(urlinfo.URL)
 	if len(match) < 2 {
 		return
@@ -30,7 +30,7 @@ func (ext *ExtensionGitHub) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, send
 		user := match[1]
 		repo := match[2]
 		// Get response
-		body, err := bot.getPageBodyByURL(fmt.Sprintf("https://api.github.com/repos/%s/%s", user, repo))
+		body, err := bot.GetPageBodyByURL(fmt.Sprintf("https://api.github.com/repos/%s/%s", user, repo))
 		if err != nil {
 			bot.log.Warning("Error getting response from GitHub: %s", err)
 			return

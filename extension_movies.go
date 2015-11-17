@@ -9,7 +9,7 @@ import (
 )
 
 // ExtensionMovies - finds movie titles in the messages and provides other movie related commands.
-type ExtensionMovies struct {
+type extensionMovies struct {
 	Extension
 	announced map[string]bool
 	Texts     *extensionMoviesTexts
@@ -38,7 +38,7 @@ type extensionMoviesTexts struct {
 }
 
 // Init inits the extension.
-func (ext *ExtensionMovies) Init(bot *Bot) error {
+func (ext *extensionMovies) Init(bot *Bot) error {
 	// Load texts.
 	ext.announced = map[string]bool{}
 	texts := &extensionMoviesTexts{}
@@ -47,19 +47,18 @@ func (ext *ExtensionMovies) Init(bot *Bot) error {
 	}
 	ext.Texts = texts
 	// Register new command.
-	cmd := BotCommand{
+	bot.RegisterCommand(&BotCommand{
+		[]string{"i", "imdb"},
 		false, false, false,
 		"[title]", "Get movie info for [title].",
-		ext.commandMovie}
-	bot.commands["imdb"] = &cmd
-	bot.commands["i"] = &cmd
+		ext.commandMovie})
 	return nil
 }
 
 // searchOmdb will query Omdb database for movie information.
-func (ext *ExtensionMovies) searchOmdb(bot *Bot, title string, data *movieStruct) {
+func (ext *extensionMovies) searchOmdb(bot *Bot, title string, data *movieStruct) {
 	// Fetch movie data.
-	body, err := bot.getPageBodyByURL("http://www.omdbapi.com/?y=&plot=short&r=json&t=" + url.QueryEscape(title))
+	body, err := bot.GetPageBodyByURL("http://www.omdbapi.com/?y=&plot=short&r=json&t=" + url.QueryEscape(title))
 	if err != nil {
 		data.Error = fmt.Sprintf("%s", err)
 		return
@@ -73,7 +72,7 @@ func (ext *ExtensionMovies) searchOmdb(bot *Bot, title string, data *movieStruct
 }
 
 // announce announces movie info to the channel.
-func (ext *ExtensionMovies) findAndAnnounce(bot *Bot, channel, title string) {
+func (ext *extensionMovies) findAndAnnounce(bot *Bot, channel, title string) {
 	// Announce each movie only once.
 	if ext.announced[channel+title] {
 		return
@@ -99,7 +98,7 @@ func (ext *ExtensionMovies) findAndAnnounce(bot *Bot, channel, title string) {
 }
 
 // commandMovie is a command for manually searching for movies.
-func (ext *ExtensionMovies) commandMovie(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func (ext *extensionMovies) commandMovie(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) < 1 {
 		return
 	}
@@ -108,7 +107,7 @@ func (ext *ExtensionMovies) commandMovie(bot *Bot, nick, user, channel, receiver
 }
 
 // ProcessMessage will fetch information on movies mentioned in the post.
-func (ext *ExtensionMovies) ProcessMessage(bot *Bot, channel, sender, msg string) {
+func (ext *extensionMovies) ProcessMessage(bot *Bot, channel, sender, msg string) {
 	// Check if the message has any of the trigger words.
 	hasTrigger := false
 	for _, word := range ext.Texts.MoviesTriggerWords {

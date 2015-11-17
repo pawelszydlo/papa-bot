@@ -8,13 +8,13 @@ import (
 )
 
 // ExtensionDuplicates checks for duplicate URLs posted.
-type ExtensionDuplicates struct {
+type extensionDuplicates struct {
 	Extension
-	Texts     *ExtensionDuplicatesTexts
+	Texts     *extensionDuplicatesTexts
 	announced map[string]time.Time
 }
 
-type ExtensionDuplicatesTexts struct {
+type extensionDuplicatesTexts struct {
 	TempDuplicateFirst *template.Template
 	TplDuplicateFirst  string
 
@@ -25,8 +25,8 @@ type ExtensionDuplicatesTexts struct {
 }
 
 // Init inits the extension.
-func (ext *ExtensionDuplicates) Init(bot *Bot) error {
-	texts := new(ExtensionDuplicatesTexts) // Can't load directly because of reflection issues.
+func (ext *extensionDuplicates) Init(bot *Bot) error {
+	texts := new(extensionDuplicatesTexts) // Can't load directly because of reflection issues.
 	if err := bot.LoadTexts(bot.textsFile, texts); err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func (ext *ExtensionDuplicates) Init(bot *Bot) error {
 }
 
 // checkForDuplicates checks for duplicates of the url in the database.
-func (ext *ExtensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
+func (ext *extensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, sender, msg string) {
 	result, err := bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
 		FROM urls WHERE link=? AND channel=?
@@ -90,7 +90,7 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *Bot, urlinfo *UrlInfo, channel, 
 }
 
 // Tick will clean announces table once per day.
-func (ext *ExtensionDuplicates) Tick(bot *Bot, daily bool) {
+func (ext *extensionDuplicates) Tick(bot *Bot, daily bool) {
 	if daily {
 		ext.announced = map[string]time.Time{}
 	}
