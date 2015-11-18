@@ -36,7 +36,7 @@ type extensionBtcTexts struct {
 
 func (ext *extensionBtc) Init(bot *Bot) error {
 	// Register new command.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"b", "btc", "k", "kierda"},
 		false, false, false,
 		"", "Show current BTC price.",

@@ -47,10 +47,10 @@ func (ext *extensionMovies) Init(bot *Bot) error {
 	}
 	ext.Texts = texts
 	// Register new command.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"i", "imdb"},
 		false, false, false,
-		"[title]", "Get movie info for [title].",
+		"<title>", "Get movie info for <title>.",
 		ext.commandMovie})
 	return nil
 }
@@ -90,7 +90,6 @@ func (ext *extensionMovies) findAndAnnounce(bot *Bot, channel, title string) {
 		return
 	}
 	// Announce.
-	ext.announced[channel+title] = true
 	notice := fmt.Sprintf("%s (%s, %s) | %s | http://www.imdb.com/title/%s | %s",
 		data.Title, data.Genre, data.Year, data.ImdbRating, data.ImdbID, data.Plot)
 	bot.SendNotice(channel, notice)

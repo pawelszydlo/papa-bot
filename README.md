@@ -40,3 +40,4 @@ Very simple, just take a look [at the example](https://github.com/pawelszydlo/pa
 
 * Split handling.
 * Alt nicks handling.
+* Make extensions work based on events.

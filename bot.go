@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	Version = "0.9.6"
-	Debug   = false // Set to true to crash on runtime errors.
+	Version        = "0.9.6"
+	Debug          = false // Set to true to crash on runtime errors.
+	MsgLengthLimit = 440   // IRC message length limit.
 )
 
 // New creates a new bot.
@@ -87,6 +88,7 @@ func New(configFile, textsFile string) *Bot {
 			new(extensionReddit),
 			new(extensionMovies),
 			new(extensionRaw),
+			new(extensionWiki),
 		},
 	}
 	// Logging configuration.
@@ -254,6 +256,17 @@ func (bot *Bot) sendFloodProtected(mType, channel, message string) {
 	messages := strings.Split(message, "\n")
 	for i := range messages {
 		bot.floodSemaphore <- 1
+		// IRC message size limit.
+		if len(messages[i]) > MsgLengthLimit {
+			for n := 0; n < len(messages[i]); n += MsgLengthLimit {
+				upperLimit := n + MsgLengthLimit
+				if upperLimit > len(messages[i]) {
+					upperLimit = len(messages[i])
+				}
+				bot.SendRawMessage(mType, []string{channel}, messages[i][n:upperLimit])
+			}
+			return
+		}
 		bot.SendRawMessage(mType, []string{channel}, messages[i])
 	}
 }

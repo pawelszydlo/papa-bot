@@ -71,6 +71,25 @@ func HumanizedSince(past time.Time) string {
 	return magnitude.format
 }
 
+// StripTags strips HTML tags from text.
+func StripTags(text string) string {
+	output := bytes.NewBufferString("")
+	inTag := false
+	for _, r := range text {
+		switch r {
+		case '<':
+			inTag = true
+		case '>':
+			inTag = false
+		default:
+			if !inTag {
+				output.WriteRune(r)
+			}
+		}
+	}
+	return output.String()
+}
+
 // MustForceLocalTimezone adds current timezone to passed date, without recalculating the date.
 func MustForceLocalTimezone(date time.Time) time.Time {
 	// Hack to force the time to be from the same timezone as now

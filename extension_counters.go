@@ -61,10 +61,10 @@ func (ext *extensionCounters) Init(bot *Bot) error {
 	}
 
 	// Add commands for handling the counters.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"c", "counter"},
 		true, false, true,
-		"counter help | list | announce [id] | del [id] | add [date] [time] [interval] [channel] [text]",
+		"help | list | announce <id> | del <id> | add <date> <time> <interval> <channel> <text>",
 		"Controls custom counters.",
 		ext.commandCounters})
 
@@ -161,9 +161,9 @@ func (ext *extensionCounters) commandCounters(
 
 	if command == "help" {
 		bot.SendPrivMessage(nick, "To add a new counter:")
-		bot.SendPrivMessage(nick, "add [date] [time] [interval] [channel] [text]")
-		bot.SendPrivMessage(nick, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce
-			interval in hours, channel is the name of the channel to announce on, text is the announcement text.`)
+		bot.SendPrivMessage(nick, "add <date> <time> <interval> <channel> <text>")
+		bot.SendPrivMessage(nick, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce`+
+			` interval in hours, channel is the name of the channel to announce on, text is the announcement text.`)
 		bot.SendPrivMessage(
 			nick, "Announcement text may contain placeholders: {{ .days }}, {{ .hours }}, {{ .minutes }}, {{ .since }}")
 		return

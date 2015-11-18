@@ -11,50 +11,52 @@ import (
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
 	// Help.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"help", "h"},
 		false, false, false,
-		"", "Print commands help.",
+		"[pub]", "Sends help text to you privately. Adding [pub] will print help on the same channel you asked.",
 		commandHelp})
 	// Auth.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"auth"},
 		true, false, false,
-		"[user] [password]", "Authenticate with the bot.",
+		"<username> <password>", "Authenticate with the bot.",
 		commandAuth})
 	// Useradd.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"useradd"},
 		true, false, false,
-		"[user] [password]", "Create user account.",
+		"<username> <password>", "Create user account.",
 		commandUserAdd})
 	// Reload.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"reload"},
 		true, false, true,
 		"", "Reload bot's texts from file.",
 		commandReloadTexts})
 	// Find.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"f", "find"},
 		false, false, false,
-		"token1 token2 token3 ...", "Look for URLs containing all the tokens.",
+		"<token1> <token2> <token3> ...", "Look for URLs containing all the tokens.",
 		commandFindUrl})
 	// More.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"m", "more", "moar"},
 		false, false, false,
 		"", "Say more about last link.",
 		commandSayMore})
 	// Var.
-	bot.RegisterCommand(&BotCommand{
+	bot.MustRegisterCommand(&BotCommand{
 		[]string{"var", "v"},
 		true, true, false,
-		"list | get [name] | set [name] [value]", "Controls custom variables",
+		"list | get <name> | set <name> <value>", "Controls custom variables",
 		commandVar})
 
 	bot.commandsHideParams["auth"] = true
 	bot.commandsHideParams["useradd"] = true
+
+	bot.log.Debug("%+v", bot.commands)
 }
 
 // handleBotCommand handles commands directed at the bot.
@@ -91,10 +93,6 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 		bot.log.Info("Received command '%s' from '%s' on '%s' with params %s.", command, nick, channel, params)
 	}
 
-	if len(command) < 3 {
-		return
-	}
-
 	if !private && !owner && !admin { // Command limits apply.
 		if bot.commandUseLimit[command+nick] >= bot.Config.CommandsPer5 {
 			if !bot.commandWarn[channel] { // Warning was not yet sent.
@@ -120,7 +118,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 		}
 		cmd.CommandFunc(bot, nick, user, channel, receiver, private, params)
 	} else { // Unknown command.
-		if talkBack {
+		if talkBack && rand.Int()%10 > 3 {
 			bot.SendPrivMessage(receiver, fmt.Sprintf(
 				"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
 		}
@@ -129,6 +127,10 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 
 // commandHelp will print help for all the commands.
 func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+	if len(params) == 0 || params[0] != "pub" {
+		receiver = nick
+	}
+
 	sender_complete := nick + "!" + user
 	owner := bot.userIsOwner(sender_complete)
 	admin := bot.userIsAdmin(sender_complete)
@@ -145,7 +147,7 @@ func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, para
 		commands := strings.Join(helpCommandKeys[pointerStr], ", ")
 		options := ""
 		if cmd.Private {
-			options = " (query only)"
+			options = " \x0300(private only)\x03"
 		}
 		if cmd.Owner && !owner {
 			continue
@@ -154,7 +156,8 @@ func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, para
 			continue
 		}
 		bot.SendPrivMessage(
-			nick, fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options))
+			receiver,
+			fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options))
 	}
 	return
 }
@@ -231,9 +234,6 @@ func commandSayMore(bot *Bot, nick, user, channel, receiver string, priv bool, p
 		bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
 		return
 	} else {
-		if len(bot.urlMoreInfo[receiver]) > 500 {
-			bot.urlMoreInfo[receiver] = bot.urlMoreInfo[receiver][:500]
-		}
 		bot.SendNotice(receiver, bot.urlMoreInfo[receiver])
 		delete(bot.urlMoreInfo, receiver)
 	}

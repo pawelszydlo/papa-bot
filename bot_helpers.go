@@ -3,7 +3,6 @@ package papaBot
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/BurntSushi/toml"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
@@ -29,17 +28,16 @@ func (bot *Bot) RegisterExtension(ext extensionInterface) error {
 	return nil
 }
 
-// RegisterCommand will register a new command with the bot.
-func (bot *Bot) RegisterCommand(cmd *BotCommand) error {
+// MustRegisterCommand will register a new command with the bot.
+func (bot *Bot) MustRegisterCommand(cmd *BotCommand) {
 	for _, name := range cmd.CommandNames {
 		for existingName, _ := range bot.commands {
 			if name == existingName {
-				return errors.New(fmt.Sprintf("Command under alias '%s' already exists.", name))
+				bot.log.Fatalf("Command under alias '%s' already exists.", name)
 			}
 		}
 		bot.commands[name] = cmd
 	}
-	return nil
 }
 
 // GetChannelsOn will return a list of channels the bot is currently on.
