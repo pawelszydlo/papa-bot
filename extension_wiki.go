@@ -154,6 +154,6 @@ func (ext *extensionWiki) commandWiki(bot *Bot, nick, user, channel, receiver st
 	ext.announced[channel+search] = true
 
 	if contentFull != "" {
-		bot.urlMoreInfo[channel] = contentFull
+		bot.urlMoreInfo[receiver] = contentFull
 	}
 }

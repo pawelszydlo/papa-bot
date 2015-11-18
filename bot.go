@@ -255,7 +255,6 @@ func (bot *Bot) SendRawMessage(command string, params []string, trailing string)
 func (bot *Bot) sendFloodProtected(mType, channel, message string) {
 	messages := strings.Split(message, "\n")
 	for i := range messages {
-		bot.floodSemaphore <- 1
 		// IRC message size limit.
 		if len(messages[i]) > MsgLengthLimit {
 			for n := 0; n < len(messages[i]); n += MsgLengthLimit {
@@ -263,10 +262,12 @@ func (bot *Bot) sendFloodProtected(mType, channel, message string) {
 				if upperLimit > len(messages[i]) {
 					upperLimit = len(messages[i])
 				}
+				bot.floodSemaphore <- 1
 				bot.SendRawMessage(mType, []string{channel}, messages[i][n:upperLimit])
 			}
 			return
 		}
+		bot.floodSemaphore <- 1
 		bot.SendRawMessage(mType, []string{channel}, messages[i])
 	}
 }
