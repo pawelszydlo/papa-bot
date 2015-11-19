@@ -57,7 +57,7 @@ func (bot *Bot) initDb() error {
 		);
 	`
 	if _, err := db.Exec(query); err != nil {
-		bot.log.Panic(err)
+		bot.Log.Panic(err)
 	}
 
 	bot.Db = db

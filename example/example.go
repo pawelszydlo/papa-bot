@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/extensions"
 	"time"
 )
 
@@ -19,7 +20,7 @@ func init() {
 
 // Create your own extension simply by embedding the Extension struct.
 type MyExtension struct {
-	papaBot.Extension
+	extensions.Extension
 	startTime time.Time
 }
 
@@ -53,6 +54,7 @@ func (ext *MyExtension) Tick(bot *papaBot.Bot, daily bool) {
 // Entry point
 func main() {
 	bot := papaBot.New(*configFile, *textsFile)
+	extensions.RegisterBuiltinExtensions(bot)
 	bot.RegisterExtension(new(MyExtension))
 	bot.Run()
 }

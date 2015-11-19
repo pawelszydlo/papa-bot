@@ -9,6 +9,7 @@ import (
 	"github.com/sorcix/irc"
 	"net"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -23,9 +24,9 @@ type Bot struct {
 	// HTTP client.
 	HTTPClient *http.Client
 	// Logger.
-	log *logging.Logger
+	Log *logging.Logger
 	// Path to config file.
-	configFile string
+	ConfigFile string
 	// Bot's configuration.
 	Config *Configuration
 	// Anti flood buffered semaphore
@@ -53,7 +54,7 @@ type Bot struct {
 	// Registered bot extensions,
 	extensions []extensionInterface
 	// Path to texts file.
-	textsFile string
+	TextsFile string
 	// Bot texts struct.
 	Texts *botTexts
 	// Time when URL info was last announced, per channel + link.
@@ -64,6 +65,8 @@ type Bot struct {
 	urlMoreInfo map[string]string
 	// Time for next daily tick.
 	nextDailyTick time.Time
+	// Regular expression for extracting sample text from website.
+	webContentSampleRe *regexp.Regexp
 }
 
 // Bot's connection to the network.
@@ -77,22 +80,7 @@ type ircConnection struct {
 	encoder *irc.Encoder
 }
 
-// Extensions should embed this struct and override any methods necessary.
-type Extension struct{}
-
-// Will be run on bot's init or when extension is registered after bot's init.
-func (ext *Extension) Init(bot *Bot) error { return nil }
-
-// Will be run whenever an URL is found in the message.
-func (ext *Extension) ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string) {}
-
-// Will be run on every public message the bot receives.
-func (ext *Extension) ProcessMessage(bot *Bot, channel, nick, msg string) {}
-
-// Will be run every 5 minutes. Daily will be set to true once per day.
-func (ext *Extension) Tick(bot *Bot, daily bool) {}
-
-// Interface for easier handling of extensions.
+// Interface for handling of extensions.
 type extensionInterface interface {
 	Init(bot *Bot) error
 	ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string)

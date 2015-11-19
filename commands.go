@@ -55,8 +55,6 @@ func (bot *Bot) initBotCommands() {
 
 	bot.commandsHideParams["auth"] = true
 	bot.commandsHideParams["useradd"] = true
-
-	bot.log.Debug("%+v", bot.commands)
 }
 
 // handleBotCommand handles commands directed at the bot.
@@ -67,30 +65,30 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 			return
 		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
-			bot.log.Error("FATAL ERROR in bot command: %s", r)
+			bot.Log.Error("FATAL ERROR in bot command: %s", r)
 		}
 	}()
 	receiver := channel
 
 	// Was this command sent on a private query?
 	private := false
-	if bot.userIsMe(channel) {
+	if bot.UserIsMe(channel) {
 		private = true
 		receiver = nick
 	}
 	// Was the command sent by the owner?
 	sender_complete := nick + "!" + user
-	owner := bot.userIsOwner(sender_complete)
-	admin := bot.userIsAdmin(sender_complete)
+	owner := bot.UserIsOwner(sender_complete)
+	admin := bot.UserIsAdmin(sender_complete)
 
 	params := strings.Split(command, " ")
 	command = params[0]
 	params = params[1:]
 
 	if bot.commandsHideParams[command] {
-		bot.log.Info("Received command '%s' from '%s' on '%s' with params <params hidden>.", command, nick, channel)
+		bot.Log.Info("Received command '%s' from '%s' on '%s' with params <params hidden>.", command, nick, channel)
 	} else {
-		bot.log.Info("Received command '%s' from '%s' on '%s' with params %s.", command, nick, channel, params)
+		bot.Log.Info("Received command '%s' from '%s' on '%s' with params %s.", command, nick, channel, params)
 	}
 
 	if !private && !owner && !admin { // Command limits apply.
@@ -132,8 +130,8 @@ func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, para
 	}
 
 	sender_complete := nick + "!" + user
-	owner := bot.userIsOwner(sender_complete)
-	admin := bot.userIsAdmin(sender_complete)
+	owner := bot.UserIsOwner(sender_complete)
+	admin := bot.UserIsAdmin(sender_complete)
 	// Build a list of all command aliases.
 	helpCommandKeys := map[string][]string{}
 	helpCommands := map[string]*BotCommand{}
@@ -166,7 +164,7 @@ func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, para
 func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) == 2 {
 		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
-			bot.log.Warning("Couldn't authenticate %s: %s", nick, err)
+			bot.Log.Warning("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
 		bot.SendPrivMessage(receiver, "You are now logged in.")
@@ -176,18 +174,18 @@ func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, para
 // commandUserAdd will add a new user to bot's database and authenticate.
 func commandUserAdd(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) == 2 {
-		if bot.userIsAuthenticated(nick + "!" + user) {
+		if bot.UserIsAuthenticated(nick + "!" + user) {
 			bot.SendPrivMessage(receiver, "You are already authenticated.")
 			return
 		}
 
 		if err := bot.addUser(params[0], params[1], false, false); err != nil {
-			bot.log.Warning("Couldn't add user %s: %s", params[0], err)
+			bot.Log.Warning("Couldn't add user %s: %s", params[0], err)
 			bot.SendPrivMessage(receiver, fmt.Sprintf("Can't add user: %s", err))
 			return
 		}
 		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
-			bot.log.Warning("Couldn't authenticate %s: %s", nick, err)
+			bot.Log.Warning("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
 		bot.SendPrivMessage(receiver, "User added. You are now logged in.")
@@ -196,8 +194,8 @@ func commandUserAdd(bot *Bot, nick, user, channel, receiver string, priv bool, p
 
 // commandReloadTexts reloads texts from TOML file.
 func commandReloadTexts(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
-	bot.log.Info("Reloading texts...")
-	bot.LoadTexts(bot.textsFile, bot.Texts)
+	bot.Log.Info("Reloading texts...")
+	bot.LoadTexts(bot.TextsFile, bot.Texts)
 	bot.SendPrivMessage(receiver, "Done.")
 }
 
@@ -256,7 +254,7 @@ func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, p
 	// Query FTS table.
 	result, err := bot.Db.Query(query1+query2+query3, token)
 	if err != nil {
-		bot.log.Warning("Can't search for URLs: %s", err)
+		bot.Log.Warning("Can't search for URLs: %s", err)
 		return
 	}
 
@@ -267,7 +265,7 @@ func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, p
 	for result.Next() {
 		var nick, timestr, link, title string
 		if err = result.Scan(&nick, &timestr, &link, &title); err != nil {
-			bot.log.Warning("Error getting search results: %s", err)
+			bot.Log.Warning("Error getting search results: %s", err)
 		} else {
 			if priv { // skip the author and time when not on a channel.
 				found = append(found, fmt.Sprintf("%s (%s)", link, title))

@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"github.com/BurntSushi/toml"
+	"github.com/sorcix/irc"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
 	"html"
 	"io"
 	"net/http"
 	"reflect"
-	"regexp"
 	"strings"
 	"text/template"
+	"time"
 )
 
 // RegisterExtension will register a new extension with the bot.
@@ -33,10 +34,41 @@ func (bot *Bot) MustRegisterCommand(cmd *BotCommand) {
 	for _, name := range cmd.CommandNames {
 		for existingName, _ := range bot.commands {
 			if name == existingName {
-				bot.log.Fatalf("Command under alias '%s' already exists.", name)
+				bot.Log.Fatalf("Command under alias '%s' already exists.", name)
 			}
 		}
 		bot.commands[name] = cmd
+	}
+}
+
+// SendRawMessage sends raw command to the server.
+func (bot *Bot) SendRawMessage(command string, params []string, trailing string) {
+	if err := bot.irc.encoder.Encode(&irc.Message{
+		Command:  command,
+		Params:   params,
+		Trailing: trailing,
+	}); err != nil {
+		bot.Log.Error("Can't send message %s: %s", command, err)
+	}
+}
+
+// SendMessage sends a message to the channel.
+func (bot *Bot) SendPrivMessage(channel, message string) {
+	bot.Log.Debug("Sending message to %s: %s", channel, message)
+	bot.sendFloodProtected(irc.PRIVMSG, channel, message)
+}
+
+// SendNotice sends a notice to the channel.
+func (bot *Bot) SendNotice(channel, message string) {
+	bot.Log.Debug("Sending notice to %s: %s", channel, message)
+	bot.sendFloodProtected(irc.NOTICE, channel, message)
+}
+
+// SendMassNotice sends a notice to all the channels bot is on.
+func (bot *Bot) SendMassNotice(message string) {
+	bot.Log.Debug("Sending mass notice: %s", message)
+	for _, channel := range bot.Config.Channels {
+		bot.sendFloodProtected(irc.NOTICE, channel, message)
 	}
 }
 
@@ -49,6 +81,11 @@ func (bot *Bot) GetChannelsOn() []string {
 		}
 	}
 	return channelsOn
+}
+
+// IsOnChannel will check if bot is on the given channel.
+func (bot *Bot) IsOnChannel(channel string) bool {
+	return bot.onChannel[channel]
 }
 
 // GetPageBodyByURL is a convenience wrapper around GetPageBody.
@@ -88,7 +125,7 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	// Update the URL if it changed after redirects.
 	final_link := resp.Request.URL.String()
 	if final_link != "" && final_link != urlinfo.URL {
-		bot.log.Debug("%s becomes %s", urlinfo.URL, final_link)
+		bot.Log.Debug("%s becomes %s", urlinfo.URL, final_link)
 		urlinfo.URL = final_link
 	}
 
@@ -110,8 +147,7 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	// If type is text, decode the body to UTF-8.
 	if strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/plain") {
 		// Try to get more significant part for encoding detection.
-		webContentSampleRe := regexp.MustCompile(`(?i)<[^>]*?description[^<]*?>|<title>.*?</title>`)
-		sample := bytes.Join(webContentSampleRe.FindAll(body, -1), []byte{})
+		sample := bytes.Join(bot.webContentSampleRe.FindAll(body, -1), []byte{})
 		if len(sample) < 100 {
 			sample = body
 		}
@@ -133,7 +169,7 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	} else if strings.Contains(contentType, "application/json") {
 		urlinfo.Body = body
 	} else {
-		bot.log.Debug("Not fetching the body for Content-Type: %s", contentType)
+		bot.Log.Debug("Not fetching the body for Content-Type: %s", contentType)
 	}
 	return nil
 }
@@ -157,7 +193,7 @@ func (bot *Bot) LoadTexts(filename string, data interface{}) error {
 		// Check if all fields were filled.
 		if !strings.HasPrefix(field.Name, "Temp") {
 			if fieldValue.String() == "" {
-				bot.log.Warning("Field left empty %s!", field.Name)
+				bot.Log.Warning("Field left empty %s!", field.Name)
 				missingTexts = true
 			}
 		}
@@ -172,20 +208,20 @@ func (bot *Bot) LoadTexts(filename string, data interface{}) error {
 				// Set template field value.
 				tempField := rData.FieldByName(tempFieldName)
 				if !tempField.IsValid() {
-					bot.log.Fatalf("Can't find field %s to store template from %s.", tempFieldName, field.Name)
+					bot.Log.Fatalf("Can't find field %s to store template from %s.", tempFieldName, field.Name)
 				}
 				if !tempField.CanSet() {
-					bot.log.Fatalf("Field %s is not settable.", tempFieldName)
+					bot.Log.Fatalf("Field %s is not settable.", tempFieldName)
 				}
 				if reflect.ValueOf(temp).Type() != tempField.Type() {
-					bot.log.Fatalf("Incompatible types %s and %s", reflect.ValueOf(temp).Type(), tempField.Type())
+					bot.Log.Fatalf("Incompatible types %s and %s", reflect.ValueOf(temp).Type(), tempField.Type())
 				}
 				tempField.Set(reflect.ValueOf(temp))
 			}
 		}
 	}
 	if missingTexts {
-		bot.log.Fatal("Missing texts.")
+		bot.Log.Fatal("Missing texts.")
 	}
 
 	return nil
@@ -200,17 +236,32 @@ func (bot *Bot) SetVar(name, value string) {
 	if value == "" {
 		delete(bot.customVars, name)
 		if _, err := bot.Db.Exec(`DELETE FROM vars WHERE name=?`, name); err != nil {
-			bot.log.Error("Can't delete custom variable %s: %s", name, err)
+			bot.Log.Error("Can't delete custom variable %s: %s", name, err)
 		}
 		return
 	}
 	bot.customVars[name] = value
 	if _, err := bot.Db.Exec(`INSERT OR REPLACE INTO vars VALUES(?, ?)`, name, value); err != nil {
-		bot.log.Error("Can't add custom variable %s: %s", name, err)
+		bot.Log.Error("Can't add custom variable %s: %s", name, err)
 	}
 }
 
 // GetVar returns the value of a custom variable.
 func (bot *Bot) GetVar(name string) string {
 	return bot.customVars[name]
+}
+
+// AddMoreInfo will set more information to be viewed for the channel.
+func (bot *Bot) AddMoreInfo(channel, info string) error {
+	if !bot.onChannel[channel] {
+		return errors.New("I'm not on channel " + channel)
+	}
+	bot.urlMoreInfo[channel] = info
+	return nil
+}
+
+// NextDailyTick will get the time for bot's next daily tick.
+func (bot *Bot) NextDailyTick() time.Time {
+	tick := bot.nextDailyTick
+	return tick
 }

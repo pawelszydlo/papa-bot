@@ -18,10 +18,11 @@ import (
 	"github.com/pawelszydlo/papa-bot/lexical"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/sorcix/irc"
+	"regexp"
 )
 
 const (
-	Version        = "0.9.6"
+	Version        = "0.9.7"
 	Debug          = false // Set to true to crash on runtime errors.
 	MsgLengthLimit = 440   // IRC message length limit.
 )
@@ -51,7 +52,7 @@ func New(configFile, textsFile string) *Bot {
 	bot := &Bot{
 		initDone:            false,
 		irc:                 &ircConnection{messages: make(chan *irc.Message)},
-		log:                 logging.MustGetLogger("bot"),
+		Log:                 logging.MustGetLogger("bot"),
 		HTTPClient:          &http.Client{Timeout: 5 * time.Second},
 		floodSemaphore:      make(chan int, 5),
 		kickedFrom:          map[string]bool{},
@@ -60,14 +61,14 @@ func New(configFile, textsFile string) *Bot {
 		authenticatedAdmins: map[string]string{},
 		authenticatedOwners: map[string]string{},
 
-		textsFile: textsFile,
+		TextsFile: textsFile,
 		Texts:     &botTexts{},
 
 		lastURLAnnouncedTime:        map[string]time.Time{},
 		lastURLAnnouncedLinesPassed: map[string]int{},
 		urlMoreInfo:                 map[string]string{},
 
-		configFile: configFile,
+		ConfigFile: configFile,
 		Config:     &config,
 
 		eventHandlers:      map[string]func(msg *irc.Message){},
@@ -76,20 +77,10 @@ func New(configFile, textsFile string) *Bot {
 		commandWarn:        map[string]bool{},
 		commandsHideParams: map[string]bool{},
 
-		customVars: map[string]string{},
+		customVars:         map[string]string{},
+		webContentSampleRe: regexp.MustCompile(`(?i)<[^>]*?description[^<]*?>|<title>.*?</title>`),
 
-		// Register built-in extensions (ordering matters!).
-		extensions: []extensionInterface{
-			new(extensionCounters),
-			new(extensionMeta),
-			new(extensionDuplicates),
-			new(extensionGitHub),
-			new(extensionBtc),
-			new(extensionReddit),
-			new(extensionMovies),
-			new(extensionRaw),
-			new(extensionWiki),
-		},
+		extensions: []extensionInterface{},
 	}
 	// Logging configuration.
 	formatNorm := logging.MustStringFormatter(
@@ -100,13 +91,13 @@ func New(configFile, textsFile string) *Bot {
 	logging.SetBackend(backendNormFormatted)
 
 	// Load config.
-	if _, err := toml.DecodeFile(bot.configFile, &bot.Config); err != nil {
-		bot.log.Fatalf("Can't load config: %s", err)
+	if _, err := toml.DecodeFile(bot.ConfigFile, &bot.Config); err != nil {
+		bot.Log.Fatalf("Can't load config: %s", err)
 	}
 
 	// Load texts.
-	if err := bot.LoadTexts(bot.textsFile, bot.Texts); err != nil {
-		bot.log.Fatalf("Can't load texts: %s", err)
+	if err := bot.LoadTexts(bot.TextsFile, bot.Texts); err != nil {
+		bot.Log.Fatalf("Can't load texts: %s", err)
 	}
 
 	return bot
@@ -114,11 +105,11 @@ func New(configFile, textsFile string) *Bot {
 
 // initialize performs initialization of bot's mechanisms.
 func (bot *Bot) initialize() {
-	bot.log.Info("I am papaBot, version %s", Version)
+	bot.Log.Info("I am papaBot, version %s", Version)
 
 	// Init database.
 	if err := bot.initDb(); err != nil {
-		bot.log.Fatalf("Can't init database: %s", err)
+		bot.Log.Fatalf("Can't init database: %s", err)
 	}
 	bot.ensureOwnerExists()
 
@@ -126,11 +117,11 @@ func (bot *Bot) initialize() {
 	if bot.Config.ChatLogging {
 		exists, err := utils.DirExists("logs")
 		if err != nil {
-			bot.log.Fatalf("Can't check if logs dir exists: %s", err)
+			bot.Log.Fatalf("Can't check if logs dir exists: %s", err)
 		}
 		if !exists {
 			if err := os.Mkdir("logs", 0700); err != nil {
-				bot.log.Fatalf("Can't create logs folder: %s", err)
+				bot.Log.Fatalf("Can't create logs folder: %s", err)
 			}
 		}
 	}
@@ -151,24 +142,24 @@ func (bot *Bot) initialize() {
 	if time.Since(bot.nextDailyTick) >= 0 {
 		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
 	}
-	bot.log.Debug("Next daily tick: %s", bot.nextDailyTick)
+	bot.Log.Debug("Next daily tick: %s", bot.nextDailyTick)
 
 	// Load stopwords.
 	if err := lexical.LoadStopWords(bot.Config.Language); err != nil {
-		bot.log.Warning("Can't load stop words for language %s: %s", bot.Config.Language, err)
-		bot.log.Warning("Lexical functions will be handicapped.")
+		bot.Log.Warning("Can't load stop words for language %s: %s", bot.Config.Language, err)
+		bot.Log.Warning("Lexical functions will be handicapped.")
 	}
-	bot.log.Debug("Loaded %d stopwords for language %s.", len(lexical.StopWords), bot.Config.Language)
+	bot.Log.Debug("Loaded %d stopwords for language %s.", len(lexical.StopWords), bot.Config.Language)
 
 	// Init extensions.
 	for i := range bot.extensions {
 		if err := bot.extensions[i].Init(bot); err != nil {
-			bot.log.Fatalf("Error loading extensions: %s", err)
+			bot.Log.Fatalf("Error loading extensions: %s", err)
 		}
 	}
 
 	bot.initDone = true
-	bot.log.Info("Bot init done.")
+	bot.Log.Info("Bot init done.")
 }
 
 // connect attempts to connect to the given IRC server.
@@ -176,7 +167,7 @@ func (bot *Bot) connect() error {
 	var conn net.Conn
 	var err error
 	// Establish the connection.
-	bot.log.Info("Connecting to %s...", bot.Config.Server)
+	bot.Log.Info("Connecting to %s...", bot.Config.Server)
 	if bot.Config.TLSConfig == nil {
 		conn, err = net.Dial("tcp", bot.Config.Server)
 	} else {
@@ -201,7 +192,7 @@ func (bot *Bot) connect() error {
 	// Run the message receiver loop.
 	go bot.receiverLoop()
 
-	bot.log.Debug("Succesfully connected.")
+	bot.Log.Debug("Succesfully connected.")
 	return nil
 }
 
@@ -211,12 +202,12 @@ func (bot *Bot) receiverLoop() {
 		bot.irc.connection.SetDeadline(time.Now().Add(300 * time.Second))
 		msg, err := bot.irc.decoder.Decode()
 		if err != nil { // Error or timeout.
-			bot.log.Warning("Disconnected from server.")
+			bot.Log.Warning("Disconnected from server.")
 			bot.irc.connection.Close()
 			retries := 0
 			for {
 				time.Sleep(time.Duration(retries*retries) * time.Second)
-				bot.log.Info("Reconnecting...")
+				bot.Log.Info("Reconnecting...")
 				if err := bot.connect(); err == nil {
 					break
 				}
@@ -237,17 +228,6 @@ func (bot *Bot) resetFloodSemaphore() {
 		default:
 			return
 		}
-	}
-}
-
-// SendRawMessage sends raw command to the server.
-func (bot *Bot) SendRawMessage(command string, params []string, trailing string) {
-	if err := bot.irc.encoder.Encode(&irc.Message{
-		Command:  command,
-		Params:   params,
-		Trailing: trailing,
-	}); err != nil {
-		bot.log.Error("Can't send message %s: %s", command, err)
 	}
 }
 
@@ -272,26 +252,6 @@ func (bot *Bot) sendFloodProtected(mType, channel, message string) {
 	}
 }
 
-// SendMessage sends a message to the channel.
-func (bot *Bot) SendPrivMessage(channel, message string) {
-	bot.log.Debug("Sending message to %s: %s", channel, message)
-	bot.sendFloodProtected(irc.PRIVMSG, channel, message)
-}
-
-// SendNotice sends a notice to the channel.
-func (bot *Bot) SendNotice(channel, message string) {
-	bot.log.Debug("Sending notice to %s: %s", channel, message)
-	bot.sendFloodProtected(irc.NOTICE, channel, message)
-}
-
-// SendMassNotice sends a notice to all the channels bot is on.
-func (bot *Bot) SendMassNotice(message string) {
-	bot.log.Debug("Sending mass notice: %s", message)
-	for _, channel := range bot.Config.Channels {
-		bot.sendFloodProtected(irc.NOTICE, channel, message)
-	}
-}
-
 // loadVars loads all custom variables from the database.
 func (bot *Bot) loadVars() {
 	result, err := bot.Db.Query(`SELECT name, value FROM vars`)
@@ -305,7 +265,7 @@ func (bot *Bot) loadVars() {
 		var name string
 		var value string
 		if err = result.Scan(&name, &value); err != nil {
-			bot.log.Warning("Can't load var: %s", err)
+			bot.Log.Warning("Can't load var: %s", err)
 			continue
 		}
 		bot.customVars[name] = value
@@ -321,7 +281,7 @@ func (bot *Bot) scribe(channel string, message ...interface{}) {
 		logFileName := fmt.Sprintf("logs/%s_%s.txt", channel, time.Now().Format("2006-01-02"))
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			bot.log.Error("Error opening log file: %s", err)
+			bot.Log.Error("Error opening log file: %s", err)
 			return
 		}
 		defer f.Close()
@@ -339,7 +299,7 @@ func (bot *Bot) runExtensionTickers() {
 			return
 		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
-			bot.log.Error("FATAL ERROR in tickers: %s", r)
+			bot.Log.Error("FATAL ERROR in tickers: %s", r)
 		}
 	}()
 
@@ -348,7 +308,7 @@ func (bot *Bot) runExtensionTickers() {
 	if time.Since(bot.nextDailyTick) >= 0 {
 		daily = true
 		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
-		bot.log.Debug("Daily tick now. Next at %s.", bot.nextDailyTick)
+		bot.Log.Debug("Daily tick now. Next at %s.", bot.nextDailyTick)
 	}
 
 	// Run the tickers.
@@ -372,7 +332,7 @@ func (bot *Bot) Run() {
 
 	// Connect to server.
 	if err := bot.connect(); err != nil {
-		bot.log.Fatalf("Error creating connection: ", err)
+		bot.Log.Fatalf("Error creating connection: ", err)
 	}
 
 	// Semaphore clearing ticker.
@@ -417,5 +377,5 @@ func (bot *Bot) Run() {
 		}
 	}
 
-	bot.log.Info("Exiting...")
+	bot.Log.Info("Exiting...")
 }

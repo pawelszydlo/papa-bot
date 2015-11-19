@@ -31,6 +31,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Movie information.
 * Custom counters/countdowns.
 * Raw IRC commands.
+* Wikipedia article lookup.
 
 ###Adding your own extensions
 

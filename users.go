@@ -18,17 +18,17 @@ import (
 func (bot *Bot) ensureOwnerExists() {
 	result, err := bot.Db.Query(`SELECT EXISTS(SELECT 1 FROM users WHERE owner=1 LIMIT 1);`)
 	if err != nil {
-		bot.log.Fatalf("Can't check if owner exists: %s", err)
+		bot.Log.Fatalf("Can't check if owner exists: %s", err)
 	}
 	defer result.Close()
 
 	if result.Next() {
 		var ownerExists bool
 		if err = result.Scan(&ownerExists); err != nil {
-			bot.log.Fatalf("Can't check if owner exists: %s", err)
+			bot.Log.Fatalf("Can't check if owner exists: %s", err)
 		}
 		if !ownerExists {
-			bot.log.Warning("No owner found in the database. Must create one.")
+			bot.Log.Warning("No owner found in the database. Must create one.")
 
 			stty, _ := exec.LookPath("stty")
 			sttyArgs := syscall.ProcAttr{
@@ -53,7 +53,7 @@ func (bot *Bot) ensureOwnerExists() {
 			fmt.Print("\nConfirm owner's password: ")
 			pass2, _ := reader.ReadString('\n')
 			if pass1 != pass2 {
-				bot.log.Fatal("Passwords don't match.")
+				bot.Log.Fatal("Passwords don't match.")
 			}
 			fmt.Print("\n")
 
@@ -65,7 +65,7 @@ func (bot *Bot) ensureOwnerExists() {
 			result.Close()
 
 			if bot.addUser(utils.CleanString(nick, false), utils.CleanString(pass1, false), true, true); err != nil {
-				bot.log.Critical("%s", err)
+				bot.Log.Critical("%s", err)
 			}
 		}
 	}
@@ -134,43 +134,57 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 	}
 	// Check if user has any privileges
 	if owner {
-		bot.log.Info("Authenticating %s as an owner.", nick)
+		bot.Log.Info("Authenticating %s as an owner.", nick)
 		bot.authenticatedOwners[fullName] = nick
 	}
 	if admin {
-		bot.log.Info("Authenticating %s as an admin.", nick)
+		bot.Log.Info("Authenticating %s as an admin.", nick)
 		bot.authenticatedAdmins[fullName] = nick
 	}
 	if !admin && !owner {
-		bot.log.Info("Authenticating %s with no special privileges.", nick)
+		bot.Log.Info("Authenticating %s with no special privileges.", nick)
 		bot.authenticatedUsers[fullName] = nick
 	}
 	return nil
 }
 
+// GetAuthenticatedNick will get authenticated user's nick by his full name.
+func (bot *Bot) GetAuthenticatedNick(fullName string) string {
+	if bot.authenticatedOwners[fullName] != "" {
+		return bot.authenticatedOwners[fullName]
+	}
+	if bot.authenticatedAdmins[fullName] != "" {
+		return bot.authenticatedAdmins[fullName]
+	}
+	if bot.authenticatedUsers[fullName] != "" {
+		return bot.authenticatedUsers[fullName]
+	}
+	return ""
+}
+
 // userIsMe checks if the sender is the bot.
-func (bot *Bot) userIsMe(nick string) bool {
+func (bot *Bot) UserIsMe(nick string) bool {
 	return nick == bot.Config.Name
 }
 
 // userIsAuthenticated checks if the user is authenticated with the bot.
-func (bot *Bot) userIsAuthenticated(fullName string) bool {
+func (bot *Bot) UserIsAuthenticated(fullName string) bool {
 	return bot.authenticatedOwners[fullName] != "" || bot.authenticatedAdmins[fullName] != "" ||
 		bot.authenticatedUsers[fullName] != ""
 }
 
 // userIsOwner checks if the user is an authenticated owner.
-func (bot *Bot) userIsOwner(fullName string) bool {
+func (bot *Bot) UserIsOwner(fullName string) bool {
 	return bot.authenticatedOwners[fullName] != ""
 }
 
 // userIsOwner checks if the user is an authenticated admin.
-func (bot *Bot) userIsAdmin(fullName string) bool {
+func (bot *Bot) UserIsAdmin(fullName string) bool {
 	return bot.authenticatedAdmins[fullName] != ""
 }
 
 // areSamePeople checks if two nicks belong to the same person.
-func (bot *Bot) areSamePeople(nick1, nick2 string) bool {
+func (bot *Bot) AreSamePeople(nick1, nick2 string) bool {
 	nick1 = strings.Trim(nick1, "_~")
 	nick2 = strings.Trim(nick2, "_~")
 	return nick1 == nick2
