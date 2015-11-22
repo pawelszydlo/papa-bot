@@ -112,12 +112,12 @@ func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, chann
 		postData := listing.Data.Children[i].Data
 		if postData.Score > bestScore {
 			// Was the title already included in the URL title?
-			if postData.Title == urlTitle {
+			if strings.Contains(urlTitle, postData.Title) {
 				postData.Title = ""
 			}
 			// Trim the title.
 			if len(postData.Title) > 200 {
-				postData.Title = postData.Title[:200] + "…"
+				postData.Title = postData.Title[:200] + "(…)"
 			}
 			message = utils.Format(ext.Texts.TempRedditAnnounce, postData.toStrings())
 			bestScore = postData.Score
@@ -207,15 +207,14 @@ func (ext *ExtensionReddit) ProcessURL(bot *papaBot.Bot, urlinfo *papaBot.UrlInf
 		return
 	}
 
-	// Can we fit into the ShortInfo?
-	if urlinfo.ShortInfo == "" {
+	if urlinfo.ShortInfo == "" { // There is no short info yet. Put reddit info there.
 		urlinfo.ShortInfo = ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
-	} else if len(urlinfo.ShortInfo) < 50 {
+	} else if len(urlinfo.ShortInfo) < 100 { // There is some space left in the short info.
 		reddit := ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
 		if reddit != "" {
 			urlinfo.ShortInfo += " | " + reddit
 		}
-	} else { // Better send as separate notcie.
+	} else { // Better send as separate notice.
 		go func() {
 			reddit := ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
 			if reddit != "" {
