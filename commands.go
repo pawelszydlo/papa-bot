@@ -14,7 +14,7 @@ func (bot *Bot) initBotCommands() {
 	bot.MustRegisterCommand(&BotCommand{
 		[]string{"help", "h"},
 		false, false, false,
-		"[pub]", "Sends help text to you privately. Adding [pub] will print help on the same channel you asked.",
+		"[pub]", "Send help text to you privately. Adding [pub] will print help on the same channel you asked.",
 		commandHelp})
 	// Auth.
 	bot.MustRegisterCommand(&BotCommand{

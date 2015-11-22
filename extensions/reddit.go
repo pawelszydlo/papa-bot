@@ -7,16 +7,22 @@ import (
 	"github.com/pawelszydlo/papa-bot"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"math/rand"
+	"strings"
 	"text/template"
 	"time"
+	"unicode"
 )
 
-// ExtensionReddit - extension for getting link information from reddit.com.
+/*
+ExtensionReddit - extension for getting link information from reddit.com.
+
+This extension will automatically try to fetch Reddit information for each URL posted. It will also post a random
+link from one of the hot reddits (set through the "interestingReddits" variable as comma separated list) once per day.
+*/
 type ExtensionReddit struct {
 	Extension
-	announced          map[string]bool
-	Texts              *extensionRedditTexts
-	InterestingReddits []string
+	announced map[string]bool
+	Texts     *extensionRedditTexts
 }
 
 type extensionRedditTexts struct {
@@ -31,11 +37,13 @@ type redditPostData struct {
 	Id        string
 	Subreddit string
 	Author    string
+	Domain    string
 	Score     int
 	Comments  int `json:"num_comments"`
 	Title     string
 	Url       string
 	Created   float64
+	Stickied  bool
 }
 type redditListing struct {
 	Error int
@@ -45,6 +53,10 @@ type redditListing struct {
 }
 
 func (postData *redditPostData) toStrings() map[string]string {
+	// Try to shorten the url if it is a self post.
+	if strings.HasPrefix(postData.Domain, "self.") {
+		postData.Url = "http://redd.it/" + postData.Id
+	}
 	return map[string]string{
 		"id":           postData.Id,
 		"created":      utils.HumanizedSince(time.Unix(int64(postData.Created), 0)),
@@ -104,8 +116,8 @@ func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, chann
 				postData.Title = ""
 			}
 			// Trim the title.
-			if len(postData.Title) > 100 {
-				postData.Title = postData.Title[:100] + "…"
+			if len(postData.Title) > 200 {
+				postData.Title = postData.Title[:200] + "…"
 			}
 			message = utils.Format(ext.Texts.TempRedditAnnounce, postData.toStrings())
 			bestScore = postData.Score
@@ -115,14 +127,57 @@ func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, chann
 	return message
 }
 
+// getRedditHot will get a random article from interesting reddits list.
+func (ext *ExtensionReddit) getRedditHot(bot *papaBot.Bot) *redditPostData {
+	reddits := strings.Split(bot.GetVar("interestingReddits"), ",")
+	if len(reddits) == 0 {
+		return nil
+	}
+
+	subreddit := strings.TrimFunc(reddits[rand.Intn(len(reddits))], unicode.IsSpace)
+	// Get the listing.
+	url := fmt.Sprintf("https://www.reddit.com/r/%s/hot.json?limit=3", subreddit)
+	var listing redditListing
+	if err := ext.getRedditListing(bot, url, &listing); err != nil {
+		bot.Log.Debug("Error getting reddit's response %d.", listing.Error)
+		return nil
+	}
+	// Get random from the 3 hottest articles.
+	if len(listing.Data.Children) > 0 {
+		post := listing.Data.Children[rand.Intn(len(listing.Data.Children))].Data
+		return &post
+	}
+	return nil
+}
+
+// commandReddit will display one of the interesting articles from Reddit.
+func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, nick, user, channel, receiver string, priv bool, params []string) {
+	post := ext.getRedditHot(bot)
+	if post != nil {
+		data := post.toStrings()
+		message := fmt.Sprintf("%s, %s (/r/%s - %s)", nick, data["title"], data["subreddit"], data["url"])
+		bot.SendPrivMessage(receiver, message)
+	}
+}
+
 // Init inits the extension.
 func (ext *ExtensionReddit) Init(bot *papaBot.Bot) error {
-	ext.InterestingReddits = []string{
-		"TrueReddit",
-		"foodforthought",
-		"Futurology",
-		"longtext",
+	// Check if user has set any interesting reddits.
+	if reddits := bot.GetVar("interestingReddits"); reddits == "" {
+		bot.Log.Warning("No interesting Reddits set in the 'interestingReddits' variable. Setting default.")
+		bot.SetVar("interestingReddits",
+			"TrueReddit, TrueTrueReddit, foodforthought, Futurology, longtext, worldnews, DepthHub")
 	}
+
+	bot.Log.Debug("Interesting reddits set: %s", bot.GetVar("interestingReddits"))
+
+	// Add command for getting an interesting article.
+	bot.MustRegisterCommand(&papaBot.BotCommand{
+		[]string{"reddit", "r"},
+		false, false, false,
+		"", "Will try to find something interesting to read from Reddit.",
+		ext.commandReddit})
+
 	// Load texts.
 	ext.announced = map[string]bool{}
 	texts := &extensionRedditTexts{}
@@ -139,18 +194,8 @@ func (ext *ExtensionReddit) Tick(bot *papaBot.Bot, daily bool) {
 		return
 	}
 	ext.announced = map[string]bool{}
-
-	subreddit := ext.InterestingReddits[rand.Intn(len(ext.InterestingReddits))]
-	// Get the listing.
-	url := fmt.Sprintf("https://www.reddit.com/r/%s/hot.json?limit=1", subreddit)
-	var listing redditListing
-	if err := ext.getRedditListing(bot, url, &listing); err != nil {
-		bot.Log.Debug("Error getting reddit's response %d.", listing.Error)
-		return
-	}
-	// Get the article.
-	if len(listing.Data.Children) > 0 {
-		post := listing.Data.Children[0].Data
+	post := ext.getRedditHot(bot)
+	if post != nil {
 		bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
 	}
 }

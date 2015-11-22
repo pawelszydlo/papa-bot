@@ -13,7 +13,7 @@ type ExtensionRaw struct {
 func (ext *ExtensionRaw) Init(bot *papaBot.Bot) error {
 	// Register new command.
 	bot.MustRegisterCommand(&papaBot.BotCommand{
-		[]string{"r", "raw"},
+		[]string{"raw"},
 		true, true, false,
 		"<command> <params> : [trailing]", "Execute raw IRC command.",
 		ext.commandRaw})

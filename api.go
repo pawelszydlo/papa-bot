@@ -22,6 +22,7 @@ func (bot *Bot) RegisterExtension(ext extensionInterface) error {
 		return errors.New("Nil extension provided.")
 	}
 	bot.extensions = append(bot.extensions, ext)
+	bot.Log.Debug("Added extension: %T", ext)
 	// If bot's init was already done, all other extensions have already been initialized.
 	if bot.initDone {
 		return ext.Init(bot)
