@@ -72,14 +72,14 @@ func (ext *ExtensionBtc) Tick(bot *papaBot.Bot, daily bool) {
 	// Fetch fresh data.
 	body, err := bot.GetPageBodyByURL("https://www.bitstamp.net/api/ticker/")
 	if err != nil {
-		bot.Log.Warning("Error getting BTC data: %s", err)
+		bot.Log.Warningf("Error getting BTC data: %s", err)
 		return
 	}
 
 	// Convert from JSON
 	var raw_data interface{}
 	if err := json.Unmarshal(body, &raw_data); err != nil {
-		bot.Log.Warning("Error parsing JSON from Bitstamp: %s", err)
+		bot.Log.Warningf("Error parsing JSON from Bitstamp: %s", err)
 		return
 	}
 	data := raw_data.(map[string]interface{})
@@ -88,7 +88,7 @@ func (ext *ExtensionBtc) Tick(bot *papaBot.Bot, daily bool) {
 	// Get current price.
 	price, err := strconv.ParseFloat(data["last"].(string), 64)
 	if err != nil {
-		bot.Log.Warning("Error in the BTC ticker: %s", err)
+		bot.Log.Warningf("Error in the BTC ticker: %s", err)
 		return
 	}
 

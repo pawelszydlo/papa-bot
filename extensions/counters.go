@@ -82,7 +82,7 @@ func (ext *ExtensionCounters) Tick(bot *papaBot.Bot, daily bool) {
 		if time.Since(c.nextTick) > 0 {
 			bot.SendNotice(c.channel, c.message())
 			c.nextTick = c.nextTick.Add(c.interval * time.Hour)
-			bot.Log.Debug("Counter %d, next tick: %s", id, c.nextTick)
+			bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
 		}
 	}
 }
@@ -94,7 +94,7 @@ func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
 	result, err := bot.Db.Query(
 		`SELECT id, channel, creator, announce_text, interval, target_date FROM counters`)
 	if err != nil {
-		bot.Log.Warning("Error while loading counters: %s", err)
+		bot.Log.Warningf("Error while loading counters: %s", err)
 		return
 	}
 	defer result.Close()
@@ -106,14 +106,14 @@ func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
 		var id int
 		var interval int
 		if err = result.Scan(&id, &c.channel, &c.creator, &c.text, &interval, &dateStr); err != nil {
-			bot.Log.Warning("Can't load counter: %s", err)
+			bot.Log.Warningf("Can't load counter: %s", err)
 			continue
 		}
 		c.interval = time.Duration(interval)
 		// Parse the text template.
 		c.textTmp, err = template.New(fmt.Sprintf("counter_%d", id)).Parse(c.text)
 		if err != nil {
-			bot.Log.Warning("Can't parse counter template '%s': %s", c.text, err)
+			bot.Log.Warningf("Can't parse counter template '%s': %s", c.text, err)
 		}
 		// Handle the date.
 		c.date, err = time.Parse("2006-01-02 15:04:05", dateStr)
@@ -130,7 +130,7 @@ func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
 				break
 			}
 		}
-		bot.Log.Debug("Counter %d, next tick: %s", id, c.nextTick)
+		bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
 
 		ext.counters[id] = &c
 	}
@@ -195,7 +195,7 @@ func (ext *ExtensionCounters) commandCounters(
 			query = fmt.Sprintf(`DELETE FROM counters WHERE id=? AND creator="%s";`, nick)
 		}
 		if _, err := bot.Db.Exec(query, id); err != nil {
-			bot.Log.Warning("Error while deleting a counter: %s", err)
+			bot.Log.Warningf("Error while deleting a counter: %s", err)
 			bot.SendPrivMessage(receiver, fmt.Sprintf("Error: %s", err))
 			return
 		}
@@ -231,7 +231,7 @@ func (ext *ExtensionCounters) commandCounters(
 			VALUES (?, ?, ?, ?, ?);
 			`
 		if _, err := bot.Db.Exec(query, channel, nick, text, interval, dateStr); err != nil {
-			bot.Log.Warning("Error while adding a counter: %s", err)
+			bot.Log.Warningf("Error while adding a counter: %s", err)
 			bot.SendPrivMessage(receiver, fmt.Sprintf("Error: %s", err))
 			return
 		}

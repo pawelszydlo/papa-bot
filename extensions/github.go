@@ -33,13 +33,13 @@ func (ext *ExtensionGitHub) ProcessURL(bot *papaBot.Bot, urlinfo *papaBot.UrlInf
 		// Get response
 		body, err := bot.GetPageBodyByURL(fmt.Sprintf("https://api.github.com/repos/%s/%s", user, repo))
 		if err != nil {
-			bot.Log.Warning("Error getting response from GitHub: %s", err)
+			bot.Log.Warningf("Error getting response from GitHub: %s", err)
 			return
 		}
 		// Convert from JSON
 		var raw_data interface{}
 		if err := json.Unmarshal(body, &raw_data); err != nil {
-			bot.Log.Warning("Error parsing JSON from GitHub: %s", err)
+			bot.Log.Warningf("Error parsing JSON from GitHub: %s", err)
 			return
 		}
 		data := raw_data.(map[string]interface{})

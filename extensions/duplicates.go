@@ -43,7 +43,7 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, urlinfo *papaBot.Ur
 		FROM urls WHERE link=? AND channel=?
 		ORDER BY timestamp DESC LIMIT 1`, urlinfo.URL, channel)
 	if err != nil {
-		bot.Log.Warning("Can't query the database for duplicates: %s", err)
+		bot.Log.Warningf("Can't query the database for duplicates: %s", err)
 		return
 	}
 	defer result.Close()
@@ -54,7 +54,7 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, urlinfo *papaBot.Ur
 		var timestr string
 		var count uint
 		if err = result.Scan(&nick, &timestr, &count); err != nil {
-			bot.Log.Warning("Error getting duplicates: %s", err)
+			bot.Log.Warningf("Error getting duplicates: %s", err)
 			return
 		}
 		timestamp, _ := time.Parse("2006-01-02 15:04:05", timestr)

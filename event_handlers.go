@@ -47,7 +47,7 @@ func (bot *Bot) assignEventHandlers() {
 }
 
 func (bot *Bot) handlerConnect(m *irc.Message) {
-	bot.Log.Info("I have connected. Joining channels...")
+	bot.Log.Infof("I have connected. Joining channels...")
 	bot.SendRawMessage(irc.JOIN, bot.Config.Channels, "")
 }
 
@@ -57,17 +57,17 @@ func (bot *Bot) handlerPing(m *irc.Message) {
 
 func (bot *Bot) handlerNickTaken(m *irc.Message) {
 	bot.Config.Name = bot.Config.Name + "_"
-	bot.Log.Warning(
+	bot.Log.Warningf(
 		"Server at %s said that my nick is already taken. Changing nick to %s", m.Prefix.Name, bot.Config.Name)
 }
 
 func (bot *Bot) handlerCantJoin(m *irc.Message) {
-	bot.Log.Warning("Server at %s said that I can't join %s: %s", m.Prefix.Name, m.Params[1], m.Trailing)
+	bot.Log.Warningf("Server at %s said that I can't join %s: %s", m.Prefix.Name, m.Params[1], m.Trailing)
 	// Rejoin
 	timer := time.NewTimer(bot.Config.RejoinDelay)
 	go func() {
 		<-timer.C
-		bot.Log.Debug("Trying to join %s...", m.Params[1])
+		bot.Log.Debugf("Trying to join %s...", m.Params[1])
 		bot.SendRawMessage(irc.JOIN, []string{m.Params[1]}, "")
 	}()
 }
@@ -80,48 +80,48 @@ func (bot *Bot) handlerPart(m *irc.Message) {
 	if bot.UserIsMe(m.Prefix.Name) {
 		delete(bot.onChannel, m.Params[0])
 	}
-	bot.Log.Info("%s has left %s: %s", m.Prefix.Name, m.Params[0], m.Trailing)
+	bot.Log.Infof("%s has left %s: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 	bot.scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
 }
 
 func (bot *Bot) handlerError(m *irc.Message) {
-	bot.Log.Error("Error from server:", m.Trailing)
+	bot.Log.Errorf("Error from server:", m.Trailing)
 }
 
 func (bot *Bot) handlerDummy(m *irc.Message) {
-	bot.Log.Info("MESSAGE: %+v", m)
+	bot.Log.Infof("MESSAGE: %+v", m)
 }
 
 func (bot *Bot) handlerJoin(m *irc.Message) {
 	if bot.UserIsMe(m.Prefix.Name) {
 		if bot.kickedFrom[m.Trailing] {
-			bot.Log.Info("I have rejoined %s", m.Trailing)
+			bot.Log.Infof("I have rejoined %s", m.Trailing)
 			bot.SendPrivMessage(m.Trailing, bot.Texts.HellosAfterKick[rand.Intn(len(bot.Texts.HellosAfterKick))])
 			delete(bot.kickedFrom, m.Trailing)
 		} else {
-			bot.Log.Info("I have joined %s", m.Trailing)
+			bot.Log.Infof("I have joined %s", m.Trailing)
 			bot.SendPrivMessage(m.Trailing, bot.Texts.Hellos[rand.Intn(len(bot.Texts.Hellos))])
 		}
 		bot.onChannel[m.Trailing] = true
 	} else {
-		bot.Log.Info("%s has joined %s", m.Prefix.Name, m.Trailing)
+		bot.Log.Infof("%s has joined %s", m.Prefix.Name, m.Trailing)
 	}
 	bot.scribe(m.Trailing, m.Prefix.Name, " has joined ", m.Trailing)
 }
 
 func (bot *Bot) handlerMode(m *irc.Message) {
-	bot.Log.Info("%s has set mode %s on %s", m.Prefix.Name, m.Params[1:], m.Params[0])
+	bot.Log.Infof("%s has set mode %s on %s", m.Prefix.Name, m.Params[1:], m.Params[0])
 	bot.scribe(m.Params[0], m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
 }
 
 func (bot *Bot) handlerTopic(m *irc.Message) {
-	bot.Log.Info("%s has set topic on %s to: %s", m.Prefix.Name, m.Params[0], m.Trailing)
+	bot.Log.Infof("%s has set topic on %s to: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 	bot.scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
 }
 
 func (bot *Bot) handlerKick(m *irc.Message) {
 	if bot.UserIsMe(m.Params[1]) {
-		bot.Log.Info("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
+		bot.Log.Infof("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 		bot.kickedFrom[m.Params[0]] = true
 		delete(bot.onChannel, m.Params[0])
 		// Rejoin
@@ -131,7 +131,7 @@ func (bot *Bot) handlerKick(m *irc.Message) {
 			bot.SendRawMessage(irc.JOIN, []string{m.Params[0]}, "")
 		}()
 	} else {
-		bot.Log.Info("%s was kicked from %s by %s for: %s", m.Params[1], m.Prefix.Name, m.Params[0], m.Trailing)
+		bot.Log.Infof("%s was kicked from %s by %s for: %s", m.Params[1], m.Prefix.Name, m.Params[0], m.Trailing)
 	}
 	bot.scribe(m.Params[0], m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
 }
@@ -154,18 +154,18 @@ func (bot *Bot) handlerMsg(m *irc.Message) {
 		msg := msg[1 : len(msg)-1]
 
 		if msg == "VERSION" {
-			bot.Log.Debug("Replying to VERSION query from %s...", nick)
+			bot.Log.Debugf("Replying to VERSION query from %s...", nick)
 			bot.SendNotice(nick, fmt.Sprintf("\x01VERSION papaBot:%s:Go bot running on insomnia.\x01", Version))
 			return
 		}
 
 		if msg == "FINGER" {
-			bot.Log.Debug("Replying to FINGER query from %s...", nick)
+			bot.Log.Debugf("Replying to FINGER query from %s...", nick)
 			bot.SendNotice(nick, "\x01FINGER yourself.\x01")
 			return
 		}
 
-		bot.Log.Debug("%s sent a %s CTCP request. Ignoring.", nick, msg)
+		bot.Log.Debugf("%s sent a %s CTCP request. Ignoring.", nick, msg)
 		return
 	}
 
@@ -209,13 +209,14 @@ func (bot *Bot) handlerMsg(m *irc.Message) {
 
 // handlerMsgURLs finds all URLs in the message and executes the URL processors on them.
 func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
+	currentExtension := ""
 	// Catch errors.
 	defer func() {
 		if Debug {
 			return
 		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
-			bot.Log.Error("FATAL ERROR in URL processor: %s", r)
+			bot.Log.WithField("ext", currentExtension).Errorf("FATAL ERROR in URL processor: %s", r)
 		}
 	}()
 
@@ -225,26 +226,27 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 	links = utils.RemoveDuplicates(links)
 	for i := range links {
 		// Validate the url.
-		bot.Log.Info("Got link %s", links[i])
+		bot.Log.Infof("Got link %s", links[i])
 		link := utils.StandardizeURL(links[i])
-		bot.Log.Debug("Standardized to: %s", link)
+		bot.Log.Debugf("Standardized to: %s", link)
 		// Link info structure, it will be filled by the processors.
 		var urlinfo UrlInfo
 		urlinfo.URL = link
 		// Try to get the body of the page.
 		if err := bot.GetPageBody(&urlinfo, map[string]string{}); err != nil {
-			bot.Log.Warning("Could't fetch the body: %s", err)
+			bot.Log.Warningf("Could't fetch the body: %s", err)
 		}
 
 		// Run the extensions.
 		for i := range bot.extensions {
+			currentExtension = fmt.Sprintf("%T", bot.extensions[i])
 			bot.extensions[i].ProcessURL(bot, &urlinfo, channel, nick, msg)
 		}
 
 		// Insert URL into the db.
 		if _, err := bot.Db.Exec(`INSERT INTO urls(channel, nick, link, quote, title) VALUES(?, ?, ?, ?, ?)`,
 			channel, nick, urlinfo.URL, msg, urlinfo.Title); err != nil {
-			bot.Log.Warning("Can't add url to database: %s", err)
+			bot.Log.Warningf("Can't add url to database: %s", err)
 		}
 
 		linkKey := urlinfo.URL + channel
@@ -273,18 +275,20 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 
 // handlerMsgFull runs the processors on the whole message.
 func (bot *Bot) handlerMsgFull(channel, nick, msg string) {
+	currentExtension := ""
 	// Catch errors.
 	defer func() {
 		if Debug {
 			return
 		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
-			bot.Log.Error("FATAL ERROR in msg processor: %s", r)
+			bot.Log.WithField("ext", currentExtension).Errorf("FATAL ERROR in msg processor: %s", r)
 		}
 	}()
 
 	// Run the extensions.
 	for i := range bot.extensions {
+		currentExtension = fmt.Sprintf("%T", bot.extensions[i])
 		bot.extensions[i].ProcessMessage(bot, channel, nick, msg)
 	}
 }

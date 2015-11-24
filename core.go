@@ -14,7 +14,7 @@ import (
 	"net"
 
 	"github.com/BurntSushi/toml"
-	"github.com/op/go-logging"
+	"github.com/Sirupsen/logrus"
 	"github.com/pawelszydlo/papa-bot/lexical"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/sorcix/irc"
@@ -46,13 +46,14 @@ func New(configFile, textsFile string) *Bot {
 		Language:                   "en",
 		Name:                       "papaBot",
 		User:                       "papaBot",
+		LogLevel:                   logrus.DebugLevel,
 	}
 
 	// Init bot struct.
 	bot := &Bot{
 		initDone:            false,
 		irc:                 &ircConnection{messages: make(chan *irc.Message)},
-		Log:                 logging.MustGetLogger("bot"),
+		Log:                 logrus.New(),
 		HTTPClient:          &http.Client{Timeout: 5 * time.Second},
 		floodSemaphore:      make(chan int, 5),
 		kickedFrom:          map[string]bool{},
@@ -83,12 +84,8 @@ func New(configFile, textsFile string) *Bot {
 		extensions: []extensionInterface{},
 	}
 	// Logging configuration.
-	formatNorm := logging.MustStringFormatter(
-		"%{color}[%{time:2006/01/02 15:04:05}] %{level:.4s} ▶%{color:reset} %{message}",
-	)
-	backendNorm := logging.NewLogBackend(os.Stdout, "", 0)
-	backendNormFormatted := logging.NewBackendFormatter(backendNorm, formatNorm)
-	logging.SetBackend(backendNormFormatted)
+	bot.Log.Level = bot.Config.LogLevel
+	bot.Log.Formatter = &logrus.TextFormatter{FullTimestamp: true, TimestampFormat: "2006-01-02][15:04:05"}
 
 	// Load config.
 	if _, err := toml.DecodeFile(bot.ConfigFile, &bot.Config); err != nil {
@@ -105,7 +102,7 @@ func New(configFile, textsFile string) *Bot {
 
 // initialize performs initialization of bot's mechanisms.
 func (bot *Bot) initialize() {
-	bot.Log.Info("I am papaBot, version %s", Version)
+	bot.Log.Infof("I am papaBot, version %s", Version)
 
 	// Init database.
 	if err := bot.initDb(); err != nil {
@@ -142,14 +139,14 @@ func (bot *Bot) initialize() {
 	if time.Since(bot.nextDailyTick) >= 0 {
 		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
 	}
-	bot.Log.Debug("Next daily tick: %s", bot.nextDailyTick)
+	bot.Log.Debugf("Next daily tick: %s", bot.nextDailyTick)
 
 	// Load stopwords.
 	if err := lexical.LoadStopWords(bot.Config.Language); err != nil {
-		bot.Log.Warning("Can't load stop words for language %s: %s", bot.Config.Language, err)
-		bot.Log.Warning("Lexical functions will be handicapped.")
+		bot.Log.Warningf("Can't load stop words for language %s: %s", bot.Config.Language, err)
+		bot.Log.Warningf("Lexical functions will be handicapped.")
 	}
-	bot.Log.Debug("Loaded %d stopwords for language %s.", len(lexical.StopWords), bot.Config.Language)
+	bot.Log.Debugf("Loaded %d stopwords for language %s.", len(lexical.StopWords), bot.Config.Language)
 
 	// Init extensions.
 	for i := range bot.extensions {
@@ -159,7 +156,7 @@ func (bot *Bot) initialize() {
 	}
 
 	bot.initDone = true
-	bot.Log.Info("Bot init done.")
+	bot.Log.Infof("Bot init done.")
 }
 
 // connect attempts to connect to the given IRC server.
@@ -167,7 +164,7 @@ func (bot *Bot) connect() error {
 	var conn net.Conn
 	var err error
 	// Establish the connection.
-	bot.Log.Info("Connecting to %s...", bot.Config.Server)
+	bot.Log.Infof("Connecting to %s...", bot.Config.Server)
 	if bot.Config.TLSConfig == nil {
 		conn, err = net.Dial("tcp", bot.Config.Server)
 	} else {
@@ -192,7 +189,7 @@ func (bot *Bot) connect() error {
 	// Run the message receiver loop.
 	go bot.receiverLoop()
 
-	bot.Log.Debug("Succesfully connected.")
+	bot.Log.Debugf("Succesfully connected.")
 	return nil
 }
 
@@ -202,12 +199,12 @@ func (bot *Bot) receiverLoop() {
 		bot.irc.connection.SetDeadline(time.Now().Add(300 * time.Second))
 		msg, err := bot.irc.decoder.Decode()
 		if err != nil { // Error or timeout.
-			bot.Log.Warning("Disconnected from server.")
+			bot.Log.Warningf("Disconnected from server.")
 			bot.irc.connection.Close()
 			retries := 0
 			for {
 				time.Sleep(time.Duration(retries*retries) * time.Second)
-				bot.Log.Info("Reconnecting...")
+				bot.Log.Infof("Reconnecting...")
 				if err := bot.connect(); err == nil {
 					break
 				}
@@ -265,7 +262,7 @@ func (bot *Bot) loadVars() {
 		var name string
 		var value string
 		if err = result.Scan(&name, &value); err != nil {
-			bot.Log.Warning("Can't load var: %s", err)
+			bot.Log.Warningf("Can't load var: %s", err)
 			continue
 		}
 		bot.customVars[name] = value
@@ -281,7 +278,7 @@ func (bot *Bot) scribe(channel string, message ...interface{}) {
 		logFileName := fmt.Sprintf("logs/%s_%s.txt", channel, time.Now().Format("2006-01-02"))
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			bot.Log.Error("Error opening log file: %s", err)
+			bot.Log.Errorf("Error opening log file: %s", err)
 			return
 		}
 		defer f.Close()
@@ -293,13 +290,14 @@ func (bot *Bot) scribe(channel string, message ...interface{}) {
 
 // runExtensionTickers will asynchronously run all extension tickers.
 func (bot *Bot) runExtensionTickers() {
+	currentExtension := ""
 	// Catch errors.
 	defer func() {
 		if Debug {
 			return
 		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
-			bot.Log.Error("FATAL ERROR in tickers: %s", r)
+			bot.Log.WithField("ext", currentExtension).Errorf("FATAL ERROR in tickers: %s", r)
 		}
 	}()
 
@@ -308,11 +306,12 @@ func (bot *Bot) runExtensionTickers() {
 	if time.Since(bot.nextDailyTick) >= 0 {
 		daily = true
 		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
-		bot.Log.Debug("Daily tick now. Next at %s.", bot.nextDailyTick)
+		bot.Log.Debugf("Daily tick now. Next at %s.", bot.nextDailyTick)
 	}
 
 	// Run the tickers.
 	for i := range bot.extensions {
+		currentExtension = fmt.Sprintf("%T", bot.extensions[i])
 		bot.extensions[i].Tick(bot, daily)
 	}
 }
@@ -377,5 +376,5 @@ func (bot *Bot) Run() {
 		}
 	}
 
-	bot.Log.Info("Exiting...")
+	bot.Log.Infof("Exiting...")
 }

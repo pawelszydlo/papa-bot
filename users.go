@@ -28,7 +28,7 @@ func (bot *Bot) ensureOwnerExists() {
 			bot.Log.Fatalf("Can't check if owner exists: %s", err)
 		}
 		if !ownerExists {
-			bot.Log.Warning("No owner found in the database. Must create one.")
+			bot.Log.Warningf("No owner found in the database. Must create one.")
 
 			stty, _ := exec.LookPath("stty")
 			sttyArgs := syscall.ProcAttr{
@@ -65,7 +65,7 @@ func (bot *Bot) ensureOwnerExists() {
 			result.Close()
 
 			if bot.addUser(utils.CleanString(nick, false), utils.CleanString(pass1, false), true, true); err != nil {
-				bot.Log.Critical("%s", err)
+				bot.Log.Fatalf("%s", err)
 			}
 		}
 	}
@@ -134,15 +134,15 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 	}
 	// Check if user has any privileges
 	if owner {
-		bot.Log.Info("Authenticating %s as an owner.", nick)
+		bot.Log.Infof("Authenticating %s as an owner.", nick)
 		bot.authenticatedOwners[fullName] = nick
 	}
 	if admin {
-		bot.Log.Info("Authenticating %s as an admin.", nick)
+		bot.Log.Infof("Authenticating %s as an admin.", nick)
 		bot.authenticatedAdmins[fullName] = nick
 	}
 	if !admin && !owner {
-		bot.Log.Info("Authenticating %s with no special privileges.", nick)
+		bot.Log.Infof("Authenticating %s with no special privileges.", nick)
 		bot.authenticatedUsers[fullName] = nick
 	}
 	return nil

@@ -22,7 +22,7 @@ func (bot *Bot) MustRegisterExtension(ext extensionInterface) {
 		bot.Log.Fatal("Nil extension provided.")
 	}
 	bot.extensions = append(bot.extensions, ext)
-	bot.Log.Debug("Added extension: %T", ext)
+	bot.Log.Debugf("Added extension: %T", ext)
 	// If bot's init was already done, all other extensions have already been initialized.
 	if bot.initDone {
 		if err := ext.Init(bot); err != nil {
@@ -50,25 +50,25 @@ func (bot *Bot) SendRawMessage(command string, params []string, trailing string)
 		Params:   params,
 		Trailing: trailing,
 	}); err != nil {
-		bot.Log.Error("Can't send message %s: %s", command, err)
+		bot.Log.Errorf("Can't send message %s: %s", command, err)
 	}
 }
 
 // SendMessage sends a message to the channel.
 func (bot *Bot) SendPrivMessage(channel, message string) {
-	bot.Log.Debug("Sending message to %s: %s", channel, message)
+	bot.Log.Debugf("Sending message to %s: %s", channel, message)
 	bot.sendFloodProtected(irc.PRIVMSG, channel, message)
 }
 
 // SendNotice sends a notice to the channel.
 func (bot *Bot) SendNotice(channel, message string) {
-	bot.Log.Debug("Sending notice to %s: %s", channel, message)
+	bot.Log.Debugf("Sending notice to %s: %s", channel, message)
 	bot.sendFloodProtected(irc.NOTICE, channel, message)
 }
 
 // SendMassNotice sends a notice to all the channels bot is on.
 func (bot *Bot) SendMassNotice(message string) {
-	bot.Log.Debug("Sending mass notice: %s", message)
+	bot.Log.Debugf("Sending mass notice: %s", message)
 	for _, channel := range bot.Config.Channels {
 		bot.sendFloodProtected(irc.NOTICE, channel, message)
 	}
@@ -127,7 +127,7 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	// Update the URL if it changed after redirects.
 	final_link := resp.Request.URL.String()
 	if final_link != "" && final_link != urlinfo.URL {
-		bot.Log.Debug("%s becomes %s", urlinfo.URL, final_link)
+		bot.Log.Debugf("%s becomes %s", urlinfo.URL, final_link)
 		urlinfo.URL = final_link
 	}
 
@@ -171,7 +171,7 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	} else if strings.Contains(contentType, "application/json") {
 		urlinfo.Body = body
 	} else {
-		bot.Log.Debug("Not fetching the body for Content-Type: %s", contentType)
+		bot.Log.Debugf("Not fetching the body for Content-Type: %s", contentType)
 	}
 	return nil
 }
@@ -195,7 +195,7 @@ func (bot *Bot) LoadTexts(filename string, data interface{}) error {
 		// Check if all fields were filled.
 		if !strings.HasPrefix(field.Name, "Temp") {
 			if fieldValue.String() == "" {
-				bot.Log.Warning("Field left empty %s!", field.Name)
+				bot.Log.Warningf("Field left empty %s!", field.Name)
 				missingTexts = true
 			}
 		}
@@ -238,13 +238,13 @@ func (bot *Bot) SetVar(name, value string) {
 	if value == "" {
 		delete(bot.customVars, name)
 		if _, err := bot.Db.Exec(`DELETE FROM vars WHERE name=?`, name); err != nil {
-			bot.Log.Error("Can't delete custom variable %s: %s", name, err)
+			bot.Log.Errorf("Can't delete custom variable %s: %s", name, err)
 		}
 		return
 	}
 	bot.customVars[name] = value
 	if _, err := bot.Db.Exec(`INSERT OR REPLACE INTO vars VALUES(?, ?)`, name, value); err != nil {
-		bot.Log.Error("Can't add custom variable %s: %s", name, err)
+		bot.Log.Errorf("Can't add custom variable %s: %s", name, err)
 	}
 }
 

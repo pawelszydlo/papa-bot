@@ -52,9 +52,9 @@ func (ext *ExtensionMeta) ProcessURL(bot *papaBot.Bot, urlinfo *papaBot.UrlInfo,
 	// Get the title
 	title, description, err := ext.getTitle(string(urlinfo.Body))
 	if err != nil {
-		bot.Log.Warning("Error getting title: %s", err)
+		bot.Log.Warningf("Error getting title: %s", err)
 	} else {
-		bot.Log.Debug("Title: %s", title)
+		bot.Log.Debugf("Title: %s", title)
 	}
 	urlinfo.Title = title
 	urlinfo.ShortInfo = title

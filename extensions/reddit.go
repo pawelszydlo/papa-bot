@@ -103,7 +103,7 @@ func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, chann
 	url = fmt.Sprintf("https://www.reddit.com/api/info.json?url=%s", url)
 	var listing redditListing
 	if err := ext.getRedditListing(bot, url, &listing); err != nil {
-		bot.Log.Debug("Error getting reddit's response %d.", listing.Error)
+		bot.Log.Debugf("Error getting reddit's response %d.", listing.Error)
 		return ""
 	}
 
@@ -127,7 +127,7 @@ func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, chann
 			bestScore = postData.Score
 		}
 	}
-	bot.Log.Debug("Reddit: %s", message)
+	bot.Log.Debugf("Reddit: %s", message)
 	return message
 }
 
@@ -143,7 +143,7 @@ func (ext *ExtensionReddit) getRedditHot(bot *papaBot.Bot) *redditPostData {
 	url := fmt.Sprintf("https://www.reddit.com/r/%s/hot.json?limit=3", subreddit)
 	var listing redditListing
 	if err := ext.getRedditListing(bot, url, &listing); err != nil {
-		bot.Log.Debug("Error getting reddit's response %d.", listing.Error)
+		bot.Log.Debugf("Error getting reddit's response %d.", listing.Error)
 		return nil
 	}
 	// Get random from the 3 hottest articles.
@@ -168,12 +168,12 @@ func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, nick, user, channel,
 func (ext *ExtensionReddit) Init(bot *papaBot.Bot) error {
 	// Check if user has set any interesting reddits.
 	if reddits := bot.GetVar("interestingReddits"); reddits == "" {
-		bot.Log.Warning("No interesting Reddits set in the 'interestingReddits' variable. Setting default.")
+		bot.Log.Warningf("No interesting Reddits set in the 'interestingReddits' variable. Setting default.")
 		bot.SetVar("interestingReddits",
 			"TrueReddit, TrueTrueReddit, foodforthought, Futurology, longtext, worldnews, DepthHub")
 	}
 
-	bot.Log.Debug("Interesting reddits set: %s", bot.GetVar("interestingReddits"))
+	bot.Log.Debugf("Interesting reddits set: %s", bot.GetVar("interestingReddits"))
 
 	// Add command for getting an interesting article.
 	bot.MustRegisterCommand(&papaBot.BotCommand{

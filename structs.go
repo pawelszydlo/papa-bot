@@ -5,7 +5,7 @@ package papaBot
 import (
 	"crypto/tls"
 	"database/sql"
-	"github.com/op/go-logging"
+	"github.com/Sirupsen/logrus"
 	"github.com/sorcix/irc"
 	"net"
 	"net/http"
@@ -24,7 +24,7 @@ type Bot struct {
 	// HTTP client.
 	HTTPClient *http.Client
 	// Logger.
-	Log *logging.Logger
+	Log *logrus.Logger
 	// Path to config file.
 	ConfigFile string
 	// Bot's configuration.
@@ -143,6 +143,7 @@ type Configuration struct {
 	HttpDefaultUserAgent       string
 	DailyTickHour              int
 	DailyTickMinute            int
+	LogLevel                   logrus.Level
 }
 
 // Bot's core texts.

@@ -4,6 +4,7 @@ package papaBot
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"math/rand"
 	"strings"
 )
@@ -65,7 +66,7 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 			return
 		} // When in debug mode fail on all errors.
 		if r := recover(); r != nil {
-			bot.Log.Error("FATAL ERROR in bot command: %s", r)
+			bot.Log.Errorf("FATAL ERROR in bot command: %s", r)
 		}
 	}()
 	receiver := channel
@@ -85,11 +86,12 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 	command = params[0]
 	params = params[1:]
 
+	paramsDisplay := fmt.Sprintf("%+v", params)
 	if bot.commandsHideParams[command] {
-		bot.Log.Info("Received command '%s' from '%s' on '%s' with params <params hidden>.", command, nick, channel)
-	} else {
-		bot.Log.Info("Received command '%s' from '%s' on '%s' with params %s.", command, nick, channel, params)
+		paramsDisplay = "<hidden>"
 	}
+	bot.Log.WithFields(
+		logrus.Fields{"channel": channel, "cmd": command, "params": paramsDisplay}).Infof("Received command from %s.", nick)
 
 	if !private && !owner && !admin { // Command limits apply.
 		if bot.commandUseLimit[command+nick] >= bot.Config.CommandsPer5 {
@@ -164,7 +166,7 @@ func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, para
 func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	if len(params) == 2 {
 		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
-			bot.Log.Warning("Couldn't authenticate %s: %s", nick, err)
+			bot.Log.Warningf("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
 		bot.SendPrivMessage(receiver, "You are now logged in.")
@@ -180,12 +182,12 @@ func commandUserAdd(bot *Bot, nick, user, channel, receiver string, priv bool, p
 		}
 
 		if err := bot.addUser(params[0], params[1], false, false); err != nil {
-			bot.Log.Warning("Couldn't add user %s: %s", params[0], err)
+			bot.Log.Warningf("Couldn't add user %s: %s", params[0], err)
 			bot.SendPrivMessage(receiver, fmt.Sprintf("Can't add user: %s", err))
 			return
 		}
 		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
-			bot.Log.Warning("Couldn't authenticate %s: %s", nick, err)
+			bot.Log.Warningf("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
 		bot.SendPrivMessage(receiver, "User added. You are now logged in.")
@@ -194,7 +196,7 @@ func commandUserAdd(bot *Bot, nick, user, channel, receiver string, priv bool, p
 
 // commandReloadTexts reloads texts from TOML file.
 func commandReloadTexts(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
-	bot.Log.Info("Reloading texts...")
+	bot.Log.Infof("Reloading texts...")
 	bot.LoadTexts(bot.TextsFile, bot.Texts)
 	bot.SendPrivMessage(receiver, "Done.")
 }
@@ -254,7 +256,7 @@ func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, p
 	// Query FTS table.
 	result, err := bot.Db.Query(query1+query2+query3, token)
 	if err != nil {
-		bot.Log.Warning("Can't search for URLs: %s", err)
+		bot.Log.Warningf("Can't search for URLs: %s", err)
 		return
 	}
 
@@ -265,7 +267,7 @@ func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, p
 	for result.Next() {
 		var nick, timestr, link, title string
 		if err = result.Scan(&nick, &timestr, &link, &title); err != nil {
-			bot.Log.Warning("Error getting search results: %s", err)
+			bot.Log.Warningf("Error getting search results: %s", err)
 		} else {
 			if priv { // skip the author and time when not on a channel.
 				found = append(found, fmt.Sprintf("%s (%s)", link, title))

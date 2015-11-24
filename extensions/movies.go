@@ -82,12 +82,12 @@ func (ext *ExtensionMovies) findAndAnnounce(bot *papaBot.Bot, channel, title str
 	var data movieStruct
 	ext.searchOmdb(bot, title, &data)
 	if data.Error != "" {
-		bot.Log.Debug("Omdb error: %s", data.Error)
+		bot.Log.Debugf("Omdb error: %s", data.Error)
 		return
 	}
 	// Omdb returns very strange results, sometimes for some obscure movies when a popular one exists
 	if data.ImdbRating == "N/A" || data.ImdbVotes == "N/A" || data.Type == "episode" {
-		bot.Log.Debug("Not worth announcing movie: %s", data.Title)
+		bot.Log.Debugf("Not worth announcing movie: %s", data.Title)
 		return
 	}
 	// Announce.

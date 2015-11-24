@@ -87,14 +87,14 @@ func (ext *ExtensionWiki) searchWiki(bot *papaBot.Bot, lang, search string) (str
 			lang, url.QueryEscape(search),
 		))
 	if err != nil {
-		bot.Log.Warning("Error getting wiki data: %s", err)
+		bot.Log.Warningf("Error getting wiki data: %s", err)
 		return "", ""
 	}
 
 	// Convert from JSON
 	var raw_data interface{}
 	if err := json.Unmarshal(body, &raw_data); err != nil {
-		bot.Log.Warning("Error parsing wiki data: %s", err)
+		bot.Log.Warningf("Error parsing wiki data: %s", err)
 		return "", ""
 	}
 	// Hacky digging.

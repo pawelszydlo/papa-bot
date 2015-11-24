@@ -31,6 +31,6 @@ func (ext *ExtensionRaw) commandRaw(bot *papaBot.Bot, nick, user, channel, recei
 		trailing = strings.Trim(arguments[1], " ")
 	}
 	arguments = strings.Split(strings.Trim(arguments[0], " "), " ")
-	bot.Log.Debug("Executing raw command: %s, params: %v, trailing: %s", command, arguments, trailing)
+	bot.Log.Debugf("Executing raw command: %s, params: %v, trailing: %s", command, arguments, trailing)
 	bot.SendRawMessage(command, params, trailing)
 }
