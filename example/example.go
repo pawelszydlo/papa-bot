@@ -46,8 +46,18 @@ func (ext *MyExtension) Tick(bot *papaBot.Bot, daily bool) {
 
 // Entry point
 func main() {
+	// This will create bot's structures. Feel free to modify what you need afterwards.
 	bot := papaBot.New(*configFile, *textsFile)
+
+	// As an example, change the name.
+	bot.Config.Name = "David"
+
+	// Add all built-in extensions.
 	extensions.RegisterBuiltinExtensions(bot)
+
+	// Add your own custom extension.
 	bot.MustRegisterExtension(new(MyExtension))
+
+	// This will init the bot's mechanisms and run the bot's main loop.
 	bot.Run()
 }
