@@ -21,13 +21,13 @@ func (ext *Extension) Tick(bot *papaBot.Bot, daily bool) {}
 
 // RegisterBuiltinExtensions will do exactly what you think it will do.
 func RegisterBuiltinExtensions(bot *papaBot.Bot) {
-	bot.RegisterExtension(new(ExtensionCounters))
-	bot.RegisterExtension(new(ExtensionMeta))
-	bot.RegisterExtension(new(ExtensionDuplicates))
-	bot.RegisterExtension(new(ExtensionGitHub))
-	bot.RegisterExtension(new(ExtensionBtc))
-	bot.RegisterExtension(new(ExtensionReddit))
-	bot.RegisterExtension(new(ExtensionMovies))
-	bot.RegisterExtension(new(ExtensionRaw))
-	bot.RegisterExtension(new(ExtensionWiki))
+	bot.MustRegisterExtension(new(ExtensionCounters))
+	bot.MustRegisterExtension(new(ExtensionMeta))
+	bot.MustRegisterExtension(new(ExtensionDuplicates))
+	bot.MustRegisterExtension(new(ExtensionGitHub))
+	bot.MustRegisterExtension(new(ExtensionBtc))
+	bot.MustRegisterExtension(new(ExtensionReddit))
+	bot.MustRegisterExtension(new(ExtensionMovies))
+	bot.MustRegisterExtension(new(ExtensionRaw))
+	bot.MustRegisterExtension(new(ExtensionWiki))
 }

@@ -55,6 +55,6 @@ func (ext *MyExtension) Tick(bot *papaBot.Bot, daily bool) {
 func main() {
 	bot := papaBot.New(*configFile, *textsFile)
 	extensions.RegisterBuiltinExtensions(bot)
-	bot.RegisterExtension(new(MyExtension))
+	bot.MustRegisterExtension(new(MyExtension))
 	bot.Run()
 }

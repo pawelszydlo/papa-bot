@@ -17,7 +17,11 @@ import (
 ExtensionReddit - extension for getting link information from reddit.com.
 
 This extension will automatically try to fetch Reddit information for each URL posted. It will also post a random
-link from one of the hot reddits (set through the "interestingReddits" variable as comma separated list) once per day.
+link from one of the hot reddits once per day.
+
+Used custom variables:
+- interestingReddits - comma separated list of subreddits to use for hot links.
+- redditDaily - if set, show daily interesting link.
 */
 type ExtensionReddit struct {
 	Extension
@@ -193,10 +197,13 @@ func (ext *ExtensionReddit) Tick(bot *papaBot.Bot, daily bool) {
 	if !daily {
 		return
 	}
+	// Clear the announced list.
 	ext.announced = map[string]bool{}
-	post := ext.getRedditHot(bot)
-	if post != nil {
-		bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
+	if bot.GetVar("redditDaily") != "" {
+		post := ext.getRedditHot(bot)
+		if post != nil {
+			bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
+		}
 	}
 }
 

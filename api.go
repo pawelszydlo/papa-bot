@@ -16,18 +16,19 @@ import (
 	"time"
 )
 
-// RegisterExtension will register a new extension with the bot.
-func (bot *Bot) RegisterExtension(ext extensionInterface) error {
+// MustRegisterExtension will register a new extension with the bot.
+func (bot *Bot) MustRegisterExtension(ext extensionInterface) {
 	if ext == nil {
-		return errors.New("Nil extension provided.")
+		bot.Log.Fatal("Nil extension provided.")
 	}
 	bot.extensions = append(bot.extensions, ext)
 	bot.Log.Debug("Added extension: %T", ext)
 	// If bot's init was already done, all other extensions have already been initialized.
 	if bot.initDone {
-		return ext.Init(bot)
+		if err := ext.Init(bot); err != nil {
+			bot.Log.Fatalf("Error initializing extension: %s", err)
+		}
 	}
-	return nil
 }
 
 // MustRegisterCommand will register a new command with the bot.
