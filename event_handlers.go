@@ -15,53 +15,53 @@ import (
 // assignEventHandlers assigns appropriate event handlers.
 func (bot *Bot) assignEventHandlers() {
 	// Connected to server
-	bot.eventHandlers[irc.RPL_WELCOME] = bot.handlerConnect
+	bot.RegisterIrcEventHandler(irc.RPL_WELCOME, handlerConnect)
 	// Ping
-	bot.eventHandlers[irc.PING] = bot.handlerPing
+	bot.RegisterIrcEventHandler(irc.PING, handlerPing)
 	// Nickname taken
-	bot.eventHandlers[irc.ERR_NICKCOLLISION] = bot.handlerNickTaken
-	bot.eventHandlers[irc.ERR_NICKNAMEINUSE] = bot.handlerNickTaken
+	bot.RegisterIrcEventHandler(irc.ERR_NICKCOLLISION, handlerNickTaken)
+	bot.RegisterIrcEventHandler(irc.ERR_NICKNAMEINUSE, handlerNickTaken)
 	// Invalid nickname
-	bot.eventHandlers[irc.ERR_NONICKNAMEGIVEN] = bot.handlerBadNick
-	bot.eventHandlers[irc.ERR_ERRONEUSNICKNAME] = bot.handlerBadNick
+	bot.RegisterIrcEventHandler(irc.ERR_NONICKNAMEGIVEN, handlerBadNick)
+	bot.RegisterIrcEventHandler(irc.ERR_ERRONEUSNICKNAME, handlerBadNick)
 	// Various events that prevent the bot from joining a channel
-	bot.eventHandlers[irc.ERR_CHANNELISFULL] = bot.handlerCantJoin
-	bot.eventHandlers[irc.ERR_BANNEDFROMCHAN] = bot.handlerCantJoin
-	bot.eventHandlers[irc.ERR_INVITEONLYCHAN] = bot.handlerCantJoin
+	bot.RegisterIrcEventHandler(irc.ERR_CHANNELISFULL, handlerCantJoin)
+	bot.RegisterIrcEventHandler(irc.ERR_BANNEDFROMCHAN, handlerCantJoin)
+	bot.RegisterIrcEventHandler(irc.ERR_INVITEONLYCHAN, handlerCantJoin)
 	// Join channel
-	bot.eventHandlers[irc.JOIN] = bot.handlerJoin
+	bot.RegisterIrcEventHandler(irc.JOIN, handlerJoin)
 	// Part channel
-	bot.eventHandlers[irc.PART] = bot.handlerPart
+	bot.RegisterIrcEventHandler(irc.PART, handlerPart)
 	// Set mode
-	bot.eventHandlers[irc.MODE] = bot.handlerMode
+	bot.RegisterIrcEventHandler(irc.MODE, handlerMode)
 	// Set topic
-	bot.eventHandlers[irc.TOPIC] = bot.handlerTopic
+	bot.RegisterIrcEventHandler(irc.TOPIC, handlerTopic)
 	// Kick from channel
-	bot.eventHandlers[irc.KICK] = bot.handlerKick
+	bot.RegisterIrcEventHandler(irc.KICK, handlerKick)
 	// Message on channel
-	bot.eventHandlers[irc.PRIVMSG] = bot.handlerMsg
+	bot.RegisterIrcEventHandler(irc.PRIVMSG, handlerMsg)
 	// Notice
-	bot.eventHandlers[irc.NOTICE] = bot.handlerDummy
+	bot.RegisterIrcEventHandler(irc.NOTICE, handlerDummy)
 	// Error
-	bot.eventHandlers[irc.ERROR] = bot.handlerError
+	bot.RegisterIrcEventHandler(irc.ERROR, handlerError)
 }
 
-func (bot *Bot) handlerConnect(m *irc.Message) {
+func handlerConnect(bot *Bot, m *irc.Message) {
 	bot.Log.Infof("I have connected. Joining channels...")
 	bot.SendRawMessage(irc.JOIN, bot.Config.Channels, "")
 }
 
-func (bot *Bot) handlerPing(m *irc.Message) {
+func handlerPing(bot *Bot, m *irc.Message) {
 	bot.SendRawMessage(irc.PONG, m.Params, m.Trailing)
 }
 
-func (bot *Bot) handlerNickTaken(m *irc.Message) {
+func handlerNickTaken(bot *Bot, m *irc.Message) {
 	bot.Config.Name = bot.Config.Name + "_"
 	bot.Log.Warningf(
 		"Server at %s said that my nick is already taken. Changing nick to %s", m.Prefix.Name, bot.Config.Name)
 }
 
-func (bot *Bot) handlerCantJoin(m *irc.Message) {
+func handlerCantJoin(bot *Bot, m *irc.Message) {
 	bot.Log.Warningf("Server at %s said that I can't join %s: %s", m.Prefix.Name, m.Params[1], m.Trailing)
 	// Rejoin
 	timer := time.NewTimer(bot.Config.RejoinDelay)
@@ -72,11 +72,11 @@ func (bot *Bot) handlerCantJoin(m *irc.Message) {
 	}()
 }
 
-func (bot *Bot) handlerBadNick(m *irc.Message) {
+func handlerBadNick(bot *Bot, m *irc.Message) {
 	bot.Log.Fatalf("Server at %s said that my nick is invalid.", m.Prefix.Name)
 }
 
-func (bot *Bot) handlerPart(m *irc.Message) {
+func handlerPart(bot *Bot, m *irc.Message) {
 	if bot.UserIsMe(m.Prefix.Name) {
 		delete(bot.onChannel, m.Params[0])
 	}
@@ -84,15 +84,15 @@ func (bot *Bot) handlerPart(m *irc.Message) {
 	bot.scribe(m.Params[0], m.Prefix.Name, "has left", m.Params[0], ":", m.Trailing)
 }
 
-func (bot *Bot) handlerError(m *irc.Message) {
+func handlerError(bot *Bot, m *irc.Message) {
 	bot.Log.Errorf("Error from server:", m.Trailing)
 }
 
-func (bot *Bot) handlerDummy(m *irc.Message) {
+func handlerDummy(bot *Bot, m *irc.Message) {
 	bot.Log.Infof("MESSAGE: %+v", m)
 }
 
-func (bot *Bot) handlerJoin(m *irc.Message) {
+func handlerJoin(bot *Bot, m *irc.Message) {
 	if bot.UserIsMe(m.Prefix.Name) {
 		if bot.kickedFrom[m.Trailing] {
 			bot.Log.Infof("I have rejoined %s", m.Trailing)
@@ -109,17 +109,17 @@ func (bot *Bot) handlerJoin(m *irc.Message) {
 	bot.scribe(m.Trailing, m.Prefix.Name, " has joined ", m.Trailing)
 }
 
-func (bot *Bot) handlerMode(m *irc.Message) {
+func handlerMode(bot *Bot, m *irc.Message) {
 	bot.Log.Infof("%s has set mode %s on %s", m.Prefix.Name, m.Params[1:], m.Params[0])
 	bot.scribe(m.Params[0], m.Prefix.Name, "has set mode", m.Params[1:], "on", m.Params[0])
 }
 
-func (bot *Bot) handlerTopic(m *irc.Message) {
+func handlerTopic(bot *Bot, m *irc.Message) {
 	bot.Log.Infof("%s has set topic on %s to: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 	bot.scribe(m.Params[0], m.Prefix.Name, "has set topic on", m.Params[0], "to:", m.Trailing)
 }
 
-func (bot *Bot) handlerKick(m *irc.Message) {
+func handlerKick(bot *Bot, m *irc.Message) {
 	if bot.UserIsMe(m.Params[1]) {
 		bot.Log.Infof("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
 		bot.kickedFrom[m.Params[0]] = true
@@ -136,7 +136,7 @@ func (bot *Bot) handlerKick(m *irc.Message) {
 	bot.scribe(m.Params[0], m.Prefix.Name, "has kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
 }
 
-func (bot *Bot) handlerMsg(m *irc.Message) {
+func handlerMsg(bot *Bot, m *irc.Message) {
 	msg := m.Trailing
 	if msg == "" {
 		return
@@ -201,14 +201,14 @@ func (bot *Bot) handlerMsg(m *irc.Message) {
 	}
 
 	// Handle links in the message.
-	go bot.handlerMsgURLs(channel, nick, msg)
+	go bot.handleURLs(channel, nick, msg)
 
 	// Run full message processors.
-	go bot.handlerMsgFull(channel, nick, msg)
+	go bot.handleMessages(channel, nick, msg)
 }
 
 // handlerMsgURLs finds all URLs in the message and executes the URL processors on them.
-func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
+func (bot *Bot) handleURLs(channel, nick, msg string) {
 	currentExtension := ""
 	// Catch errors.
 	defer func() {
@@ -240,7 +240,7 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 		// Run the extensions.
 		for i := range bot.extensions {
 			currentExtension = fmt.Sprintf("%T", bot.extensions[i])
-			bot.extensions[i].ProcessURL(bot, &urlinfo, channel, nick, msg)
+			bot.extensions[i].ProcessURL(bot, channel, nick, msg, &urlinfo)
 		}
 
 		// Insert URL into the db.
@@ -274,7 +274,7 @@ func (bot *Bot) handlerMsgURLs(channel, nick, msg string) {
 }
 
 // handlerMsgFull runs the processors on the whole message.
-func (bot *Bot) handlerMsgFull(channel, nick, msg string) {
+func (bot *Bot) handleMessages(channel, nick, msg string) {
 	currentExtension := ""
 	// Catch errors.
 	defer func() {

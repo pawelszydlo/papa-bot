@@ -56,7 +56,7 @@ func main() {
 	extensions.RegisterBuiltinExtensions(bot)
 
 	// Add your own custom extension.
-	bot.MustRegisterExtension(new(MyExtension))
+	bot.RegisterExtension(new(MyExtension))
 
 	// This will init the bot's mechanisms and run the bot's main loop.
 	bot.Run()

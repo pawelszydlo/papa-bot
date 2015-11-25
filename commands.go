@@ -12,43 +12,43 @@ import (
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
 	// Help.
-	bot.MustRegisterCommand(&BotCommand{
+	bot.RegisterCommand(&BotCommand{
 		[]string{"help", "h"},
 		false, false, false,
 		"[pub]", "Send help text to you privately. Adding [pub] will print help on the same channel you asked.",
 		commandHelp})
 	// Auth.
-	bot.MustRegisterCommand(&BotCommand{
+	bot.RegisterCommand(&BotCommand{
 		[]string{"auth"},
 		true, false, false,
 		"<username> <password>", "Authenticate with the bot.",
 		commandAuth})
 	// Useradd.
-	bot.MustRegisterCommand(&BotCommand{
+	bot.RegisterCommand(&BotCommand{
 		[]string{"useradd"},
 		true, false, false,
 		"<username> <password>", "Create user account.",
 		commandUserAdd})
 	// Reload.
-	bot.MustRegisterCommand(&BotCommand{
+	bot.RegisterCommand(&BotCommand{
 		[]string{"reload"},
 		true, false, true,
 		"", "Reload bot's texts from file.",
 		commandReloadTexts})
 	// Find.
-	bot.MustRegisterCommand(&BotCommand{
+	bot.RegisterCommand(&BotCommand{
 		[]string{"f", "find"},
 		false, false, false,
 		"<token1> <token2> <token3> ...", "Look for URLs containing all the tokens.",
 		commandFindUrl})
 	// More.
-	bot.MustRegisterCommand(&BotCommand{
+	bot.RegisterCommand(&BotCommand{
 		[]string{"m", "more", "moar"},
 		false, false, false,
 		"", "Say more about last link.",
 		commandSayMore})
 	// Var.
-	bot.MustRegisterCommand(&BotCommand{
+	bot.RegisterCommand(&BotCommand{
 		[]string{"var", "v"},
 		true, true, false,
 		"list | get <name> | set <name> <value>", "Controls custom variables",

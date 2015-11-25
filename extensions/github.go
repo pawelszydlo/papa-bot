@@ -20,7 +20,7 @@ func (ext *ExtensionGitHub) Init(bot *papaBot.Bot) error {
 }
 
 // ProcessURL will try to get more info on GitHub links.
-func (ext *ExtensionGitHub) ProcessURL(bot *papaBot.Bot, urlinfo *papaBot.UrlInfo, channel, sender, msg string) {
+func (ext *ExtensionGitHub) ProcessURL(bot *papaBot.Bot, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
 	match := ext.gitHubRe.FindStringSubmatch(urlinfo.URL)
 	if len(match) < 2 {
 		return

@@ -48,7 +48,7 @@ func (ext *ExtensionMovies) Init(bot *papaBot.Bot) error {
 	}
 	ext.Texts = texts
 	// Register new command.
-	bot.MustRegisterCommand(&papaBot.BotCommand{
+	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"i", "imdb"},
 		false, false, false,
 		"<title>", "Get movie info for <title>.",

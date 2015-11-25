@@ -176,7 +176,7 @@ func (ext *ExtensionReddit) Init(bot *papaBot.Bot) error {
 	bot.Log.Debugf("Interesting reddits set: %s", bot.GetVar("interestingReddits"))
 
 	// Add command for getting an interesting article.
-	bot.MustRegisterCommand(&papaBot.BotCommand{
+	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"reddit", "r"},
 		false, false, false,
 		"", "Will try to find something interesting to read from Reddit.",
@@ -208,7 +208,7 @@ func (ext *ExtensionReddit) Tick(bot *papaBot.Bot, daily bool) {
 }
 
 // ProcessURL will try to check if link was ever on reddit.
-func (ext *ExtensionReddit) ProcessURL(bot *papaBot.Bot, urlinfo *papaBot.UrlInfo, channel, sender, msg string) {
+func (ext *ExtensionReddit) ProcessURL(bot *papaBot.Bot, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
 	// Announce each link only once.
 	if ext.announced[channel+urlinfo.URL] {
 		return

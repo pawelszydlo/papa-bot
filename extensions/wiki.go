@@ -36,7 +36,7 @@ func (ext *ExtensionWiki) Init(bot *papaBot.Bot) error {
 	ext.linkRe = regexp.MustCompile(`\[\[[^\[\]]+?\|(.+?)\]\]|\[\[([^\[\]]+?)\]\]`)
 	ext.cleanupRe = regexp.MustCompile(`\{\{[^\{]*?\}\}|<ref.*?ref>`)
 	// Register new command.
-	bot.MustRegisterCommand(&papaBot.BotCommand{
+	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"w", "wiki"},
 		false, false, false,
 		"<article>", "Search wikipedia for <article>.",

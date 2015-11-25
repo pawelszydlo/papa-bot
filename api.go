@@ -16,8 +16,13 @@ import (
 	"time"
 )
 
-// MustRegisterExtension will register a new extension with the bot.
-func (bot *Bot) MustRegisterExtension(ext extensionInterface) {
+// RegisterIrcEventHandler will register a new handler for the given IRC event.
+func (bot *Bot) RegisterIrcEventHandler(event string, handler ircEvenHandlerFunc) {
+	bot.ircEventHandlers[event] = append(bot.ircEventHandlers[event], handler)
+}
+
+// RegisterExtension will register a new extension with the bot.
+func (bot *Bot) RegisterExtension(ext extension) {
 	if ext == nil {
 		bot.Log.Fatal("Nil extension provided.")
 	}
@@ -31,8 +36,8 @@ func (bot *Bot) MustRegisterExtension(ext extensionInterface) {
 	}
 }
 
-// MustRegisterCommand will register a new command with the bot.
-func (bot *Bot) MustRegisterCommand(cmd *BotCommand) {
+// RegisterCommand will register a new command with the bot.
+func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 	for _, name := range cmd.CommandNames {
 		for existingName, _ := range bot.commands {
 			if name == existingName {

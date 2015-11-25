@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	Version        = "0.9.8"
+	Version        = "0.9.9"
 	Debug          = false // Set to true to crash on runtime errors.
 	MsgLengthLimit = 440   // IRC message length limit.
 )
@@ -72,7 +72,7 @@ func New(configFile, textsFile string) *Bot {
 		ConfigFile: configFile,
 		Config:     &config,
 
-		eventHandlers:      map[string]func(msg *irc.Message){},
+		ircEventHandlers:   make(map[string][]ircEvenHandlerFunc),
 		commands:           map[string]*BotCommand{},
 		commandUseLimit:    map[string]int{},
 		commandWarn:        map[string]bool{},
@@ -81,7 +81,7 @@ func New(configFile, textsFile string) *Bot {
 		customVars:         map[string]string{},
 		webContentSampleRe: regexp.MustCompile(`(?i)<[^>]*?description[^<]*?>|<title>.*?</title>`),
 
-		extensions: []extensionInterface{},
+		extensions: []extension{},
 	}
 	// Logging configuration.
 	bot.Log.Level = bot.Config.LogLevel
@@ -367,8 +367,11 @@ func (bot *Bot) Run() {
 		select {
 		case msg, ok := <-bot.irc.messages:
 			if ok {
-				if bot.eventHandlers[msg.Command] != nil {
-					bot.eventHandlers[msg.Command](msg)
+				// Are there any handlers registered for this IRC event?
+				if handlers, exists := bot.ircEventHandlers[msg.Command]; exists {
+					for _, handler := range handlers {
+						handler(bot, msg)
+					}
 				}
 			} else {
 				break

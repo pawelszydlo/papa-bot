@@ -62,7 +62,7 @@ func (ext *ExtensionCounters) Init(bot *papaBot.Bot) error {
 	}
 
 	// Add commands for handling the counters.
-	bot.MustRegisterCommand(&papaBot.BotCommand{
+	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"c", "counter"},
 		true, false, true,
 		"help | list | announce <id> | del <id> | add <date> <time> <interval> <channel> <text>",

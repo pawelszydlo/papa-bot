@@ -37,7 +37,7 @@ func (ext *ExtensionDuplicates) Init(bot *papaBot.Bot) error {
 }
 
 // checkForDuplicates checks for duplicates of the url in the database.
-func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, urlinfo *papaBot.UrlInfo, channel, sender, msg string) {
+func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
 	result, err := bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
 		FROM urls WHERE link=? AND channel=?

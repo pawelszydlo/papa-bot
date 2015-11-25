@@ -40,7 +40,7 @@ type Bot struct {
 	authenticatedAdmins map[string]string
 	authenticatedOwners map[string]string
 	// Registered event handlers.
-	eventHandlers map[string]func(msg *irc.Message)
+	ircEventHandlers map[string][]ircEvenHandlerFunc
 	// Registered bot commands.
 	commands map[string]*BotCommand
 	// Number of uses per command.
@@ -52,7 +52,7 @@ type Bot struct {
 	// Custom variables for use in extensions.
 	customVars map[string]string
 	// Registered bot extensions,
-	extensions []extensionInterface
+	extensions []extension
 	// Path to texts file.
 	TextsFile string
 	// Bot texts struct.
@@ -80,11 +80,14 @@ type ircConnection struct {
 	encoder *irc.Encoder
 }
 
+// Interface for IRC event handler function.
+type ircEvenHandlerFunc func(bot *Bot, m *irc.Message)
+
 // Interface for handling of extensions.
-type extensionInterface interface {
+type extension interface {
 	Init(bot *Bot) error
-	ProcessURL(bot *Bot, info *UrlInfo, channel, sender, msg string)
-	ProcessMessage(bot *Bot, channel, nick, msg string)
+	ProcessURL(bot *Bot, channel, sender, msg string, info *UrlInfo)
+	ProcessMessage(bot *Bot, channel, sender, msg string)
 	Tick(bot *Bot, daily bool)
 }
 

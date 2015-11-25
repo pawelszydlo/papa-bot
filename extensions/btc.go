@@ -37,7 +37,7 @@ type extensionBtcTexts struct {
 
 func (ext *ExtensionBtc) Init(bot *papaBot.Bot) error {
 	// Register new command.
-	bot.MustRegisterCommand(&papaBot.BotCommand{
+	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"b", "btc", "k", "kierda"},
 		false, false, false,
 		"", "Show current BTC price.",
