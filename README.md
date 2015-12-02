@@ -32,6 +32,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Custom counters/countdowns.
 * Raw IRC commands.
 * Wikipedia article lookup.
+* Wolfram Alpha lookup.
 
 ###Adding your own extensions
 

@@ -30,4 +30,5 @@ func RegisterBuiltinExtensions(bot *papaBot.Bot) {
 	bot.RegisterExtension(new(ExtensionMovies))
 	bot.RegisterExtension(new(ExtensionRaw))
 	bot.RegisterExtension(new(ExtensionWiki))
+	bot.RegisterExtension(new(ExtensionWolfram))
 }

@@ -54,7 +54,7 @@ func New(configFile, textsFile string) *Bot {
 		initDone:            false,
 		irc:                 &ircConnection{messages: make(chan *irc.Message)},
 		Log:                 logrus.New(),
-		HTTPClient:          &http.Client{Timeout: 5 * time.Second},
+		HTTPClient:          &http.Client{Timeout: 10 * time.Second},
 		floodSemaphore:      make(chan int, 5),
 		kickedFrom:          map[string]bool{},
 		onChannel:           map[string]bool{},

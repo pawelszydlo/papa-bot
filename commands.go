@@ -219,7 +219,7 @@ func commandVar(bot *Bot, nick, user, channel, receiver string, priv bool, param
 		return
 	}
 
-	if len(params) > 3 && command == "set" {
+	if len(params) >= 3 && command == "set" {
 		name := params[1]
 		value := strings.Join(params[2:], " ")
 		bot.SetVar(name, value)

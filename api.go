@@ -152,7 +152,7 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	urlinfo.ContentType = contentType
 
 	// If type is text, decode the body to UTF-8.
-	if strings.Contains(contentType, "text/html") || strings.Contains(contentType, "text/plain") {
+	if strings.Contains(contentType, "text/") {
 		// Try to get more significant part for encoding detection.
 		sample := bytes.Join(bot.webContentSampleRe.FindAll(body, -1), []byte{})
 		if len(sample) < 100 {
@@ -165,7 +165,7 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 		tokens := strings.Split(contentType, ";")
 		for _, t := range tokens {
 			if strings.Contains(strings.ToLower(t), "charset") {
-				detectionContentType = "text/html; " + t
+				detectionContentType = "text/plain; " + t
 				break
 			}
 		}
