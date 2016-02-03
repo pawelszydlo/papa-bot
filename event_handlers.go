@@ -221,7 +221,7 @@ func (bot *Bot) handleURLs(channel, nick, msg string) {
 	}()
 
 	// Find all URLs in the message.
-	links := xurls.Relaxed.FindAllString(msg, -1)
+	links := xurls.Strict.FindAllString(msg, -1)
 	// Remove multiple same links from one message.
 	links = utils.RemoveDuplicates(links)
 	for i := range links {

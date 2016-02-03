@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	Version        = "0.9.9"
+	Version        = "0.9.9.1"
 	Debug          = false // Set to true to crash on runtime errors.
 	MsgLengthLimit = 440   // IRC message length limit.
 )
@@ -39,7 +39,7 @@ func New(configFile, textsFile string) *Bot {
 		UrlAnnounceIntervalMinutes: 15,
 		UrlAnnounceIntervalLines:   50,
 		RejoinDelay:                15 * time.Second,
-		PageBodyMaxSize:            50 * 1024,
+		PageBodyMaxSize:            100 * 1024,
 		HttpDefaultUserAgent:       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
 		DailyTickHour:              8,
 		DailyTickMinute:            0,

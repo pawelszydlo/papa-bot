@@ -50,6 +50,8 @@ func (ext *ExtensionMeta) ProcessURL(bot *papaBot.Bot, channel, sender, msg stri
 		return
 	}
 	// Get the title
+	// Temporary - YouTube title finding problem
+	bot.Log.Debugf("YOUTUBE BODY:\n%s\n", urlinfo.Body)
 	title, description, err := ext.getTitle(string(urlinfo.Body))
 	if err != nil {
 		bot.Log.Warningf("Error getting title: %s", err)
