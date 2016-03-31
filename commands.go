@@ -209,13 +209,15 @@ func commandVar(bot *Bot, nick, user, channel, receiver string, priv bool, param
 	command := params[0]
 	if command == "list" {
 		bot.SendPrivMessage(receiver, "Custom variables:")
-		bot.SendPrivMessage(receiver, fmt.Sprintf("%+v", bot.customVars))
+		for key, val := range bot.customVars {
+			bot.SendPrivMessage(receiver, fmt.Sprintf("\x0308%s\x03 = \x0300%s\x03", key, val))
+		}
 		return
 	}
 
 	if len(params) == 2 && command == "get" {
 		name := params[1]
-		bot.SendPrivMessage(receiver, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
+		bot.SendPrivMessage(receiver, fmt.Sprintf("\x0308%s\x03 = \x0300%s\x03", name, bot.GetVar(name)))
 		return
 	}
 
@@ -223,7 +225,7 @@ func commandVar(bot *Bot, nick, user, channel, receiver string, priv bool, param
 		name := params[1]
 		value := strings.Join(params[2:], " ")
 		bot.SetVar(name, value)
-		bot.SendPrivMessage(receiver, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
+		bot.SendPrivMessage(receiver, fmt.Sprintf("\x0308%s\x03 = \x0300%s\x03", name, bot.GetVar(name)))
 		return
 	}
 }

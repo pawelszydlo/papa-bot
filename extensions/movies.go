@@ -9,11 +9,16 @@ import (
 	"strings"
 )
 
-// ExtensionMovies - finds movie titles in the messages and provides other movie related commands.
+/* ExtensionMovies - finds movie titles in the messages and provides other movie related commands.
+
+Used custom variables:
+- moviesInMsg - string of "yes" or "no". Should the extension look for movie titles in conversation?
+- moviesTriggerWords - list of space separated strings. Any of these words must be present in a text to trigger movie
+                       title lookup.
+*/
 type ExtensionMovies struct {
 	Extension
 	announced map[string]bool
-	Texts     *extensionMoviesTexts
 }
 
 type movieStruct struct {
@@ -34,19 +39,21 @@ type movieStruct struct {
 	ImdbVotes  string
 }
 
-type extensionMoviesTexts struct {
-	MoviesTriggerWords []string
-}
-
 // Init inits the extension.
 func (ext *ExtensionMovies) Init(bot *papaBot.Bot) error {
-	// Load texts.
 	ext.announced = map[string]bool{}
-	texts := &extensionMoviesTexts{}
-	if err := bot.LoadTexts(bot.TextsFile, texts); err != nil {
-		return err
+	// Init variables.
+	if doTrigger := bot.GetVar("moviesInMsg"); doTrigger == "" {
+		bot.Log.Warningf("Movie title lookup in messages not set in 'moviesInContext' variable. Setting default.")
+		bot.SetVar("moviesInMsg", "no")
 	}
-	ext.Texts = texts
+	if triggerWords := bot.GetVar("moviesTriggerWords"); triggerWords == "" {
+		bot.Log.Warningf("No movie trigger words found in 'moviesTriggerWords' variable. Setting default.")
+		bot.SetVar("moviesTriggerWords", "seen watched movie watching cinema movies")
+	}
+	bot.Log.Debugf("Look for movie titles in messages: %s", bot.GetVar("moviesInMsg"))
+	bot.Log.Debugf("Movie trigger words set to: %s", bot.GetVar("moviesTriggerWords"))
+
 	// Register new command.
 	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"i", "imdb"},
@@ -108,19 +115,26 @@ func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, 
 
 // ProcessMessage will fetch information on movies mentioned in the post.
 func (ext *ExtensionMovies) ProcessMessage(bot *papaBot.Bot, channel, sender, msg string) {
-	// Check if the message has any of the trigger words.
-	hasTrigger := false
-	for _, word := range ext.Texts.MoviesTriggerWords {
-		if strings.Contains(msg, word) {
-			hasTrigger = true
-			break
+	if bot.GetVar("moviesInMsg") == "yes" {
+		// Check if the message has any of the trigger words.
+		triggerWords := strings.Split(bot.GetVar("moviesTriggerWords"), " ")
+		if len(triggerWords) == 0 {
+			return
 		}
-	}
-	if !hasTrigger {
-		return
-	}
-	names := lexical.FindQuotes(msg)
-	for _, title := range names {
-		ext.findAndAnnounce(bot, channel, title)
+
+		hasTrigger := false
+		for _, word := range triggerWords {
+			if strings.Contains(msg, word) {
+				hasTrigger = true
+				break
+			}
+		}
+		if !hasTrigger {
+			return
+		}
+		names := lexical.FindQuotes(msg)
+		for _, title := range names {
+			ext.findAndAnnounce(bot, channel, title)
+		}
 	}
 }

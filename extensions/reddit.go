@@ -10,7 +10,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-	"unicode"
 )
 
 /*
@@ -20,7 +19,7 @@ This extension will automatically try to fetch Reddit information for each URL p
 link from one of the hot reddits once per day.
 
 Used custom variables:
-- interestingReddits - comma separated list of subreddits to use for hot links.
+- interestingReddits - space separated list of subreddits to use for hot links.
 - redditDaily - if set, show daily interesting link.
 */
 type ExtensionReddit struct {
@@ -133,12 +132,12 @@ func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, chann
 
 // getRedditHot will get a random article from interesting reddits list.
 func (ext *ExtensionReddit) getRedditHot(bot *papaBot.Bot) *redditPostData {
-	reddits := strings.Split(bot.GetVar("interestingReddits"), ",")
+	reddits := strings.Split(bot.GetVar("interestingReddits"), " ")
 	if len(reddits) == 0 {
 		return nil
 	}
 
-	subreddit := strings.TrimFunc(reddits[rand.Intn(len(reddits))], unicode.IsSpace)
+	subreddit := reddits[rand.Intn(len(reddits))]
 	// Get the listing.
 	url := fmt.Sprintf("https://www.reddit.com/r/%s/hot.json?limit=3", subreddit)
 	var listing redditListing
@@ -170,7 +169,7 @@ func (ext *ExtensionReddit) Init(bot *papaBot.Bot) error {
 	if reddits := bot.GetVar("interestingReddits"); reddits == "" {
 		bot.Log.Warningf("No interesting Reddits set in the 'interestingReddits' variable. Setting default.")
 		bot.SetVar("interestingReddits",
-			"TrueReddit, TrueTrueReddit, foodforthought, Futurology, longtext, worldnews, DepthHub")
+			"TrueReddit TrueTrueReddit foodforthought Futurology longtext worldnews DepthHub")
 	}
 
 	bot.Log.Debugf("Interesting reddits set: %s", bot.GetVar("interestingReddits"))

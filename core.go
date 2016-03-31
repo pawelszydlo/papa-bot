@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	Version        = "0.9.9.1"
+	Version        = "0.9.9.2"
 	Debug          = false // Set to true to crash on runtime errors.
 	MsgLengthLimit = 440   // IRC message length limit.
 )
