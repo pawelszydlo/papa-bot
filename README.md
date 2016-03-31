@@ -12,7 +12,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 ###Features
 
 * Easy to write extensions.
-* Easy configuration through a TOML file.
+* Easy configuration through a TOML file and run time variables.
 * Things that the bot says are all in TOML files, for easy editing and l18n.
 * Flood protection.
 * Abuse protection.

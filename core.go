@@ -164,10 +164,11 @@ func (bot *Bot) connect() error {
 	var conn net.Conn
 	var err error
 	// Establish the connection.
-	bot.Log.Infof("Connecting to %s...", bot.Config.Server)
 	if bot.Config.TLSConfig == nil {
+		bot.Log.Infof("Connecting to %s...", bot.Config.Server)
 		conn, err = net.Dial("tcp", bot.Config.Server)
 	} else {
+		bot.Log.Infof("Connecting to %s using TLS...", bot.Config.Server)
 		conn, err = tls.Dial("tcp", bot.Config.Server, bot.Config.TLSConfig)
 	}
 	if err != nil {
