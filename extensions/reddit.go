@@ -24,8 +24,9 @@ Used custom variables:
 */
 type ExtensionReddit struct {
 	Extension
-	announced map[string]bool
-	Texts     *extensionRedditTexts
+	announced     map[string]bool
+	announcedLive map[string]bool
+	Texts         *extensionRedditTexts
 }
 
 type extensionRedditTexts struct {
@@ -33,6 +34,8 @@ type extensionRedditTexts struct {
 	TempRedditAnnounce *template.Template
 	TplRedditDaily     string
 	TempRedditDaily    *template.Template
+	TplRedditBreaking  string
+	TempRedditBreaking *template.Template
 }
 
 // Reddit structs.
@@ -50,7 +53,10 @@ type redditPostData struct {
 }
 type redditListing struct {
 	Error int
+	Kind  string
 	Data  struct {
+		Title    string
+		Id       string
 		Children []struct{ Data redditPostData }
 	}
 }
@@ -153,6 +159,18 @@ func (ext *ExtensionReddit) getRedditHot(bot *papaBot.Bot) *redditPostData {
 	return nil
 }
 
+// getRedditLiveNow will get a live now link from the top page, if such exists.
+func (ext *ExtensionReddit) getRedditLiveNow(bot *papaBot.Bot) (string, string) {
+	// Get the listing.
+	url := "https://www.reddit.com/api/live/happening_now.json"
+	var liveNow redditListing
+	if err := ext.getRedditListing(bot, url, &liveNow); err != nil {
+		bot.Log.Debugf("Error getting reddit's response %d.", liveNow.Error)
+		return "", ""
+	}
+	return fmt.Sprintf("https://reddit.com/live/%s", liveNow.Data.Id), liveNow.Data.Title
+}
+
 // commandReddit will display one of the interesting articles from Reddit.
 func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, nick, user, channel, receiver string, priv bool, params []string) {
 	post := ext.getRedditHot(bot)
@@ -183,6 +201,7 @@ func (ext *ExtensionReddit) Init(bot *papaBot.Bot) error {
 
 	// Load texts.
 	ext.announced = map[string]bool{}
+	ext.announcedLive = map[string]bool{}
 	texts := &extensionRedditTexts{}
 	if err := bot.LoadTexts(bot.TextsFile, texts); err != nil {
 		return err
@@ -193,16 +212,25 @@ func (ext *ExtensionReddit) Init(bot *papaBot.Bot) error {
 
 // Tick will clear the announces table and give post of the day.
 func (ext *ExtensionReddit) Tick(bot *papaBot.Bot, daily bool) {
-	if !daily {
-		return
-	}
-	// Clear the announced list.
-	ext.announced = map[string]bool{}
-	if bot.GetVar("redditDaily") != "" {
-		post := ext.getRedditHot(bot)
-		if post != nil {
-			bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
+	if daily {
+		// Clear the announced list.
+		ext.announced = map[string]bool{}
+		if bot.GetVar("redditDaily") != "" {
+			post := ext.getRedditHot(bot)
+			if post != nil {
+				bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
+			}
 		}
+	} else { // 5 minute ticker.
+		url, title := ext.getRedditLiveNow(bot)
+		if url == "" || title == "" {
+			return
+		}
+		if ext.announcedLive[url] {
+			return
+		}
+		ext.announcedLive[url] = true
+		bot.SendMassNotice(utils.Format(ext.Texts.TempRedditBreaking, map[string]string{"url": url, "title": title}))
 	}
 }
 
