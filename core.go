@@ -187,9 +187,6 @@ func (bot *Bot) connect() error {
 	bot.SendRawMessage(irc.NICK, []string{bot.Config.Name}, "")
 	bot.SendRawMessage(irc.USER, []string{bot.Config.User, "0", "*"}, bot.Config.User)
 
-	// Run the message receiver loop.
-	go bot.receiverLoop()
-
 	bot.Log.Debugf("Succesfully connected.")
 	return nil
 }
@@ -334,6 +331,9 @@ func (bot *Bot) Run() {
 	if err := bot.connect(); err != nil {
 		bot.Log.Fatalf("Error creating connection: ", err)
 	}
+
+	// Receiver loop.
+	go bot.receiverLoop()
 
 	// Semaphore clearing ticker.
 	ticker := time.NewTicker(time.Second * time.Duration(bot.Config.AntiFloodDelay))

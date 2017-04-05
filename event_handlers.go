@@ -121,7 +121,7 @@ func handlerTopic(bot *Bot, m *irc.Message) {
 
 func handlerKick(bot *Bot, m *irc.Message) {
 	if bot.UserIsMe(m.Params[1]) {
-		bot.Log.Infof("I was kicked from %s by %s for: %s", m.Prefix.Name, m.Params[0], m.Trailing)
+		bot.Log.Infof("I was kicked from %s by %s for: %s", m.Params[0], m.Prefix.Name, m.Trailing)
 		bot.kickedFrom[m.Params[0]] = true
 		delete(bot.onChannel, m.Params[0])
 		// Rejoin
