@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
-	"github.com/pawelszydlo/papa-bot/lexical"
 	"net/url"
 	"strings"
 )
@@ -111,30 +110,4 @@ func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, 
 	}
 	title := strings.Join(params, " ")
 	ext.findAndAnnounce(bot, receiver, title)
-}
-
-// ProcessMessage will fetch information on movies mentioned in the post.
-func (ext *ExtensionMovies) ProcessMessage(bot *papaBot.Bot, channel, sender, msg string) {
-	if bot.GetVar("moviesInMsg") == "yes" {
-		// Check if the message has any of the trigger words.
-		triggerWords := strings.Split(bot.GetVar("moviesTriggerWords"), " ")
-		if len(triggerWords) == 0 {
-			return
-		}
-
-		hasTrigger := false
-		for _, word := range triggerWords {
-			if strings.Contains(msg, word) {
-				hasTrigger = true
-				break
-			}
-		}
-		if !hasTrigger {
-			return
-		}
-		names := lexical.FindQuotes(msg)
-		for _, title := range names {
-			ext.findAndAnnounce(bot, channel, title)
-		}
-	}
 }

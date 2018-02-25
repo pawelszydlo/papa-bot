@@ -15,14 +15,13 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/Sirupsen/logrus"
-	"github.com/pawelszydlo/papa-bot/lexical"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/sorcix/irc"
 	"regexp"
 )
 
 const (
-	Version        = "0.9.9.4"
+	Version        = "0.9.10.0"
 	Debug          = false // Set to true to crash on runtime errors.
 	MsgLengthLimit = 440   // IRC message length limit.
 )
@@ -140,13 +139,6 @@ func (bot *Bot) initialize() {
 		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
 	}
 	bot.Log.Debugf("Next daily tick: %s", bot.nextDailyTick)
-
-	// Load stopwords.
-	if err := lexical.LoadStopWords(bot.Config.Language); err != nil {
-		bot.Log.Warningf("Can't load stop words for language %s: %s", bot.Config.Language, err)
-		bot.Log.Warningf("Lexical functions will be handicapped.")
-	}
-	bot.Log.Debugf("Loaded %d stopwords for language %s.", len(lexical.StopWords), bot.Config.Language)
 
 	// Init extensions.
 	for i := range bot.extensions {
