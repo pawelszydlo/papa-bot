@@ -17,6 +17,7 @@ func (bot *Bot) initDb() error {
 		-- Main URLs table.
 		CREATE TABLE IF NOT EXISTS "urls" (
 			"id" INTEGER PRIMARY KEY  AUTOINCREMENT  NOT NULL,
+			"transport" VARCHAR NOT NULL,
 			"channel" VARCHAR NOT NULL,
 			"nick" VARCHAR NOT NULL,
 			"link" VARCHAR NOT NULL,
@@ -27,12 +28,12 @@ func (bot *Bot) initDb() error {
 
 		-- Virtual table for FTS.
 		CREATE VIRTUAL TABLE IF NOT EXISTS urls_search
-		USING fts4(channel, nick, link, title, timestamp, search);
+		USING fts4(transport, channel, nick, link, title, timestamp, search);
 
 		-- Triggers for FTS updating.
 		CREATE TRIGGER IF NOT EXISTS url_add AFTER INSERT ON urls BEGIN
-			INSERT INTO urls_search(channel, nick, link, title, timestamp, search)
-			VALUES(new.channel, new.nick, new.link, new.title, new.timestamp, new.link || ' ' || new.title);
+			INSERT INTO urls_search(transport, channel, nick, link, title, timestamp, search)
+			VALUES(new.transport, new.channel, new.nick, new.link, new.title, new.timestamp, new.link || ' ' || new.title);
 		END;
 
 		CREATE TRIGGER IF NOT EXISTS url_update AFTER UPDATE ON urls BEGIN

@@ -20,7 +20,7 @@ func (ext *ExtensionRaw) Init(bot *papaBot.Bot) error {
 	return nil
 }
 
-func (ext *ExtensionRaw) commandRaw(bot *papaBot.Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func (ext *ExtensionRaw) commandRaw(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) < 2 {
 		return
 	}
@@ -32,5 +32,6 @@ func (ext *ExtensionRaw) commandRaw(bot *papaBot.Bot, nick, user, channel, recei
 	}
 	arguments = strings.Split(strings.Trim(arguments[0], " "), " ")
 	bot.Log.Debugf("Executing raw command: %s, params: %v, trailing: %s", command, arguments, trailing)
-	bot.SendRawMessage(command, params, trailing)
+	// TODO: figure it out!
+	//bot.SendRawMessage(command, params, trailing)
 }

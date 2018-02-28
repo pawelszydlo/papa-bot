@@ -10,11 +10,11 @@ type Extension struct{}
 func (ext *Extension) Init(bot *papaBot.Bot) error { return nil }
 
 // Will be run whenever an URL is found in the message.
-func (ext *Extension) ProcessURL(bot *papaBot.Bot, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
+func (ext *Extension) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
 }
 
 // Will be run on every public message the bot receives.
-func (ext *Extension) ProcessMessage(bot *papaBot.Bot, channel, sender, msg string) {}
+func (ext *Extension) ProcessMessage(bot *papaBot.Bot, transport, channel, sender, msg string) {}
 
 // Will be run every 5 minutes. Daily will be set to true only once per day.
 func (ext *Extension) Tick(bot *papaBot.Bot, daily bool) {}

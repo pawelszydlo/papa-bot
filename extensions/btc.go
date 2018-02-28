@@ -148,21 +148,26 @@ func (ext *ExtensionBtc) Tick(bot *papaBot.Bot, daily bool) {
 	}
 }
 
-func (ext *ExtensionBtc) commandBtc(bot *papaBot.Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func (ext *ExtensionBtc) commandBtc(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	// Answer only once per 5 minutes per channel.
 	if time.Since(ext.LastAsk[channel]) > 5*time.Minute {
 		ext.LastAsk[channel] = time.Now()
 		ext.Warned[channel] = false
+		if ext.HourlyData == nil {
+			// No data yet received? This can happen only if bot didn't tick the extension!
+			bot.Log.Error("BTC extension wasn't ticked before if was asked a price!")
+			return
+		}
 		price, _ := strconv.ParseFloat(ext.HourlyData["last"].(string), 64)
 		diff := price - ext.HourlyData["open"].(float64)
 
-		bot.SendNotice(receiver, utils.Format(ext.Texts.TempBtcNotice, map[string]string{
+		bot.SendNotice(transport, receiver, utils.Format(ext.Texts.TempBtcNotice, map[string]string{
 			"price": fmt.Sprintf("$%.2f", price),
 			"diff":  ext.diffStr(diff)}))
 	} else {
 		// Only warn once.
 		if !ext.Warned[channel] {
-			bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, ext.Texts.NothingHasChanged))
+			bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", nick, ext.Texts.NothingHasChanged))
 			ext.Warned[channel] = true
 		}
 	}

@@ -1,10 +1,13 @@
 package papaBot
 
+// Public bot API.
+
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/BurntSushi/toml"
-	"github.com/sorcix/irc"
+	"github.com/pawelszydlo/papa-bot/transports"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
 	"html"
@@ -16,9 +19,25 @@ import (
 	"time"
 )
 
-// RegisterIrcEventHandler will register a new handler for the given IRC event.
-func (bot *Bot) RegisterIrcEventHandler(event string, handler ircEvenHandlerFunc) {
-	bot.ircEventHandlers[event] = append(bot.ircEventHandlers[event], handler)
+// RegisterExtension will register a new transport with the bot.
+func (bot *Bot) RegisterTransport(name string, newFunction newTransportFunction) {
+	// Is the transport enabled in the config?
+	if bot.fullConfig.GetDefault(fmt.Sprintf("%s.enabled", name), false).(bool) {
+		for existingName := range bot.transports {
+			if name == existingName {
+				bot.Log.Fatalf("Transport under alias '%s' already exists.", name)
+			}
+		}
+		bot.Log.Infof("Registering transport: %s...", name)
+		scribeChannel := make(chan transports.ScribeMessage, MessageBufferSize)
+		commandChannel := make(chan transports.CommandMessage, MessageBufferSize)
+		bot.transports[name] = transportWrapper{
+			newFunction(bot.Config.Name, bot.fullConfig, bot.Log, scribeChannel, commandChannel),
+			scribeChannel,
+			commandChannel,
+		}
+		bot.Log.Debugf("Added extension: %s", name)
+	}
 }
 
 // RegisterExtension will register a new extension with the bot.
@@ -39,7 +58,7 @@ func (bot *Bot) RegisterExtension(ext extension) {
 // RegisterCommand will register a new command with the bot.
 func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 	for _, name := range cmd.CommandNames {
-		for existingName, _ := range bot.commands {
+		for existingName := range bot.commands {
 			if name == existingName {
 				bot.Log.Fatalf("Command under alias '%s' already exists.", name)
 			}
@@ -48,51 +67,26 @@ func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 	}
 }
 
-// SendRawMessage sends raw command to the server.
-func (bot *Bot) SendRawMessage(command string, params []string, trailing string) {
-	if err := bot.irc.encoder.Encode(&irc.Message{
-		Command:  command,
-		Params:   params,
-		Trailing: trailing,
-	}); err != nil {
-		bot.Log.Errorf("Can't send message %s: %s", command, err)
-	}
-}
-
 // SendMessage sends a message to the channel.
-func (bot *Bot) SendPrivMessage(channel, message string) {
-	bot.Log.Debugf("Sending message to %s: %s", channel, message)
-	bot.sendFloodProtected(irc.PRIVMSG, channel, message)
+func (bot *Bot) SendPrivMessage(transport, channel, message string) {
+	bot.Log.Debugf("Sending message to %s-%s: %s", transport, channel, message)
+	wrap := bot.getTransportWrapOrDie(transport)
+	wrap.transport.SendPrivMessage(channel, message)
 }
 
 // SendNotice sends a notice to the channel.
-func (bot *Bot) SendNotice(channel, message string) {
-	bot.Log.Debugf("Sending notice to %s: %s", channel, message)
-	bot.sendFloodProtected(irc.NOTICE, channel, message)
+func (bot *Bot) SendNotice(transport, channel, message string) {
+	bot.Log.Debugf("Sending notice to %s-%s: %s", transport, channel, message)
+	wrap := bot.getTransportWrapOrDie(transport)
+	wrap.transport.SendNotice(channel, message)
 }
 
-// SendMassNotice sends a notice to all the channels bot is on.
+// SendMassNotice sends a notice to all the channels bot is on, on all transports.
 func (bot *Bot) SendMassNotice(message string) {
 	bot.Log.Debugf("Sending mass notice: %s", message)
-	for _, channel := range bot.Config.Channels {
-		bot.sendFloodProtected(irc.NOTICE, channel, message)
+	for _, wrap := range bot.transports {
+		wrap.transport.SendMassNotice(message)
 	}
-}
-
-// GetChannelsOn will return a list of channels the bot is currently on.
-func (bot *Bot) GetChannelsOn() []string {
-	channelsOn := []string{}
-	for channel, on := range bot.onChannel {
-		if on {
-			channelsOn = append(channelsOn, channel)
-		}
-	}
-	return channelsOn
-}
-
-// IsOnChannel will check if bot is on the given channel.
-func (bot *Bot) IsOnChannel(channel string) bool {
-	return bot.onChannel[channel]
 }
 
 // GetPageBodyByURL is a convenience wrapper around GetPageBody.
@@ -258,12 +252,21 @@ func (bot *Bot) GetVar(name string) string {
 	return bot.customVars[name]
 }
 
+// IsOnChannel checks whether the bot is present on a given channel.
+func (bot *Bot) IsOnChannel(transport, name string) bool {
+	wrap := bot.getTransportWrapOrDie(transport)
+	if val, ok := wrap.transport.OnChannels()[name]; ok && val {
+		return true
+	}
+	return false
+}
+
 // AddMoreInfo will set more information to be viewed for the channel.
-func (bot *Bot) AddMoreInfo(channel, info string) error {
-	if !bot.onChannel[channel] {
+func (bot *Bot) AddMoreInfo(transport, channel, info string) error {
+	if !bot.IsOnChannel(transport, channel) {
 		return errors.New("I'm not on channel " + channel)
 	}
-	bot.urlMoreInfo[channel] = info
+	bot.urlMoreInfo[transport+channel] = info
 	return nil
 }
 

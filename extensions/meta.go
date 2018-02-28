@@ -45,7 +45,7 @@ func (ext *ExtensionMeta) getTitle(body string) (string, string, error) {
 }
 
 // ProcessURL will try to get the title and description.
-func (ext *ExtensionMeta) ProcessURL(bot *papaBot.Bot, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
+func (ext *ExtensionMeta) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
 	if len(urlinfo.Body) == 0 || !strings.Contains(urlinfo.ContentType, "html") {
 		return
 	}

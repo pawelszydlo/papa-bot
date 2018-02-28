@@ -1,46 +1,36 @@
 package papaBot
 
-// All structures used by bot (sans extensions).
+// All structures used by bot (sans extensions and transports).
 
 import (
-	"crypto/tls"
 	"database/sql"
 	"github.com/Sirupsen/logrus"
-	"github.com/sorcix/irc"
-	"net"
+	"github.com/pelletier/go-toml"
 	"net/http"
 	"regexp"
 	"time"
+
+	"github.com/pawelszydlo/papa-bot/transports"
 )
 
 // Bot itself.
 type Bot struct {
 	// Was initialization complete?
 	initDone bool
-	// IRC network connection.
-	irc *ircConnection
 	// Database connection.
 	Db *sql.DB
 	// HTTP client.
 	HTTPClient *http.Client
 	// Logger.
 	Log *logrus.Logger
-	// Path to config file.
-	ConfigFile string
+	// Ful config file structure.
+	fullConfig *toml.Tree
 	// Bot's configuration.
 	Config *Configuration
-	// Anti flood buffered semaphore
-	floodSemaphore chan int
-	// Channels bot was kicked from.
-	kickedFrom map[string]bool
-	// Channels the bot is on.
-	onChannel map[string]bool
 	// Currently authenticated users.
 	authenticatedUsers  map[string]string
 	authenticatedAdmins map[string]string
 	authenticatedOwners map[string]string
-	// Registered event handlers.
-	ircEventHandlers map[string][]ircEvenHandlerFunc
 	// Registered bot commands.
 	commands map[string]*BotCommand
 	// Number of uses per command.
@@ -53,6 +43,8 @@ type Bot struct {
 	customVars map[string]string
 	// Registered bot extensions,
 	extensions []extension
+	// Enabled transports.
+	transports map[string]transportWrapper
 	// Path to texts file.
 	TextsFile string
 	// Bot texts struct.
@@ -69,26 +61,28 @@ type Bot struct {
 	webContentSampleRe *regexp.Regexp
 }
 
-// Bot's connection to the network.
-type ircConnection struct {
-	// IRC messages stream.
-	messages chan *irc.Message
-	// Network connection.
-	connection net.Conn
-	// IO.
-	decoder *irc.Decoder
-	encoder *irc.Encoder
-}
-
-// Interface for IRC event handler function.
-type ircEvenHandlerFunc func(bot *Bot, m *irc.Message)
-
 // Interface for handling of extensions.
 type extension interface {
 	Init(bot *Bot) error
-	ProcessURL(bot *Bot, channel, sender, msg string, info *UrlInfo)
-	ProcessMessage(bot *Bot, channel, sender, msg string)
+	ProcessURL(bot *Bot, transport, channel, sender, msg string, info *UrlInfo)
+	ProcessMessage(bot *Bot, transport, channel, sender, msg string)
 	Tick(bot *Bot, daily bool)
+}
+
+// Function type for transport constructors.
+type newTransportFunction func(
+	name string,
+	fullConfig *toml.Tree,
+	logger *logrus.Logger,
+	scribeChannel chan transports.ScribeMessage,
+	commandsChannel chan transports.CommandMessage,
+) transports.Transport
+
+// Struct handling transport communication.
+type transportWrapper struct {
+	transport       transports.Transport
+	scribeChannel   chan transports.ScribeMessage
+	commandsChannel chan transports.CommandMessage
 }
 
 // Url information passed between url processors.
@@ -122,26 +116,17 @@ type BotCommand struct {
 	// Help string with the description.
 	HelpDescription string
 	// Function to be executed.
-	CommandFunc func(bot *Bot, nick, user, channel, receiver string, priv bool, params []string)
+	CommandFunc func(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string)
 }
 
 // Bot's configuration. It will be loaded from the provided file on New(), overwriting any defaults.
 type Configuration struct {
-	// Connection parameters
-	Server    string
-	Name      string
-	User      string
-	Password  string
-	TLSConfig *tls.Config
-	// Other options.
+	Name                       string
 	Language                   string
-	Channels                   []string
-	AntiFloodDelay             int
-	CommandsPer5               int
 	ChatLogging                bool
+	CommandsPer5               int
 	UrlAnnounceIntervalMinutes time.Duration
 	UrlAnnounceIntervalLines   int
-	RejoinDelay                time.Duration
 	PageBodyMaxSize            uint
 	HttpDefaultUserAgent       string
 	DailyTickHour              int

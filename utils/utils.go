@@ -168,7 +168,7 @@ func StandardizeURL(url string) string {
 	return link
 }
 
-// SliceToMap will convert a tring slice into a string map.
+// SliceToMap will convert a string slice into a string map.
 func SliceToMap(slice []string) map[string]bool {
 	unique := map[string]bool{}
 	for _, elem := range slice {
@@ -180,7 +180,7 @@ func SliceToMap(slice []string) map[string]bool {
 // MapToSlice will save keys of a string map into a slice.
 func MapToSlice(boolMap map[string]bool) []string {
 	slice := []string{}
-	for key, _ := range boolMap {
+	for key := range boolMap {
 		slice = append(slice, key)
 	}
 	return slice
@@ -195,4 +195,13 @@ func RemoveDuplicates(slice []string) []string {
 func HashPassword(password string) string {
 	return base64.StdEncoding.EncodeToString(
 		pbkdf2.Key([]byte(password), []byte(password), 4096, sha256.Size, sha256.New))
+}
+
+// ToStringSlice converts arbitrary interface slice into a string slice.
+func ToStringSlice(elements []interface{}) []string {
+	strs := make([]string, len(elements), len(elements))
+	for i := range elements {
+		strs[i] = elements[i].(string)
+	}
+	return strs
 }

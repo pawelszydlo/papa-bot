@@ -18,13 +18,14 @@ type ExtensionCounters struct {
 }
 
 type extensionCountersCounter struct {
-	channel  string
-	creator  string
-	text     string
-	textTmp  *template.Template
-	interval time.Duration
-	date     time.Time
-	nextTick time.Time
+	transport string
+	channel   string
+	creator   string
+	text      string
+	textTmp   *template.Template
+	interval  time.Duration
+	date      time.Time
+	nextTick  time.Time
 }
 
 // message will produce an announcement message for the counter.
@@ -49,6 +50,7 @@ func (ext *ExtensionCounters) Init(bot *papaBot.Bot) error {
 		-- Main URLs table.
 		CREATE TABLE IF NOT EXISTS "counters" (
 			"id" INTEGER PRIMARY KEY  AUTOINCREMENT  NOT NULL,
+			"transport" VARCHAR NOT NULL,
 			"channel" VARCHAR NOT NULL,
 			"creator" VARCHAR NOT NULL,
 			"announce_text" VARCHAR NOT NULL,
@@ -80,7 +82,7 @@ func (ext *ExtensionCounters) Tick(bot *papaBot.Bot, daily bool) {
 	// Check if it's time to announce the counter.
 	for id, c := range ext.counters {
 		if time.Since(c.nextTick) > 0 {
-			bot.SendNotice(c.channel, c.message())
+			bot.SendNotice(c.transport, c.channel, c.message())
 			c.nextTick = c.nextTick.Add(c.interval * time.Hour)
 			bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
 		}
@@ -92,7 +94,7 @@ func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
 	ext.counters = map[int]*extensionCountersCounter{}
 
 	result, err := bot.Db.Query(
-		`SELECT id, channel, creator, announce_text, interval, target_date FROM counters`)
+		`SELECT id, channel, transport, creator, announce_text, interval, target_date FROM counters`)
 	if err != nil {
 		bot.Log.Warningf("Error while loading counters: %s", err)
 		return
@@ -105,7 +107,7 @@ func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
 		var dateStr string
 		var id int
 		var interval int
-		if err = result.Scan(&id, &c.channel, &c.creator, &c.text, &interval, &dateStr); err != nil {
+		if err = result.Scan(&id, &c.channel, &c.transport, &c.creator, &c.text, &interval, &dateStr); err != nil {
 			bot.Log.Warningf("Can't load counter: %s", err)
 			continue
 		}
@@ -138,7 +140,7 @@ func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
 
 // commandCounters is a command for handling the counters.
 func (ext *ExtensionCounters) commandCounters(
-	bot *papaBot.Bot, nick, user, channel, receiver string, priv bool, params []string) {
+	bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 
 	if len(params) < 1 {
 		return
@@ -149,24 +151,24 @@ func (ext *ExtensionCounters) commandCounters(
 	// List.
 	if command == "list" {
 		if len(ext.counters) > 0 {
-			bot.SendPrivMessage(receiver, "Counters:")
+			bot.SendPrivMessage(transport, receiver, "Counters:")
 			for id, c := range ext.counters {
-				bot.SendPrivMessage(receiver, fmt.Sprintf(
+				bot.SendPrivMessage(transport, receiver, fmt.Sprintf(
 					"%d: %s | %s | interval %dh | %s", id, c.channel, c.date, c.interval, c.text))
 			}
 		} else {
-			bot.SendPrivMessage(receiver, "No counters yet.")
+			bot.SendPrivMessage(transport, receiver, "No counters yet.")
 		}
 		return
 	}
 
 	if command == "help" {
-		bot.SendPrivMessage(nick, "To add a new counter:")
-		bot.SendPrivMessage(nick, "add <date> <time> <interval> <channel> <text>")
-		bot.SendPrivMessage(nick, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce`+
+		bot.SendPrivMessage(transport, nick, "To add a new counter:")
+		bot.SendPrivMessage(transport, nick, "add <date> <time> <interval> <channel> <text>")
+		bot.SendPrivMessage(transport, nick, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce`+
 			` interval in hours, channel is the name of the channel to announce on, text is the announcement text.`)
 		bot.SendPrivMessage(
-			nick, "Announcement text may contain placeholders: {{ .days }}, {{ .hours }}, {{ .minutes }}, {{ .since }}")
+			transport, nick, "Announcement text may contain placeholders: {{ .days }}, {{ .hours }}, {{ .minutes }}, {{ .since }}")
 		return
 	}
 
@@ -174,17 +176,17 @@ func (ext *ExtensionCounters) commandCounters(
 	if len(params) == 2 && command == "announce" {
 		id, err := strconv.Atoi(params[1])
 		if err != nil || ext.counters[id] == nil {
-			bot.SendPrivMessage(receiver, "Wrong id.")
+			bot.SendPrivMessage(transport, receiver, "Wrong id.")
 			return
 		}
-		bot.SendPrivMessage(receiver, fmt.Sprintf("Announcing counter %d to %s...", id, ext.counters[id].channel))
-		bot.SendPrivMessage(ext.counters[id].channel, ext.counters[id].message())
+		bot.SendPrivMessage(transport, receiver, fmt.Sprintf("Announcing counter %d to %s...", id, ext.counters[id].channel))
+		bot.SendPrivMessage(transport, ext.counters[id].channel, ext.counters[id].message())
 	}
 
 	// Delete.
 	if len(params) == 2 && command == "del" {
 		id := params[1]
-		bot.SendPrivMessage(receiver, fmt.Sprintf("Deleting counter number %s...", id))
+		bot.SendPrivMessage(transport, receiver, fmt.Sprintf("Deleting counter number %s...", id))
 		query := ""
 		// Bot owner can delete all counters.
 		if bot.UserIsOwner(fullName) {
@@ -196,7 +198,7 @@ func (ext *ExtensionCounters) commandCounters(
 		}
 		if _, err := bot.Db.Exec(query, id); err != nil {
 			bot.Log.Warningf("Error while deleting a counter: %s", err)
-			bot.SendPrivMessage(receiver, fmt.Sprintf("Error: %s", err))
+			bot.SendPrivMessage(transport, receiver, fmt.Sprintf("Error: %s", err))
 			return
 		}
 		// Reload  counters.
@@ -208,18 +210,18 @@ func (ext *ExtensionCounters) commandCounters(
 	if len(params) > 5 && command == "add" {
 		// Sanity check parameters.
 		if _, err := time.Parse("2006-01-0215:04:05", params[1]+params[2]); err != nil {
-			bot.SendPrivMessage(receiver, "Date and time must be in format: 2015-12-31 12:54:00")
+			bot.SendPrivMessage(transport, receiver, "Date and time must be in format: 2015-12-31 12:54:00")
 			return
 		}
 		dateStr := params[1] + " " + params[2]
 		interval, err := strconv.ParseInt(params[3], 10, 32)
 		if err != nil {
-			bot.SendPrivMessage(receiver, "interval parameter must be a number.")
+			bot.SendPrivMessage(transport, receiver, "interval parameter must be a number.")
 			return
 		}
 		channel = params[4]
-		if !bot.IsOnChannel(channel) {
-			bot.SendPrivMessage(receiver, "I am not on channel: "+channel)
+		if !bot.IsOnChannel(transport, channel) {
+			bot.SendPrivMessage(transport, receiver, "I am not on channel: "+channel)
 			return
 		}
 
@@ -232,10 +234,10 @@ func (ext *ExtensionCounters) commandCounters(
 			`
 		if _, err := bot.Db.Exec(query, channel, nick, text, interval, dateStr); err != nil {
 			bot.Log.Warningf("Error while adding a counter: %s", err)
-			bot.SendPrivMessage(receiver, fmt.Sprintf("Error: %s", err))
+			bot.SendPrivMessage(transport, receiver, fmt.Sprintf("Error: %s", err))
 			return
 		}
-		bot.SendPrivMessage(receiver, "Counter created.")
+		bot.SendPrivMessage(transport, receiver, "Counter created.")
 		// Reload  counters.
 		ext.loadCounters(bot)
 		return

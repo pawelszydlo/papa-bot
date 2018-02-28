@@ -39,10 +39,10 @@ func (ext *MyExtension) Tick(bot *papaBot.Bot, daily bool) {
 }
 
 // Will be run whenever an URL is found in the message.
-// func (ext *MyExtension) ProcessURL(bot *papaBot.Bot, info *papaBot.UrlInfo, channel, sender, msg string) {}
+// func (ext *MyExtension) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {}
 
 // Will be run on every public message the bot receives.
-// func (ext *MyExtension) ProcessMessage(bot *papaBot.Bot, channel, nick, msg string) {}
+// func (ext *MyExtension) ProcessMessage(bot *papaBot.Bot, transport, channel, nick, msg string) {}
 
 // Entry point
 func main() {

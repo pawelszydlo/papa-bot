@@ -172,12 +172,12 @@ func (ext *ExtensionReddit) getRedditLiveNow(bot *papaBot.Bot) (string, string) 
 }
 
 // commandReddit will display one of the interesting articles from Reddit.
-func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	post := ext.getRedditHot(bot)
 	if post != nil {
 		data := post.toStrings()
 		message := fmt.Sprintf("%s, %s (/r/%s - %s)", nick, data["title"], data["subreddit"], data["url"])
-		bot.SendPrivMessage(receiver, message)
+		bot.SendPrivMessage(transport, receiver, message)
 	}
 }
 
@@ -235,7 +235,7 @@ func (ext *ExtensionReddit) Tick(bot *papaBot.Bot, daily bool) {
 }
 
 // ProcessURL will try to check if link was ever on reddit.
-func (ext *ExtensionReddit) ProcessURL(bot *papaBot.Bot, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
+func (ext *ExtensionReddit) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
 	// Announce each link only once.
 	if ext.announced[channel+urlinfo.URL] {
 		return
@@ -252,7 +252,7 @@ func (ext *ExtensionReddit) ProcessURL(bot *papaBot.Bot, channel, sender, msg st
 		go func() {
 			reddit := ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
 			if reddit != "" {
-				bot.SendNotice(channel, reddit)
+				bot.SendNotice(transport, channel, reddit)
 			}
 		}()
 	}

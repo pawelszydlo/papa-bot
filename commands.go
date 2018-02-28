@@ -5,10 +5,12 @@ package papaBot
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/pawelszydlo/papa-bot/transports"
 	"math/rand"
 	"strings"
 )
 
+// TODO: universal way of handling formatting throughout transports.
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
 	// Help.
@@ -59,7 +61,12 @@ func (bot *Bot) initBotCommands() {
 }
 
 // handleBotCommand handles commands directed at the bot.
-func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack bool) {
+func (bot *Bot) handleBotCommand(transport string, message transports.CommandMessage) {
+	// Check if sender is not ignored.
+	if bot.isNickIgnored(transport, message.Nick) {
+		return
+	}
+
 	// Catch errors.
 	defer func() {
 		if Debug {
@@ -69,64 +76,65 @@ func (bot *Bot) handleBotCommand(channel, nick, user, command string, talkBack b
 			bot.Log.Errorf("FATAL ERROR in bot command: %s", r)
 		}
 	}()
-	receiver := channel
+	receiver := message.Channel
 
 	// Was this command sent on a private query?
 	private := false
-	if bot.UserIsMe(channel) {
+	if bot.NickIsMe(transport, message.Channel) {
 		private = true
-		receiver = nick
+		receiver = message.Nick
 	}
 	// Was the command sent by the owner?
-	sender_complete := nick + "!" + user
+	sender_complete := message.Nick + "!" + message.UserName
 	owner := bot.UserIsOwner(sender_complete)
 	admin := bot.UserIsAdmin(sender_complete)
 
-	params := strings.Split(command, " ")
-	command = params[0]
+	params := strings.Split(message.Message, " ")
+	message.Message = params[0]
 	params = params[1:]
 
 	paramsDisplay := fmt.Sprintf("%+v", params)
-	if bot.commandsHideParams[command] {
+	if bot.commandsHideParams[message.Message] {
 		paramsDisplay = "<hidden>"
 	}
 	bot.Log.WithFields(
-		logrus.Fields{"channel": channel, "cmd": command, "params": paramsDisplay}).Infof("Received command from %s.", nick)
+		logrus.Fields{"channel": message.Channel, "cmd": message.Message, "params": paramsDisplay},
+	).Infof("Received command from %s.", message.Nick)
 
 	if !private && !owner && !admin { // Command limits apply.
-		if bot.commandUseLimit[command+nick] >= bot.Config.CommandsPer5 {
-			if !bot.commandWarn[channel] { // Warning was not yet sent.
-				bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.CommandLimit))
-				bot.commandWarn[channel] = true
+		if bot.commandUseLimit[message.Message+message.Nick] >= bot.Config.CommandsPer5 {
+			if !bot.commandWarn[message.Channel] { // Warning was not yet sent.
+				bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.CommandLimit))
+				bot.commandWarn[message.Channel] = true
 			}
 			return
 		} else {
-			bot.commandUseLimit[command+nick] += 1
+			bot.commandUseLimit[message.Message+message.Nick] += 1
 		}
 	}
 
-	if cmd, exists := bot.commands[command]; exists {
+	if cmd, exists := bot.commands[message.Message]; exists {
 		// Check if command needs to be run through query.
 		if cmd.Private && !private {
-			bot.SendPrivMessage(channel, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsPriv))
+			bot.SendPrivMessage(transport, message.Channel, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsPriv))
 			return
 		}
 		// Check if command needs to be run by the owner.
 		if cmd.Owner && !owner || cmd.Admin && !admin {
-			bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NeedsAdmin))
+			bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsAdmin))
 			return
 		}
-		cmd.CommandFunc(bot, nick, user, channel, receiver, private, params)
+		cmd.CommandFunc(bot, message.Nick, message.UserName, message.Channel, receiver, transport, private, params)
 	} else { // Unknown command.
-		if talkBack && rand.Int()%10 > 3 {
-			bot.SendPrivMessage(receiver, fmt.Sprintf(
-				"%s, %s", nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
+		if message.TalkBack && rand.Int()%10 > 3 {
+			bot.SendPrivMessage(transport, receiver, fmt.Sprintf(
+				"%s, %s", message.Nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
 		}
 	}
 }
 
 // commandHelp will print help for all the commands.
-func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func commandHelp(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) == 0 || params[0] != "pub" {
 		receiver = nick
 	}
@@ -147,7 +155,11 @@ func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, para
 		commands := strings.Join(helpCommandKeys[pointerStr], ", ")
 		options := ""
 		if cmd.Private {
-			options = " \x0300(private only)\x03"
+			if transport == "irc" {
+				options = " \x0300(private only)\x03"
+			} else {
+				options = " (private only)"
+			}
 		}
 		if cmd.Owner && !owner {
 			continue
@@ -155,69 +167,76 @@ func commandHelp(bot *Bot, nick, user, channel, receiver string, priv bool, para
 		if cmd.Admin && !admin {
 			continue
 		}
+		message := ""
+		if transport == "irc" {
+			message = fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
+		} else {
+			message = fmt.Sprintf("%s %s - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
+		}
 		bot.SendPrivMessage(
+			transport,
 			receiver,
-			fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options))
+			message)
 	}
 	return
 }
 
 // commandAuth is a command for authenticating an user with the bot.
-func commandAuth(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func commandAuth(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) == 2 {
 		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
 			bot.Log.Warningf("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
-		bot.SendPrivMessage(receiver, "You are now logged in.")
+		bot.SendPrivMessage(transport, receiver, "You are now logged in.")
 	}
 }
 
 // commandUserAdd will add a new user to bot's database and authenticate.
-func commandUserAdd(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func commandUserAdd(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) == 2 {
 		if bot.UserIsAuthenticated(nick + "!" + user) {
-			bot.SendPrivMessage(receiver, "You are already authenticated.")
+			bot.SendPrivMessage(transport, receiver, "You are already authenticated.")
 			return
 		}
 
 		if err := bot.addUser(params[0], params[1], false, false); err != nil {
 			bot.Log.Warningf("Couldn't add user %s: %s", params[0], err)
-			bot.SendPrivMessage(receiver, fmt.Sprintf("Can't add user: %s", err))
+			bot.SendPrivMessage(transport, receiver, fmt.Sprintf("Can't add user: %s", err))
 			return
 		}
 		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
 			bot.Log.Warningf("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
-		bot.SendPrivMessage(receiver, "User added. You are now logged in.")
+		bot.SendPrivMessage(transport, receiver, "User added. You are now logged in.")
 	}
 }
 
 // commandReloadTexts reloads texts from TOML file.
-func commandReloadTexts(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func commandReloadTexts(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	bot.Log.Infof("Reloading texts...")
 	bot.LoadTexts(bot.TextsFile, bot.Texts)
-	bot.SendPrivMessage(receiver, "Done.")
+	bot.SendPrivMessage(transport, receiver, "Done.")
 }
 
 // commandVar gets, sets and lists custom variables.
-func commandVar(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func commandVar(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) < 1 {
 		return
 	}
 	command := params[0]
 	if command == "list" {
-		bot.SendPrivMessage(receiver, "Custom variables:")
+		bot.SendPrivMessage(transport, receiver, "Custom variables:")
 		for key, val := range bot.customVars {
-			bot.SendPrivMessage(receiver, fmt.Sprintf("\x0308%s\x03 = \x0300%s\x03", key, val))
+			bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s = %s", key, val))
 		}
 		return
 	}
 
 	if len(params) == 2 && command == "get" {
 		name := params[1]
-		bot.SendPrivMessage(receiver, fmt.Sprintf("\x0308%s\x03 = \x0300%s\x03", name, bot.GetVar(name)))
+		bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
 		return
 	}
 
@@ -225,24 +244,24 @@ func commandVar(bot *Bot, nick, user, channel, receiver string, priv bool, param
 		name := params[1]
 		value := strings.Join(params[2:], " ")
 		bot.SetVar(name, value)
-		bot.SendPrivMessage(receiver, fmt.Sprintf("\x0308%s\x03 = \x0300%s\x03", name, bot.GetVar(name)))
+		bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
 		return
 	}
 }
 
 // commandSayMore gives more info, if bot has any.
-func commandSayMore(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
-	if bot.urlMoreInfo[receiver] == "" {
-		bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
+func commandSayMore(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
+	if bot.urlMoreInfo[transport+receiver] == "" {
+		bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
 		return
 	} else {
-		bot.SendNotice(receiver, bot.urlMoreInfo[receiver])
+		bot.SendNotice(transport, receiver, bot.urlMoreInfo[transport+receiver])
 		delete(bot.urlMoreInfo, receiver)
 	}
 }
 
 // commandFindUrl searches bot's database using FTS for links matching the query.
-func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func commandFindUrl(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) == 0 {
 		return
 	}
@@ -280,13 +299,13 @@ func commandFindUrl(bot *Bot, nick, user, channel, receiver string, priv bool, p
 	}
 	if len(found) > 0 {
 		if priv {
-			bot.SendPrivMessage(receiver, bot.Texts.SearchPrivateNotice)
+			bot.SendPrivMessage(transport, receiver, bot.Texts.SearchPrivateNotice)
 		}
-		bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchResults))
+		bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchResults))
 		for i := range found {
-			bot.SendPrivMessage(receiver, found[i])
+			bot.SendPrivMessage(transport, receiver, found[i])
 		}
 	} else {
-		bot.SendPrivMessage(receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchNoResults))
+		bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchNoResults))
 	}
 }

@@ -145,6 +145,8 @@ func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 		bot.Log.Infof("Authenticating %s with no special privileges.", nick)
 		bot.authenticatedUsers[fullName] = nick
 	}
+	// TODO: There is a possible vulnerability here if authenticated user quits
+	// and someone else join who has exact same username.
 	return nil
 }
 
@@ -162,9 +164,10 @@ func (bot *Bot) GetAuthenticatedNick(fullName string) string {
 	return ""
 }
 
-// userIsMe checks if the sender is the bot.
-func (bot *Bot) UserIsMe(nick string) bool {
-	return nick == bot.Config.Name
+// NickIsMe checks if the sender is the bot.
+func (bot *Bot) NickIsMe(transport, nick string) bool {
+	wrap := bot.getTransportWrapOrDie(transport)
+	return wrap.transport.NickIsMe(nick)
 }
 
 // userIsAuthenticated checks if the user is authenticated with the bot.
@@ -185,7 +188,17 @@ func (bot *Bot) UserIsAdmin(fullName string) bool {
 
 // areSamePeople checks if two nicks belong to the same person.
 func (bot *Bot) AreSamePeople(nick1, nick2 string) bool {
+	// TODO: make this function actually work by using alias lists.
 	nick1 = strings.Trim(nick1, "_~")
 	nick2 = strings.Trim(nick2, "_~")
 	return nick1 == nick2
+}
+
+// isOwnerOrAdmin will check whether user has privileges.
+func (bot *Bot) isOwnerOrAdmin(nick, fullName string) bool {
+	// TODO: find a proper way to identify a person.
+	sender_complete := nick + "!" + fullName
+	owner := bot.UserIsOwner(sender_complete)
+	admin := bot.UserIsAdmin(sender_complete)
+	return owner || admin
 }

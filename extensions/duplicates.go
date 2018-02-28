@@ -37,11 +37,11 @@ func (ext *ExtensionDuplicates) Init(bot *papaBot.Bot) error {
 }
 
 // checkForDuplicates checks for duplicates of the url in the database.
-func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
+func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
 	result, err := bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
-		FROM urls WHERE link=? AND channel=?
-		ORDER BY timestamp DESC LIMIT 1`, urlinfo.URL, channel)
+		FROM urls WHERE link=? AND channel=? AND transport=?
+		ORDER BY timestamp DESC LIMIT 1`, urlinfo.URL, channel, transport)
 	if err != nil {
 		bot.Log.Warningf("Can't query the database for duplicates: %s", err)
 		return
@@ -82,7 +82,7 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, channel, sender, ms
 			} else if len(urlinfo.ShortInfo) < 50 {
 				urlinfo.ShortInfo += " | " + duplicate
 			} else { // Better send as separate noitce.
-				bot.SendNotice(channel, duplicate)
+				bot.SendNotice(transport, channel, duplicate)
 			}
 			ext.announced[channel+urlinfo.URL] = time.Now()
 		}

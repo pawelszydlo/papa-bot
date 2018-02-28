@@ -20,7 +20,7 @@ func (ext *ExtensionGitHub) Init(bot *papaBot.Bot) error {
 }
 
 // ProcessURL will try to get more info on GitHub links.
-func (ext *ExtensionGitHub) ProcessURL(bot *papaBot.Bot, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
+func (ext *ExtensionGitHub) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
 	match := ext.gitHubRe.FindStringSubmatch(urlinfo.URL)
 	if len(match) < 2 {
 		return
@@ -43,7 +43,7 @@ func (ext *ExtensionGitHub) ProcessURL(bot *papaBot.Bot, channel, sender, msg st
 			return
 		}
 		data := raw_data.(map[string]interface{})
-		bot.AddMoreInfo(channel, fmt.Sprintf(
+		bot.AddMoreInfo(transport, channel, fmt.Sprintf(
 			"%s: %s (created %s)\nForks: %.0f, stars: %.0f, subscribers: %.0f, open issues: %.0f",
 			data["full_name"], data["description"], data["created_at"], data["forks_count"], data["stargazers_count"],
 			data["subscribers_count"], data["open_issues_count"]))

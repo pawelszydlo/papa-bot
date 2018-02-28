@@ -1,27 +1,33 @@
 # papa-bot
-IRC bot written in Go. Comprehensive in design and IRC events handling, easily extensible.
-
-Built using [github.com/sorcix/irc](http://github.com/sorcix/irc) IRC library.
+Bot written in Go. Comprehensive in design, easily extensible.
+Initially designed for IRC, now supports multiple transports.
 
 [Full documentation](https://godoc.org/github.com/pawelszydlo/papa-bot) @ GoDoc.org
 
-###How good is it?
+### How good is it?
 
 Bot is actively developed and constantly used by me and my friends, so there's that.
 
-###Features
+### Features
 
+* Multiple transports support.
 * Easy to write extensions.
-* Easy configuration through a TOML file and run time variables.
+* Configuration through a TOML file and run time variables.
 * Things that the bot says are all in TOML files, for easy editing and l18n.
 * Flood protection.
 * Abuse protection.
+* Ignore list.
 * Stores all the links posted on the channel.
 * Allows full text search through the links.
 * Logs all channel activity.
 * User accounts and permissions handling.
 
-###Bundled extensions
+### Supported transports
+
+* IRC (built using [github.com/sorcix/irc](http://github.com/sorcix/irc) library.)
+* that's about it for now...
+
+### Bundled extensions
 
 * Link title and description.
 * Link duplicates announce.
@@ -34,12 +40,16 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Wikipedia article lookup.
 * Wolfram Alpha lookup.
 
-###Adding your own extensions
+### Adding your own extensions
 
 Very simple, just take a look [at the example](https://github.com/pawelszydlo/papa-bot/blob/master/example/example.go). 
 
-####TODO
+#### TODO
 
+Urgent:
+* Write some tests!
+* Refactor extensions to format replies according to transport.
+
+Wishlist:
 * Split handling.
 * Alt nicks handling.
-* Make extensions work based on events.

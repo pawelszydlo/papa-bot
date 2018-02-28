@@ -133,7 +133,7 @@ func (ext *ExtensionWiki) searchWiki(bot *papaBot.Bot, lang, search string) (str
 }
 
 // commandMovie is a command for manually searching for movies.
-func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, receiver string, priv bool, params []string) {
+func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) < 1 {
 		return
 	}
@@ -155,10 +155,10 @@ func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, rec
 	}
 
 	notice := fmt.Sprintf("%s, %s", nick, contentPreview)
-	bot.SendPrivMessage(receiver, notice)
+	bot.SendPrivMessage(transport, receiver, notice)
 	ext.announced[channel+search] = true
 
 	if contentFull != "" {
-		bot.AddMoreInfo(receiver, contentFull)
+		bot.AddMoreInfo(transport, receiver, contentFull)
 	}
 }
