@@ -51,7 +51,7 @@ func (ext *ExtensionWolfram) Init(bot *papaBot.Bot) error {
 	ext.announced = map[string]bool{}
 	// Load texts.
 	texts := &extensionWolframTexts{}
-	if err := bot.LoadTexts(bot.TextsFile, texts); err != nil {
+	if err := bot.LoadTexts("wolfram", texts); err != nil {
 		return err
 	}
 	ext.Texts = texts

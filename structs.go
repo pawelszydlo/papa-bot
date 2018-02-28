@@ -23,10 +23,14 @@ type Bot struct {
 	HTTPClient *http.Client
 	// Logger.
 	Log *logrus.Logger
-	// Ful config file structure.
+	// Full config file tree.
 	fullConfig *toml.Tree
+	// Full texts file tree.
+	fullTexts *toml.Tree
 	// Bot's configuration.
 	Config *Configuration
+	// Bot texts struct.
+	Texts *botTexts
 	// Currently authenticated users.
 	authenticatedUsers  map[string]string
 	authenticatedAdmins map[string]string
@@ -45,10 +49,6 @@ type Bot struct {
 	extensions []extension
 	// Enabled transports.
 	transports map[string]transportWrapper
-	// Path to texts file.
-	TextsFile string
-	// Bot texts struct.
-	Texts *botTexts
 	// Time when URL info was last announced, per channel + link.
 	lastURLAnnouncedTime map[string]time.Time
 	// Lines passed since URL info was last announced, per channel + link.

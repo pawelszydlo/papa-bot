@@ -92,6 +92,7 @@ func handlerJoin(transport *IRCTransport, m *irc.Message) {
 	if transport.NickIsMe(m.Prefix.Name) {
 		if transport.kickedFrom[m.Trailing] {
 			transport.log.Infof("I have rejoined %s", m.Trailing)
+			// TODO: introduce bot events so he can handle hellos.
 			//transport.sendPrivMessage(m.Trailing, transport.Texts.HellosAfterKick[rand.Intn(len(transport.Texts.HellosAfterKick))])
 			delete(transport.kickedFrom, m.Trailing)
 		} else {

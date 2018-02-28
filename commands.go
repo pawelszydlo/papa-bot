@@ -31,12 +31,6 @@ func (bot *Bot) initBotCommands() {
 		true, false, false,
 		"<username> <password>", "Create user account.",
 		commandUserAdd})
-	// Reload.
-	bot.RegisterCommand(&BotCommand{
-		[]string{"reload"},
-		true, false, true,
-		"", "Reload bot's texts from file.",
-		commandReloadTexts})
 	// Find.
 	bot.RegisterCommand(&BotCommand{
 		[]string{"f", "find"},
@@ -211,13 +205,6 @@ func commandUserAdd(bot *Bot, nick, user, channel, receiver, transport string, p
 		}
 		bot.SendPrivMessage(transport, receiver, "User added. You are now logged in.")
 	}
-}
-
-// commandReloadTexts reloads texts from TOML file.
-func commandReloadTexts(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
-	bot.Log.Infof("Reloading texts...")
-	bot.LoadTexts(bot.TextsFile, bot.Texts)
-	bot.SendPrivMessage(transport, receiver, "Done.")
 }
 
 // commandVar gets, sets and lists custom variables.

@@ -6,8 +6,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/BurntSushi/toml"
 	"github.com/pawelszydlo/papa-bot/transports"
+	"github.com/pawelszydlo/papa-bot/utils"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
 	"html"
@@ -175,54 +175,45 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	return nil
 }
 
-// LoadTexts loads texts from a file into a struct, auto handling the templates.
-func (bot *Bot) LoadTexts(filename string, data interface{}) error {
+// LoadTexts loads texts from a section of a config file into a struct, auto handling templates and lists.
+// The name of the field in the data struct defines the name in the config file.
+// The type of the field determines the expected config value.
+func (bot *Bot) LoadTexts(section string, data interface{}) error {
 
-	// Decode TOML
-	if _, err := toml.DecodeFile(filename, data); err != nil {
-		return err
-	}
+	reflectedData := reflect.ValueOf(data).Elem()
 
-	// Fields starting with "Tpl" with be parsed into templates and saved in the field starting with "Temp".
-	rData := reflect.ValueOf(data).Elem()
-	missingTexts := false
-	for i := 0; i < rData.NumField(); i++ {
-		// Get field and it's value.
-		field := rData.Type().Field(i)
-		fieldValue := rData.Field(i)
-
-		// Check if all fields were filled.
-		if !strings.HasPrefix(field.Name, "Temp") {
-			if fieldValue.String() == "" {
-				bot.Log.Warningf("Field left empty %s!", field.Name)
-				missingTexts = true
-			}
+	for i := 0; i < reflectedData.NumField(); i++ {
+		fieldDef := reflectedData.Type().Field(i)
+		// Get the field name.
+		fieldName := fieldDef.Name
+		// Get the field type name.
+		fieldType := fmt.Sprint(fieldDef.Type)
+		// Get the field itself.
+		field := reflectedData.FieldByName(fieldName)
+		if !field.CanSet() {
+			bot.Log.Fatalf("Field %s is not settable.", fieldName)
 		}
 
-		if strings.HasPrefix(field.Name, "Tpl") {
-			temp, err := template.New(field.Name).Parse(fieldValue.String())
+		// Load configured text for the field.
+		key := fmt.Sprintf("%s.%s", section, fieldName)
+		if !bot.fullTexts.Has(key) {
+			bot.Log.Fatalf("Couldn't load text for field %s, key %s.", fieldName, key)
+		}
+
+		if fieldType == "*template.Template" { // This field is a template.
+			temp, err := template.New(fieldName).Parse(bot.fullTexts.Get(key).(string))
 			if err != nil {
 				return err
 			} else {
-				tempFieldName := strings.TrimPrefix(field.Name, "Tpl")
-				tempFieldName = "Temp" + tempFieldName
-				// Set template field value.
-				tempField := rData.FieldByName(tempFieldName)
-				if !tempField.IsValid() {
-					bot.Log.Fatalf("Can't find field %s to store template from %s.", tempFieldName, field.Name)
-				}
-				if !tempField.CanSet() {
-					bot.Log.Fatalf("Field %s is not settable.", tempFieldName)
-				}
-				if reflect.ValueOf(temp).Type() != tempField.Type() {
-					bot.Log.Fatalf("Incompatible types %s and %s", reflect.ValueOf(temp).Type(), tempField.Type())
-				}
-				tempField.Set(reflect.ValueOf(temp))
+				field.Set(reflect.ValueOf(temp))
 			}
+		} else if fieldType == "string" { // Regular text field.
+			field.Set(reflect.ValueOf(bot.fullTexts.Get(key).(string)))
+		} else if fieldType == "[]string" {
+			field.Set(reflect.ValueOf(utils.ToStringSlice(bot.fullTexts.Get(key).([]interface{}))))
+		} else {
+			bot.Log.Fatalf("Unsupported type of text field: %s", fieldType)
 		}
-	}
-	if missingTexts {
-		bot.Log.Fatal("Missing texts.")
 	}
 
 	return nil

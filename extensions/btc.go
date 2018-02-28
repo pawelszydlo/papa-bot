@@ -27,11 +27,8 @@ type ExtensionBtc struct {
 
 type extensionBtcTexts struct {
 	NothingHasChanged  string
-	TplBtcNotice       string
 	TempBtcNotice      *template.Template
-	TplBtcSeriousRise  string
 	TempBtcSeriousRise *template.Template
-	TplBtcSeriousFall  string
 	TempBtcSeriousFall *template.Template
 }
 
@@ -49,7 +46,7 @@ func (ext *ExtensionBtc) Init(bot *papaBot.Bot) error {
 	ext.priceSeries = make([]float64, 12, 12)
 	// Load texts.
 	texts := new(extensionBtcTexts)
-	if err := bot.LoadTexts(bot.TextsFile, texts); err != nil {
+	if err := bot.LoadTexts("btc", texts); err != nil {
 		return err
 	}
 	ext.Texts = texts

@@ -32,6 +32,11 @@ func New(configFile, textsFile string) *Bot {
 	if err != nil {
 		log.Fatalf("Can't load config: %s", err)
 	}
+	// Load texts file.
+	fullTexts, err := toml.LoadFile(textsFile)
+	if err != nil {
+		log.Fatalf("Can't load texts: %s", err)
+	}
 
 	// Prepare configuration.
 	config := Configuration{
@@ -57,7 +62,7 @@ func New(configFile, textsFile string) *Bot {
 		authenticatedAdmins: map[string]string{},
 		authenticatedOwners: map[string]string{},
 
-		TextsFile: textsFile,
+		fullTexts: fullTexts,
 		Texts:     &botTexts{},
 
 		lastURLAnnouncedTime:        map[string]time.Time{},
@@ -86,8 +91,8 @@ func New(configFile, textsFile string) *Bot {
 	bot.RegisterTransport("irc", ircTransport.New)
 
 	// Load texts.
-	if err := bot.LoadTexts(bot.TextsFile, bot.Texts); err != nil {
-		bot.Log.Fatalf("Can't load texts: %s", err)
+	if err := bot.LoadTexts("bot", bot.Texts); err != nil {
+		bot.Log.Fatalf("Can't load bot texts: %s", err)
 	}
 
 	return bot

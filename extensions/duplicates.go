@@ -17,10 +17,7 @@ type ExtensionDuplicates struct {
 
 type extensionDuplicatesTexts struct {
 	TempDuplicateFirst *template.Template
-	TplDuplicateFirst  string
-
 	TempDuplicateMulti *template.Template
-	TplDuplicateMulti  string
 
 	DuplicateYou string
 }
@@ -28,7 +25,7 @@ type extensionDuplicatesTexts struct {
 // Init inits the extension.
 func (ext *ExtensionDuplicates) Init(bot *papaBot.Bot) error {
 	texts := new(extensionDuplicatesTexts) // Can't load directly because of reflection issues.
-	if err := bot.LoadTexts(bot.TextsFile, texts); err != nil {
+	if err := bot.LoadTexts("duplicates", texts); err != nil {
 		return err
 	}
 	ext.Texts = texts

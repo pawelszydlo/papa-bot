@@ -30,11 +30,8 @@ type ExtensionReddit struct {
 }
 
 type extensionRedditTexts struct {
-	TplRedditAnnounce  string
 	TempRedditAnnounce *template.Template
-	TplRedditDaily     string
 	TempRedditDaily    *template.Template
-	TplRedditBreaking  string
 	TempRedditBreaking *template.Template
 }
 
@@ -203,7 +200,7 @@ func (ext *ExtensionReddit) Init(bot *papaBot.Bot) error {
 	ext.announced = map[string]bool{}
 	ext.announcedLive = map[string]bool{}
 	texts := &extensionRedditTexts{}
-	if err := bot.LoadTexts(bot.TextsFile, texts); err != nil {
+	if err := bot.LoadTexts("reddit", texts); err != nil {
 		return err
 	}
 	ext.Texts = texts

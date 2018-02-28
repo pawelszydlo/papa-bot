@@ -27,7 +27,7 @@ type extensionWikiTexts struct {
 func (ext *ExtensionWiki) Init(bot *papaBot.Bot) error {
 	// Load texts.
 	texts := &extensionWikiTexts{}
-	if err := bot.LoadTexts(bot.TextsFile, texts); err != nil {
+	if err := bot.LoadTexts("wiki", texts); err != nil {
 		return err
 	}
 	ext.Texts = texts
