@@ -2,25 +2,27 @@
 package papaBot
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/onrik/logrus/filename"
+	"github.com/pawelszydlo/papa-bot/events"
+	"github.com/pawelszydlo/papa-bot/transports"
 	"github.com/pawelszydlo/papa-bot/transports/irc"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/pelletier/go-toml"
+	"github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 const (
-	Version           = "0.10"
-	Debug             = false // Set to true to crash on runtime errors.
-	MessageBufferSize = 10
+	Version = "0.11"
+	Debug   = false // Set to true to crash on runtime errors.
 )
 
 // New creates a new bot.
@@ -81,11 +83,17 @@ func New(configFile, textsFile string) *Bot {
 		webContentSampleRe: regexp.MustCompile(`(?i)<[^>]*?description[^<]*?>|<title>.*?</title>`),
 
 		extensions: []extension{},
-		transports: map[string]transportWrapper{},
+		transports: map[string]transports.Transport{},
 	}
 	// Logging configuration.
 	bot.Log.Level = bot.Config.LogLevel
 	bot.Log.Formatter = &logrus.TextFormatter{FullTimestamp: true, TimestampFormat: "2006-01-02][15:04:05"}
+	filenameHook := filename.NewHook()
+	filenameHook.Field = "source"
+	bot.Log.AddHook(filenameHook)
+
+	// Setup event dispatcher.
+	bot.EventDispatcher = events.New(bot.Log)
 
 	// Register built-in transports.
 	bot.RegisterTransport("irc", ircTransport.New)
@@ -124,8 +132,16 @@ func (bot *Bot) initialize() {
 	// Load custom vars.
 	bot.loadVars()
 
+	// Init the ignore list.
+	ignored := strings.Split(bot.GetVar("_ignored"), " ")
+	bot.EventDispatcher.SetBlackList(ignored)
+	bot.Log.Infof("Ignoring users: %s", strings.Join(ignored, ", "))
+
 	// Init bot commands.
 	bot.initBotCommands()
+
+	// Attach event listeners.
+	bot.attachEventListeners()
 
 	// Get next daily tick.
 	now := time.Now()
@@ -145,6 +161,19 @@ func (bot *Bot) initialize() {
 
 	bot.initDone = true
 	bot.Log.Infof("Bot init done.")
+}
+
+// attachEventListeners will attach all built-in listeners.
+func (bot *Bot) attachEventListeners() {
+	// Logging.
+	bot.EventDispatcher.RegisterMultiListener(events.EventsChannelActivity, bot.scribeListener)
+	bot.EventDispatcher.RegisterMultiListener(events.EventsChannelMessages, bot.scribeListener)
+	// Messages.
+	bot.EventDispatcher.RegisterListener(events.EventChatMessage, bot.messageListener)
+	bot.EventDispatcher.RegisterListener(events.EventPrivateMessage, bot.messageListener)
+	// URLs.
+	bot.EventDispatcher.RegisterListener(events.EventChatMessage, bot.handleURLsListener)
+	bot.EventDispatcher.RegisterListener(events.EventPrivateMessage, bot.handleURLsListener)
 }
 
 // loadVars loads all custom variables from the database.
@@ -167,52 +196,12 @@ func (bot *Bot) loadVars() {
 	}
 }
 
-func (bot *Bot) getTransportWrapOrDie(name string) *transportWrapper {
-	if wrap, ok := bot.transports[name]; ok {
-		return &wrap
+func (bot *Bot) getTransportOrDie(name string) transports.Transport {
+	if transport, ok := bot.transports[name]; ok {
+		return transport
 	}
-	bot.Log.Panicf("Code wanted wrapper for transport %s, but it doesn't exist.", name)
+	bot.Log.Panicf("Code wanted transport %s, but it doesn't exist.", name)
 	return nil
-}
-
-// isNickIgnored will check whether given nick is ignored.
-func (bot *Bot) isNickIgnored(transport, nick string) bool {
-	// Custom vars are held in memory so this should be fast enough.
-	ignored := strings.Split(bot.GetVar("_ignore"), " ")
-	for _, person := range ignored {
-		if person == transport+"~"+nick {
-			return true
-		}
-	}
-	return false
-}
-
-// runExtensionTickers will asynchronously run all extension tickers.
-func (bot *Bot) runExtensionTickers() {
-	currentExtension := ""
-	// Catch errors.
-	defer func() {
-		if Debug {
-			return
-		} // When in debug mode fail on all errors.
-		if r := recover(); r != nil {
-			bot.Log.WithField("ext", currentExtension).Errorf("FATAL ERROR in tickers: %s", r)
-		}
-	}()
-
-	// Check if it's time for a daily ticker.
-	daily := false
-	if time.Since(bot.nextDailyTick) >= 0 {
-		daily = true
-		bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
-		bot.Log.Debugf("Daily tick now. Next at %s.", bot.nextDailyTick)
-	}
-
-	// Run the tickers.
-	for i := range bot.extensions {
-		currentExtension = fmt.Sprintf("%T", bot.extensions[i])
-		bot.extensions[i].Tick(bot, daily)
-	}
 }
 
 // cleanUp cleans up after the bot.
@@ -226,10 +215,17 @@ func (bot *Bot) Run() {
 	bot.initialize()
 	defer bot.cleanUp()
 
+	// Create a wait group.
+	wait := sync.WaitGroup{}
+
 	// Start transports.
 	bot.Log.Info("Starting transports...")
-	for _, wrap := range bot.transports {
-		go wrap.transport.Run()
+	for _, transport := range bot.transports {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			transport.Run()
+		}()
 	}
 
 	// 5 minute ticker.
@@ -244,34 +240,21 @@ func (bot *Bot) Run() {
 			for k := range bot.commandWarn {
 				delete(bot.commandWarn, k)
 			}
-			// Run extension tickers.
-			go bot.runExtensionTickers()
+			// Check if it's time for a daily ticker.
+			if time.Since(bot.nextDailyTick) >= 0 {
+				bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
+				bot.Log.Debugf("Daily tick now. Next at %s.", bot.nextDailyTick)
+				bot.EventDispatcher.Trigger(events.EventMessage{"bot", events.EventDailyTick, "", "", "", "", true})
+			} else {
+				bot.EventDispatcher.Trigger(events.EventMessage{"bot", events.EventTick, "", "", "", "", true})
+			}
 		}
 	}()
 	// First tick, before ticker goes off.
-	go bot.runExtensionTickers()
+	bot.EventDispatcher.Trigger(events.EventMessage{"bot", events.EventTick, "", "", "", "", true})
 
-	// Main loop.
-	for {
-		for transportName, transportWrapper := range bot.transports {
-			select {
-			// Check for scribe messages.
-			case message, ok := <-transportWrapper.scribeChannel:
-				if ok {
-					bot.handleMessage(transportName, message)
-				} else {
-					break
-				}
-			// Check for command messages.
-			case message, ok := <-transportWrapper.commandsChannel:
-				if ok {
-					bot.handleBotCommand(transportName, message)
-				} else {
-					break
-				}
-			}
-		}
-	}
+	// Wait for all the transports to finish.
+	wait.Wait()
 
 	bot.Log.Infof("Exiting...")
 }

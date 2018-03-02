@@ -3,6 +3,7 @@ package extensions
 import (
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"math"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 type ExtensionCounters struct {
 	Extension
 	counters map[int]*extensionCountersCounter
+	bot      *papaBot.Bot
 }
 
 type extensionCountersCounter struct {
@@ -45,6 +47,7 @@ func (cs *extensionCountersCounter) message() string {
 
 // Init initializes the extension.
 func (ext *ExtensionCounters) Init(bot *papaBot.Bot) error {
+	ext.bot = bot
 	// Create database table to hold the counters.
 	query := `
 		-- Main URLs table.
@@ -72,31 +75,34 @@ func (ext *ExtensionCounters) Init(bot *papaBot.Bot) error {
 		ext.commandCounters})
 
 	// Load counters from the db.
-	ext.loadCounters(bot)
+	ext.loadCounters()
+
+	// Attach to events.
+	bot.EventDispatcher.RegisterListener(events.EventTick, ext.TickListener)
 
 	return nil
 }
 
-// Tick will announce all the counters if needed.
-func (ext *ExtensionCounters) Tick(bot *papaBot.Bot, daily bool) {
+// TickListener will announce all the counters if needed.
+func (ext *ExtensionCounters) TickListener(message events.EventMessage) {
 	// Check if it's time to announce the counter.
 	for id, c := range ext.counters {
 		if time.Since(c.nextTick) > 0 {
-			bot.SendNotice(c.transport, c.channel, c.message())
+			ext.bot.SendNotice(c.transport, c.channel, c.message())
 			c.nextTick = c.nextTick.Add(c.interval * time.Hour)
-			bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
+			ext.bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
 		}
 	}
 }
 
 // loadCounters will load the counters from the database.
-func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
+func (ext *ExtensionCounters) loadCounters() {
 	ext.counters = map[int]*extensionCountersCounter{}
 
-	result, err := bot.Db.Query(
+	result, err := ext.bot.Db.Query(
 		`SELECT id, channel, transport, creator, announce_text, interval, target_date FROM counters`)
 	if err != nil {
-		bot.Log.Warningf("Error while loading counters: %s", err)
+		ext.bot.Log.Warningf("Error while loading counters: %s", err)
 		return
 	}
 	defer result.Close()
@@ -108,23 +114,23 @@ func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
 		var id int
 		var interval int
 		if err = result.Scan(&id, &c.channel, &c.transport, &c.creator, &c.text, &interval, &dateStr); err != nil {
-			bot.Log.Warningf("Can't load counter: %s", err)
+			ext.bot.Log.Warningf("Can't load counter: %s", err)
 			continue
 		}
 		c.interval = time.Duration(interval)
 		// Parse the text template.
 		c.textTmp, err = template.New(fmt.Sprintf("counter_%d", id)).Parse(c.text)
 		if err != nil {
-			bot.Log.Warningf("Can't parse counter template '%s': %s", c.text, err)
+			ext.bot.Log.Warningf("Can't parse counter template '%s': %s", c.text, err)
 		}
 		// Handle the date.
 		c.date, err = time.Parse("2006-01-02 15:04:05", dateStr)
 		if err != nil {
-			bot.Log.Fatalf("Can't parse counter date %s: %s", dateStr, err)
+			ext.bot.Log.Fatalf("Can't parse counter date %s: %s", dateStr, err)
 		}
 		c.date = utils.MustForceLocalTimezone(c.date)
 		// Calculate next tick. Start from next daily tick and move backwards.
-		nextTick := bot.NextDailyTick()
+		nextTick := ext.bot.NextDailyTick()
 		for {
 			c.nextTick = nextTick
 			nextTick = nextTick.Add(-time.Duration(c.interval) * time.Hour)
@@ -132,7 +138,7 @@ func (ext *ExtensionCounters) loadCounters(bot *papaBot.Bot) {
 				break
 			}
 		}
-		bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
+		ext.bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
 
 		ext.counters[id] = &c
 	}
@@ -189,11 +195,11 @@ func (ext *ExtensionCounters) commandCounters(
 		bot.SendPrivMessage(transport, receiver, fmt.Sprintf("Deleting counter number %s...", id))
 		query := ""
 		// Bot owner can delete all counters.
-		if bot.UserIsOwner(fullName) {
+		if bot.UserIsOwner(user) {
 			query = `DELETE FROM counters WHERE id=?;`
 		} else {
 			// User must be an admin, he can delete only his own counters.
-			nick := bot.GetAuthenticatedNick(fullName)
+			nick := bot.GetAuthenticatedNick(user)
 			query = fmt.Sprintf(`DELETE FROM counters WHERE id=? AND creator="%s";`, nick)
 		}
 		if _, err := bot.Db.Exec(query, id); err != nil {
@@ -202,7 +208,7 @@ func (ext *ExtensionCounters) commandCounters(
 			return
 		}
 		// Reload  counters.
-		ext.loadCounters(bot)
+		ext.loadCounters()
 		return
 	}
 
@@ -239,7 +245,7 @@ func (ext *ExtensionCounters) commandCounters(
 		}
 		bot.SendPrivMessage(transport, receiver, "Counter created.")
 		// Reload  counters.
-		ext.loadCounters(bot)
+		ext.loadCounters()
 		return
 	}
 }

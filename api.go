@@ -20,7 +20,7 @@ import (
 )
 
 // RegisterExtension will register a new transport with the bot.
-func (bot *Bot) RegisterTransport(name string, newFunction newTransportFunction) {
+func (bot *Bot) RegisterTransport(name string, newFunction transports.NewTransportFunction) {
 	// Is the transport enabled in the config?
 	if bot.fullConfig.GetDefault(fmt.Sprintf("%s.enabled", name), false).(bool) {
 		for existingName := range bot.transports {
@@ -28,15 +28,8 @@ func (bot *Bot) RegisterTransport(name string, newFunction newTransportFunction)
 				bot.Log.Fatalf("Transport under alias '%s' already exists.", name)
 			}
 		}
-		bot.Log.Infof("Registering transport: %s...", name)
-		scribeChannel := make(chan transports.ScribeMessage, MessageBufferSize)
-		commandChannel := make(chan transports.CommandMessage, MessageBufferSize)
-		bot.transports[name] = transportWrapper{
-			newFunction(bot.Config.Name, bot.fullConfig, bot.Log, scribeChannel, commandChannel),
-			scribeChannel,
-			commandChannel,
-		}
-		bot.Log.Debugf("Added extension: %s", name)
+		bot.transports[name] = newFunction(name, bot.Config.Name, bot.fullConfig, bot.Log, bot.EventDispatcher)
+		bot.Log.Infof("Added transport: %s", name)
 	}
 }
 
@@ -68,46 +61,36 @@ func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 }
 
 // SendMessage sends a message to the channel.
-func (bot *Bot) SendPrivMessage(transport, channel, message string) {
-	bot.Log.Debugf("Sending message to %s-%s: %s", transport, channel, message)
-	wrap := bot.getTransportWrapOrDie(transport)
-	wrap.transport.SendPrivMessage(channel, message)
+func (bot *Bot) SendPrivMessage(transportName, channel, message string) {
+	transport := bot.getTransportOrDie(transportName)
+	transport.SendPrivMessage(channel, message)
 }
 
 // SendNotice sends a notice to the channel.
-func (bot *Bot) SendNotice(transport, channel, message string) {
-	bot.Log.Debugf("Sending notice to %s-%s: %s", transport, channel, message)
-	wrap := bot.getTransportWrapOrDie(transport)
-	wrap.transport.SendNotice(channel, message)
+func (bot *Bot) SendNotice(transportName, channel, message string) {
+	transport := bot.getTransportOrDie(transportName)
+	transport.SendNotice(channel, message)
 }
 
 // SendMassNotice sends a notice to all the channels bot is on, on all transports.
 func (bot *Bot) SendMassNotice(message string) {
-	bot.Log.Debugf("Sending mass notice: %s", message)
-	for _, wrap := range bot.transports {
-		wrap.transport.SendMassNotice(message)
+	for _, transport := range bot.transports {
+		transport.SendMassNotice(message)
 	}
 }
 
-// GetPageBodyByURL is a convenience wrapper around GetPageBody.
-func (bot *Bot) GetPageBodyByURL(url string) ([]byte, error) {
-	var urlinfo UrlInfo
-	urlinfo.URL = url
-	if err := bot.GetPageBody(&urlinfo, map[string]string{}); err != nil {
-		return urlinfo.Body, err
-	}
-	return urlinfo.Body, nil
-}
-
-// GetPageBody gets and returns a body of a page.
-func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) error {
-	if urlinfo.URL == "" {
-		return errors.New("Empty URL")
+// GetPageBody gets and returns a body of a page. Return format is error, final url, body.
+func (bot *Bot) GetPageBody(URL string, customHeaders map[string]string) (error, string, []byte) {
+	if URL == "" {
+		return errors.New("Empty URL"), "", nil
 	}
 	// Build the request.
-	req, err := http.NewRequest("GET", urlinfo.URL, nil)
+	req, err := http.NewRequest("GET", URL, nil)
 	if err != nil {
-		return err
+		return err, "", nil
+	}
+	if customHeaders == nil {
+		customHeaders = map[string]string{}
 	}
 	if customHeaders["User-Agent"] == "" {
 		customHeaders["User-Agent"] = bot.Config.HttpDefaultUserAgent
@@ -119,21 +102,21 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	// Get response.
 	resp, err := bot.HTTPClient.Do(req)
 	if err != nil {
-		return err
+		return err, "", nil
 	}
 	defer resp.Body.Close()
 
 	// Update the URL if it changed after redirects.
-	final_link := resp.Request.URL.String()
-	if final_link != "" && final_link != urlinfo.URL {
-		bot.Log.Debugf("%s becomes %s", urlinfo.URL, final_link)
-		urlinfo.URL = final_link
+	finalLink := resp.Request.URL.String()
+	if finalLink != "" && finalLink != URL {
+		bot.Log.Debugf("%s becomes %s", URL, finalLink)
+		URL = finalLink
 	}
 
 	// Load the body up to PageBodyMaxSize.
 	body := make([]byte, bot.Config.PageBodyMaxSize, bot.Config.PageBodyMaxSize)
 	if num, err := io.ReadFull(resp.Body, body); err != nil && err != io.ErrUnexpectedEOF {
-		return err
+		return err, finalLink, nil
 	} else {
 		// Trim unneeded 0 bytes so that JSON unmarshaller won't complain.
 		body = body[:num]
@@ -143,7 +126,6 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 	if contentType == "" {
 		contentType = http.DetectContentType(body)
 	}
-	urlinfo.ContentType = contentType
 
 	// If type is text, decode the body to UTF-8.
 	if strings.Contains(contentType, "text/") {
@@ -166,13 +148,13 @@ func (bot *Bot) GetPageBody(urlinfo *UrlInfo, customHeaders map[string]string) e
 		// Detect encoding and transform.
 		encoding, _, _ := charset.DetermineEncoding(sample, detectionContentType)
 		decodedBody, _, _ := transform.Bytes(encoding.NewDecoder(), body)
-		urlinfo.Body = decodedBody
+		return nil, finalLink, decodedBody
 	} else if strings.Contains(contentType, "application/json") {
-		urlinfo.Body = body
+		return nil, finalLink, body
 	} else {
 		bot.Log.Debugf("Not fetching the body for Content-Type: %s", contentType)
 	}
-	return nil
+	return nil, "", nil
 }
 
 // LoadTexts loads texts from a section of a config file into a struct, auto handling templates and lists.
@@ -244,9 +226,9 @@ func (bot *Bot) GetVar(name string) string {
 }
 
 // IsOnChannel checks whether the bot is present on a given channel.
-func (bot *Bot) IsOnChannel(transport, name string) bool {
-	wrap := bot.getTransportWrapOrDie(transport)
-	if val, ok := wrap.transport.OnChannels()[name]; ok && val {
+func (bot *Bot) IsOnChannel(transportName, name string) bool {
+	transport := bot.getTransportOrDie(transportName)
+	if val, ok := transport.OnChannels()[name]; ok && val {
 		return true
 	}
 	return false
@@ -265,4 +247,24 @@ func (bot *Bot) AddMoreInfo(transport, channel, info string) error {
 func (bot *Bot) NextDailyTick() time.Time {
 	tick := bot.nextDailyTick
 	return tick
+}
+
+// AddToIgnoreList will add a user to the ignore list.
+func (bot *Bot) AddToIgnoreList(fullName string) {
+	ignored := strings.Split(bot.GetVar("_ignored"), " ")
+	ignored = utils.RemoveDuplicates(append(ignored, fullName))
+	bot.SetVar("_ignored", strings.Join(ignored, " "))
+	// Update the actual blocklist in the event handler.
+	bot.EventDispatcher.SetBlackList(ignored)
+	bot.Log.Infof("%s added to ignore list.", fullName)
+}
+
+// RemoveFromIgnoreList will remove user from the ignore list.
+func (bot *Bot) RemoveFromIgnoreList(fullName string) {
+	ignored := strings.Split(bot.GetVar("_ignored"), " ")
+	ignored = utils.RemoveFromSlice(ignored, fullName)
+	bot.SetVar("_ignored", strings.Join(ignored, " "))
+	// Update the actual blocklist in the event handler.
+	bot.EventDispatcher.SetBlackList(ignored)
+	bot.Log.Infof("%s removed from ignore list.", fullName)
 }

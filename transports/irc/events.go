@@ -3,6 +3,7 @@ package ircTransport
 // Handlers for IRC events.
 
 import (
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/sorcix/irc"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func (transport *IRCTransport) assignEventHandlers() {
 	// Message on channel
 	transport.registerIrcEventHandler(irc.PRIVMSG, handlerMsg)
 	// Notice
-	transport.registerIrcEventHandler(irc.NOTICE, handlerDummy)
+	transport.registerIrcEventHandler(irc.NOTICE, handlerNotice)
 	// Error
 	transport.registerIrcEventHandler(irc.ERROR, handlerError)
 }
@@ -45,6 +46,7 @@ func (transport *IRCTransport) assignEventHandlers() {
 func handlerConnect(transport *IRCTransport, m *irc.Message) {
 	transport.log.Infof("I have connected. Joining channels...")
 	transport.SendRawMessage(irc.JOIN, transport.channels, "")
+	transport.sendEvent(events.EventConnected, true, "", transport.name, transport.user, "")
 }
 
 func handlerPing(transport *IRCTransport, m *irc.Message) {
@@ -77,14 +79,16 @@ func handlerPart(transport *IRCTransport, m *irc.Message) {
 		delete(transport.onChannel, m.Params[0])
 	}
 	transport.log.Infof("%s has left %s: %s", m.Prefix.Name, m.Params[0], m.Trailing)
-	transport.scribe(true, m.Params[0], m.Prefix.Name, "left. (", m.Trailing, ")")
+	transport.sendEvent(
+		events.EventPartChannel, transport.NickIsMe(m.Prefix.Name),
+		m.Params[0], m.Prefix.Name, m.Prefix.User, m.Trailing)
 }
 
 func handlerError(transport *IRCTransport, m *irc.Message) {
 	transport.log.Errorf("Error from server:", m.Trailing)
 }
 
-func handlerDummy(transport *IRCTransport, m *irc.Message) {
+func handlerNotice(transport *IRCTransport, m *irc.Message) {
 	transport.log.Infof("MESSAGE: %+v", m)
 }
 
@@ -92,33 +96,33 @@ func handlerJoin(transport *IRCTransport, m *irc.Message) {
 	if transport.NickIsMe(m.Prefix.Name) {
 		if transport.kickedFrom[m.Trailing] {
 			transport.log.Infof("I have rejoined %s", m.Trailing)
-			// TODO: introduce bot events so he can handle hellos.
-			//transport.sendPrivMessage(m.Trailing, transport.Texts.HellosAfterKick[rand.Intn(len(transport.Texts.HellosAfterKick))])
+			transport.sendEvent(events.EventReJoinedChannel, true, m.Trailing, transport.name, transport.user, "")
 			delete(transport.kickedFrom, m.Trailing)
 		} else {
 			transport.log.Infof("I have joined %s", m.Trailing)
-			//transport.sendPrivMessage(m.Trailing, transport.Texts.Hellos[rand.Intn(len(transport.Texts.Hellos))])
+			transport.sendEvent(events.EventJoinedChannel, true, m.Trailing, transport.name, transport.user, "")
 		}
 		transport.onChannel[m.Trailing] = true
 	} else {
 		transport.log.Infof("%s has joined %s", m.Prefix.Name, m.Trailing)
+		transport.sendEvent(events.EventJoinedChannel, false, m.Trailing, m.Prefix.Name, m.Prefix.User, "")
 	}
-	transport.scribe(true, m.Trailing, m.Prefix.Name, "joined ", m.Trailing)
 }
 
 func handlerMode(transport *IRCTransport, m *irc.Message) {
 	transport.log.Infof("%s has set mode %s on %s", m.Prefix.Name, m.Params[1:], m.Params[0])
-	transport.scribe(true, m.Params[0], m.Prefix.Name, "set mode", m.Params[1:], "on", m.Params[0])
+	transport.sendEvent(events.EventChannelOps, false, m.Params[0], m.Prefix.Name, m.Prefix.User, "set mode", m.Params[1:], "on", m.Params[0])
 }
 
 func handlerTopic(transport *IRCTransport, m *irc.Message) {
 	transport.log.Infof("%s has set topic on %s to: %s", m.Prefix.Name, m.Params[0], m.Trailing)
-	transport.scribe(true, m.Params[0], m.Prefix.Name, "set topic on", m.Params[0], "to:", m.Trailing)
+	transport.sendEvent(events.EventChannelOps, false, m.Params[0], m.Prefix.Name, m.Prefix.User, "set topic on", m.Params[0], "to:", m.Trailing)
 }
 
 func handlerKick(transport *IRCTransport, m *irc.Message) {
 	if transport.NickIsMe(m.Params[1]) {
 		transport.log.Infof("I was kicked from %s by %s for: %s", m.Params[0], m.Prefix.Name, m.Trailing)
+		transport.sendEvent(events.EventKickedFromChannel, true, m.Params[0], m.Prefix.Name, m.Prefix.User, m.Trailing)
 		transport.kickedFrom[m.Params[0]] = true
 		delete(transport.onChannel, m.Params[0])
 		// Rejoin
@@ -129,8 +133,8 @@ func handlerKick(transport *IRCTransport, m *irc.Message) {
 		}()
 	} else {
 		transport.log.Infof("%s was kicked from %s by %s for: %s", m.Params[1], m.Prefix.Name, m.Params[0], m.Trailing)
+		transport.sendEvent(events.EventKickedFromChannel, false, m.Prefix.Name, m.Params[0], "", "%s kicked for: %s", m.Params[1], m.Trailing)
 	}
-	transport.scribe(true, m.Params[0], m.Prefix.Name, "Kicked", m.Params[1], "from", m.Params[0], "for:", m.Trailing)
 }
 
 func handlerMsg(transport *IRCTransport, m *irc.Message) {
@@ -166,24 +170,24 @@ func handlerMsg(transport *IRCTransport, m *irc.Message) {
 		return
 	}
 
-	// Message on a channel.
-	transport.scribe(false, channel, nick, msg)
-
-	// Is someone talking to the bot?
-	if strings.HasPrefix(msg, transport.name) {
+	direct := false
+	if strings.HasPrefix(msg, transport.name) { // Is someone talking to the bot?
 		msg = strings.TrimLeft(msg[len(transport.name):], ",:; ")
 		if msg != "" {
-			go transport.handleCommand(channel, nick, user, msg, true)
-			return
+			direct = true
+		}
+	} else if strings.HasPrefix(msg, ".") { // Maybe a dot command?
+		msg = strings.TrimPrefix(msg, ".")
+		if msg != "" {
+			direct = true
 		}
 	}
 
-	// Maybe a dot command?
-	if strings.HasPrefix(msg, ".") {
-		msg = strings.TrimPrefix(msg, ".")
-		if msg != "" {
-			go transport.handleCommand(channel, nick, user, msg, false)
-			return
-		}
+	eventCode := events.EventChatMessage
+	if !strings.HasPrefix(channel, "#") { // no # prefix means private message.
+		eventCode = events.EventPrivateMessage
 	}
+
+	// Message on a channel.
+	transport.sendEvent(eventCode, direct, channel, nick, user, msg)
 }

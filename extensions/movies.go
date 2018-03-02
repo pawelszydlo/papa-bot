@@ -14,6 +14,7 @@ import (
 type ExtensionMovies struct {
 	Extension
 	announced map[string]bool
+	bot       *papaBot.Bot
 }
 
 type movieStruct struct {
@@ -44,13 +45,14 @@ func (ext *ExtensionMovies) Init(bot *papaBot.Bot) error {
 		false, false, false,
 		"<title>", "Get movie info for <title>.",
 		ext.commandMovie})
+	ext.bot = bot
 	return nil
 }
 
 // searchOmdb will query Omdb database for movie information.
 func (ext *ExtensionMovies) searchOmdb(bot *papaBot.Bot, title string, data *movieStruct) {
 	// Fetch movie data.
-	body, err := bot.GetPageBodyByURL("http://www.omdbapi.com/?y=&plot=short&r=json&t=" + url.QueryEscape(title))
+	err, _, body := ext.bot.GetPageBody("http://www.omdbapi.com/?y=&plot=short&r=json&t="+url.QueryEscape(title), nil)
 	if err != nil {
 		data.Error = fmt.Sprintf("%s", err)
 		return

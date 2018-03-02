@@ -191,6 +191,16 @@ func RemoveDuplicates(slice []string) []string {
 	return MapToSlice(SliceToMap(slice))
 }
 
+// RemoveFromSlice will remove an element from string slice by value, assuming the element is there only once.
+func RemoveFromSlice(slice []string, item string) []string {
+	for i, value := range slice {
+		if value == item {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
+}
+
 // HashPassword hashes a password.
 func HashPassword(password string) string {
 	return base64.StdEncoding.EncodeToString(

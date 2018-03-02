@@ -123,6 +123,7 @@ func (bot *Bot) getUserData(nick string) (
 }
 
 // authenticateUser authenticates the user as an owner or admin
+// Authentication is done on the basis of fullName, which is assumed to be globally unique.
 func (bot *Bot) authenticateUser(nick, fullName, password string) error {
 	_, dbPassword, _, owner, admin, err := bot.getUserData(nick)
 	if err != nil {
@@ -165,9 +166,9 @@ func (bot *Bot) GetAuthenticatedNick(fullName string) string {
 }
 
 // NickIsMe checks if the sender is the bot.
-func (bot *Bot) NickIsMe(transport, nick string) bool {
-	wrap := bot.getTransportWrapOrDie(transport)
-	return wrap.transport.NickIsMe(nick)
+func (bot *Bot) NickIsMe(transportName, nick string) bool {
+	transport := bot.getTransportOrDie(transportName)
+	return transport.NickIsMe(nick)
 }
 
 // userIsAuthenticated checks if the user is authenticated with the bot.
@@ -195,10 +196,6 @@ func (bot *Bot) AreSamePeople(nick1, nick2 string) bool {
 }
 
 // isOwnerOrAdmin will check whether user has privileges.
-func (bot *Bot) isOwnerOrAdmin(nick, fullName string) bool {
-	// TODO: find a proper way to identify a person.
-	sender_complete := nick + "!" + fullName
-	owner := bot.UserIsOwner(sender_complete)
-	admin := bot.UserIsAdmin(sender_complete)
-	return owner || admin
+func (bot *Bot) UserIsOwnerOrAdmin(fullName string) bool {
+	return bot.UserIsOwner(fullName) || bot.UserIsAdmin(fullName)
 }

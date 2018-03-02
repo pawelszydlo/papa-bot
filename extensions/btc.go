@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"math"
 	"strconv"
@@ -23,6 +24,8 @@ type ExtensionBtc struct {
 	seriousChangePercent float64
 
 	Texts *extensionBtcTexts
+
+	bot *papaBot.Bot
 }
 
 type extensionBtcTexts struct {
@@ -44,12 +47,16 @@ func (ext *ExtensionBtc) Init(bot *papaBot.Bot) error {
 	ext.Warned = map[string]bool{}
 	ext.seriousChangePercent = 5
 	ext.priceSeries = make([]float64, 12, 12)
+	ext.bot = bot
 	// Load texts.
 	texts := new(extensionBtcTexts)
 	if err := bot.LoadTexts("btc", texts); err != nil {
 		return err
 	}
 	ext.Texts = texts
+	// Attach to events.
+	bot.EventDispatcher.RegisterListener(events.EventTick, ext.TickListener)
+	bot.EventDispatcher.RegisterListener(events.EventDailyTick, ext.DailyTickListener)
 	return nil
 }
 
@@ -64,19 +71,29 @@ func (ext *ExtensionBtc) diffStr(diff float64) string {
 	return diffstr
 }
 
-// Tick will monitor BTC price and warn if anything serious happens.
-func (ext *ExtensionBtc) Tick(bot *papaBot.Bot, daily bool) {
+// DailyTickListener announce the price.
+func (ext *ExtensionBtc) DailyTickListener(message events.EventMessage) {
+	price, _ := strconv.ParseFloat(ext.HourlyData["last"].(string), 64)
+	diff := price - ext.HourlyData["open"].(float64)
+
+	ext.bot.SendMassNotice(utils.Format(ext.Texts.TempBtcNotice, map[string]string{
+		"price": fmt.Sprintf("$%.2f", price),
+		"diff":  ext.diffStr(diff)}))
+}
+
+// TickListener will monitor BTC price and warn if anything serious happens.
+func (ext *ExtensionBtc) TickListener(message events.EventMessage) {
 	// Fetch fresh data.
-	body, err := bot.GetPageBodyByURL("https://www.bitstamp.net/api/ticker/")
+	err, _, body := ext.bot.GetPageBody("https://www.bitstamp.net/api/ticker/", nil)
 	if err != nil {
-		bot.Log.Warningf("Error getting BTC data: %s", err)
+		ext.bot.Log.Warningf("Error getting BTC data: %s", err)
 		return
 	}
 
 	// Convert from JSON
 	var raw_data interface{}
 	if err := json.Unmarshal(body, &raw_data); err != nil {
-		bot.Log.Warningf("Error parsing JSON from Bitstamp: %s", err)
+		ext.bot.Log.Warningf("Error parsing JSON from Bitstamp: %s", err)
 		return
 	}
 	data := raw_data.(map[string]interface{})
@@ -85,17 +102,8 @@ func (ext *ExtensionBtc) Tick(bot *papaBot.Bot, daily bool) {
 	// Get current price.
 	price, err := strconv.ParseFloat(data["last"].(string), 64)
 	if err != nil {
-		bot.Log.Warningf("Error in the BTC ticker: %s", err)
+		ext.bot.Log.Warningf("Error in the BTC ticker: %s", err)
 		return
-	}
-
-	// On daily tick, announce.
-	if daily {
-		diff := price - ext.HourlyData["open"].(float64)
-
-		bot.SendMassNotice(utils.Format(ext.Texts.TempBtcNotice, map[string]string{
-			"price": fmt.Sprintf("$%.2f", price),
-			"diff":  ext.diffStr(diff)}))
 	}
 
 	// Append to the FIFO series.
@@ -135,10 +143,10 @@ func (ext *ExtensionBtc) Tick(bot *papaBot.Bot, daily bool) {
 				"diff": "", "minutes": fmt.Sprintf("%.0f", time_diff), "price": fmt.Sprintf("$%.2f", price)}
 			if rise {
 				values["diff"] = ext.diffStr(diff)
-				bot.SendMassNotice(utils.Format(ext.Texts.TempBtcSeriousRise, values))
+				ext.bot.SendMassNotice(utils.Format(ext.Texts.TempBtcSeriousRise, values))
 			} else {
 				values["diff"] = ext.diffStr(-diff)
-				bot.SendMassNotice(utils.Format(ext.Texts.TempBtcSeriousFall, values))
+				ext.bot.SendMassNotice(utils.Format(ext.Texts.TempBtcSeriousFall, values))
 			}
 			ext.priceSeries = make([]float64, 12, 12) // Empty the series.
 		}

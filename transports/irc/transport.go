@@ -10,8 +10,8 @@ import (
 	"net"
 
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/pawelszydlo/papa-bot/transports"
+	"github.com/pawelszydlo/papa-bot/events"
+	"github.com/sirupsen/logrus"
 	"github.com/sorcix/irc"
 )
 
@@ -40,12 +40,12 @@ type IRCTransport struct {
 	// Logger.
 	log *logrus.Logger
 	// Scribe channel
-	scribeChannel chan transports.ScribeMessage
-	// Commands channel
-	commandChannel chan transports.CommandMessage
+	eventDispatcher *events.EventDispatcher
 
 	// Operational.
 
+	// Transport name.
+	transportName string
 	// IRC messages stream.
 	messages chan *irc.Message
 	// Network connection.
@@ -155,23 +155,15 @@ func (transport *IRCTransport) NickIsMe(nick string) bool {
 }
 
 // scribe forwards the message to the bot for logging.
-func (transport *IRCTransport) scribe(special bool, channel string, who string, message ...interface{}) {
-	scribeMessage := transports.ScribeMessage{
-		who,
+func (transport *IRCTransport) sendEvent(eventCode events.EventCode, direct bool, channel, nick, fullName string, message ...interface{}) {
+	eventMessage := events.EventMessage{
+		transport.transportName,
+		eventCode,
+		nick,
+		fullName,
 		channel,
 		fmt.Sprint(message...),
-		special,
+		direct,
 	}
-	transport.scribeChannel <- scribeMessage
-}
-
-func (transport *IRCTransport) handleCommand(channel, nick, user, msg string, talkBack bool) {
-	command := transports.CommandMessage{
-		channel,
-		nick,
-		user,
-		msg,
-		talkBack,
-	}
-	transport.commandChannel <- command
+	transport.eventDispatcher.Trigger(eventMessage)
 }

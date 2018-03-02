@@ -3,6 +3,7 @@ package extensions
 import (
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"text/template"
 	"time"
@@ -13,6 +14,7 @@ type ExtensionDuplicates struct {
 	Extension
 	Texts     *extensionDuplicatesTexts
 	announced map[string]time.Time
+	bot       *papaBot.Bot
 }
 
 type extensionDuplicatesTexts struct {
@@ -30,17 +32,19 @@ func (ext *ExtensionDuplicates) Init(bot *papaBot.Bot) error {
 	}
 	ext.Texts = texts
 	ext.announced = map[string]time.Time{}
+	ext.bot = bot
+	bot.EventDispatcher.RegisterListener(events.EventURLFound, ext.ProcessURLListener)
 	return nil
 }
 
 // checkForDuplicates checks for duplicates of the url in the database.
-func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
-	result, err := bot.Db.Query(`
+func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) {
+	result, err := ext.bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
 		FROM urls WHERE link=? AND channel=? AND transport=?
-		ORDER BY timestamp DESC LIMIT 1`, urlinfo.URL, channel, transport)
+		ORDER BY timestamp DESC LIMIT 1`, message.Message, message.Channel, message.SourceTransport)
 	if err != nil {
-		bot.Log.Warningf("Can't query the database for duplicates: %s", err)
+		ext.bot.Log.Warningf("Can't query the database for duplicates: %s", err)
 		return
 	}
 	defer result.Close()
@@ -51,20 +55,21 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, transport, channel,
 		var timestr string
 		var count uint
 		if err = result.Scan(&nick, &timestr, &count); err != nil {
-			bot.Log.Warningf("Error getting duplicates: %s", err)
+			ext.bot.Log.Warningf("Error getting duplicates: %s", err)
 			return
 		}
 		timestamp, _ := time.Parse("2006-01-02 15:04:05", timestr)
 		duplicate := ""
+		// All these checks occur after the bot has already saved the link to db, hence two for duplicate.
 		// Only one duplicate
-		if count == 1 {
-			if bot.AreSamePeople(nick, sender) {
+		if count == 2 {
+			if ext.bot.AreSamePeople(nick, message.Nick) {
 				nick = ext.Texts.DuplicateYou
 			}
 			elapsed := utils.HumanizedSince(utils.MustForceLocalTimezone(timestamp))
 			duplicate = utils.Format(ext.Texts.TempDuplicateFirst, map[string]string{"nick": nick, "elapsed": elapsed})
-		} else if count > 1 { // More duplicates exist
-			if bot.AreSamePeople(nick, sender) {
+		} else if count > 2 { // More duplicates exist
+			if ext.bot.AreSamePeople(nick, message.Nick) {
 				nick = ext.Texts.DuplicateYou
 			}
 			elapsed := utils.HumanizedSince(utils.MustForceLocalTimezone(timestamp))
@@ -72,16 +77,9 @@ func (ext *ExtensionDuplicates) ProcessURL(bot *papaBot.Bot, transport, channel,
 				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
 		}
 		// Only announce once per 5 minutes per link.
-		if duplicate != "" && time.Since(ext.announced[channel+urlinfo.URL]) > 5*time.Minute {
-			// Can we fit into the ShortInfo?
-			if urlinfo.ShortInfo == "" {
-				urlinfo.ShortInfo = duplicate
-			} else if len(urlinfo.ShortInfo) < 50 {
-				urlinfo.ShortInfo += " | " + duplicate
-			} else { // Better send as separate noitce.
-				bot.SendNotice(transport, channel, duplicate)
-			}
-			ext.announced[channel+urlinfo.URL] = time.Now()
+		if duplicate != "" && time.Since(ext.announced[message.Channel+message.Message]) > 5*time.Minute {
+			ext.bot.SendNotice(message.SourceTransport, message.Channel, duplicate)
+			ext.announced[message.Channel+message.Message] = time.Now()
 		}
 	}
 	return

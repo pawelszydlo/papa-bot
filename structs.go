@@ -4,12 +4,13 @@ package papaBot
 
 import (
 	"database/sql"
-	"github.com/Sirupsen/logrus"
 	"github.com/pelletier/go-toml"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"regexp"
 	"time"
 
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/transports"
 )
 
@@ -23,6 +24,8 @@ type Bot struct {
 	HTTPClient *http.Client
 	// Logger.
 	Log *logrus.Logger
+	// Event dispatcher instance.
+	EventDispatcher *events.EventDispatcher
 	// Full config file tree.
 	fullConfig *toml.Tree
 	// Full texts file tree.
@@ -48,7 +51,7 @@ type Bot struct {
 	// Registered bot extensions,
 	extensions []extension
 	// Enabled transports.
-	transports map[string]transportWrapper
+	transports map[string]transports.Transport
 	// Time when URL info was last announced, per channel + link.
 	lastURLAnnouncedTime map[string]time.Time
 	// Lines passed since URL info was last announced, per channel + link.
@@ -64,25 +67,6 @@ type Bot struct {
 // Interface for handling of extensions.
 type extension interface {
 	Init(bot *Bot) error
-	ProcessURL(bot *Bot, transport, channel, sender, msg string, info *UrlInfo)
-	ProcessMessage(bot *Bot, transport, channel, sender, msg string)
-	Tick(bot *Bot, daily bool)
-}
-
-// Function type for transport constructors.
-type newTransportFunction func(
-	name string,
-	fullConfig *toml.Tree,
-	logger *logrus.Logger,
-	scribeChannel chan transports.ScribeMessage,
-	commandsChannel chan transports.CommandMessage,
-) transports.Transport
-
-// Struct handling transport communication.
-type transportWrapper struct {
-	transport       transports.Transport
-	scribeChannel   chan transports.ScribeMessage
-	commandsChannel chan transports.CommandMessage
 }
 
 // Url information passed between url processors.
@@ -144,7 +128,5 @@ type botTexts struct {
 	SearchPrivateNotice string
 	CommandLimit        string
 	NothingToAdd        string
-	Hellos              []string
-	HellosAfterKick     []string
 	WrongCommand        []string
 }

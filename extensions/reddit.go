@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"math/rand"
 	"strings"
@@ -27,6 +28,7 @@ type ExtensionReddit struct {
 	announced     map[string]bool
 	announcedLive map[string]bool
 	Texts         *extensionRedditTexts
+	bot           *papaBot.Bot
 }
 
 type extensionRedditTexts struct {
@@ -77,18 +79,16 @@ func (postData *redditPostData) toStrings() map[string]string {
 }
 
 // getRedditListing fetches a reddit listing data.
-func (ext *ExtensionReddit) getRedditListing(bot *papaBot.Bot, url string, listing *redditListing) error {
-	// Get response
-	var urlinfo papaBot.UrlInfo
-	urlinfo.URL = url
+func (ext *ExtensionReddit) getRedditListing(url string, listing *redditListing) error {
 	// Reddit API doesn't like it when you pretend to be someone else.
 	headers := map[string]string{"User-Agent": "PapaBot version " + papaBot.Version}
-	if err := bot.GetPageBody(&urlinfo, headers); err != nil {
+	err, _, body := ext.bot.GetPageBody(url, headers)
+	if err != nil {
 		return err
 	}
 
 	// Decode JSON.
-	if err := json.Unmarshal(urlinfo.Body, &listing); err != nil {
+	if err := json.Unmarshal(body, &listing); err != nil {
 		return err
 	}
 
@@ -100,12 +100,12 @@ func (ext *ExtensionReddit) getRedditListing(bot *papaBot.Bot, url string, listi
 }
 
 // getRedditInfo fetches information about a link from Reddit.
-func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, channel string) string {
+func (ext *ExtensionReddit) getRedditInfo(url, channel string) string {
 	// Get the listing.
 	url = fmt.Sprintf("https://www.reddit.com/api/info.json?url=%s", url)
 	var listing redditListing
-	if err := ext.getRedditListing(bot, url, &listing); err != nil {
-		bot.Log.Debugf("Error getting reddit's response %d.", listing.Error)
+	if err := ext.getRedditListing(url, &listing); err != nil {
+		ext.bot.Log.Debugf("Error getting reddit's response %d.", listing.Error)
 		return ""
 	}
 
@@ -117,10 +117,6 @@ func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, chann
 	for i := range listing.Data.Children {
 		postData := listing.Data.Children[i].Data
 		if postData.Score > bestScore {
-			// Was the title already included in the URL title?
-			if strings.Contains(urlTitle, postData.Title) {
-				postData.Title = ""
-			}
 			// Trim the title.
 			if len(postData.Title) > 200 {
 				postData.Title = postData.Title[:200] + "(…)"
@@ -129,13 +125,13 @@ func (ext *ExtensionReddit) getRedditInfo(bot *papaBot.Bot, url, urlTitle, chann
 			bestScore = postData.Score
 		}
 	}
-	bot.Log.Debugf("Reddit: %s", message)
+	ext.bot.Log.Debugf("Reddit: %s", message)
 	return message
 }
 
 // getRedditHot will get a random article from interesting reddits list.
-func (ext *ExtensionReddit) getRedditHot(bot *papaBot.Bot) *redditPostData {
-	reddits := strings.Split(bot.GetVar("interestingReddits"), " ")
+func (ext *ExtensionReddit) getRedditHot() *redditPostData {
+	reddits := strings.Split(ext.bot.GetVar("interestingReddits"), " ")
 	if len(reddits) == 0 {
 		return nil
 	}
@@ -144,8 +140,8 @@ func (ext *ExtensionReddit) getRedditHot(bot *papaBot.Bot) *redditPostData {
 	// Get the listing.
 	url := fmt.Sprintf("https://www.reddit.com/r/%s/hot.json?limit=3", subreddit)
 	var listing redditListing
-	if err := ext.getRedditListing(bot, url, &listing); err != nil {
-		bot.Log.Debugf("Error getting reddit's response %d.", listing.Error)
+	if err := ext.getRedditListing(url, &listing); err != nil {
+		ext.bot.Log.Debugf("Error getting reddit's response %d.", listing.Error)
 		return nil
 	}
 	// Get random from the 3 hottest articles.
@@ -157,12 +153,12 @@ func (ext *ExtensionReddit) getRedditHot(bot *papaBot.Bot) *redditPostData {
 }
 
 // getRedditLiveNow will get a live now link from the top page, if such exists.
-func (ext *ExtensionReddit) getRedditLiveNow(bot *papaBot.Bot) (string, string) {
+func (ext *ExtensionReddit) getRedditLiveNow() (string, string) {
 	// Get the listing.
 	url := "https://www.reddit.com/api/live/happening_now.json"
 	var liveNow redditListing
-	if err := ext.getRedditListing(bot, url, &liveNow); err != nil {
-		bot.Log.Debugf("Error getting reddit's response %d.", liveNow.Error)
+	if err := ext.getRedditListing(url, &liveNow); err != nil {
+		ext.bot.Log.Debugf("Error getting reddit's response %d.", liveNow.Error)
 		return "", ""
 	}
 	return fmt.Sprintf("https://reddit.com/live/%s", liveNow.Data.Id), liveNow.Data.Title
@@ -170,7 +166,7 @@ func (ext *ExtensionReddit) getRedditLiveNow(bot *papaBot.Bot) (string, string) 
 
 // commandReddit will display one of the interesting articles from Reddit.
 func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
-	post := ext.getRedditHot(bot)
+	post := ext.getRedditHot()
 	if post != nil {
 		data := post.toStrings()
 		message := fmt.Sprintf("%s, %s (/r/%s - %s)", nick, data["title"], data["subreddit"], data["url"])
@@ -204,53 +200,52 @@ func (ext *ExtensionReddit) Init(bot *papaBot.Bot) error {
 		return err
 	}
 	ext.Texts = texts
+	ext.bot = bot
+	bot.EventDispatcher.RegisterListener(events.EventTick, ext.TickListener)
+	bot.EventDispatcher.RegisterListener(events.EventDailyTick, ext.DailyTickListener)
+	bot.EventDispatcher.RegisterListener(events.EventURLFound, ext.ProcessURLListener)
 	return nil
 }
 
-// Tick will clear the announces table and give post of the day.
-func (ext *ExtensionReddit) Tick(bot *papaBot.Bot, daily bool) {
-	if daily {
-		// Clear the announced list.
-		ext.announced = map[string]bool{}
-		if bot.GetVar("redditDaily") != "" {
-			post := ext.getRedditHot(bot)
-			if post != nil {
-				bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
-			}
+// DailyTickListener will clear the announces table and give post of the day.
+func (ext *ExtensionReddit) DailyTickListener(message events.EventMessage) {
+	// Clear the announced list.
+	ext.announced = map[string]bool{}
+	if ext.bot.GetVar("redditDaily") != "" {
+		post := ext.getRedditHot()
+		if post != nil {
+			ext.bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
 		}
-	} else { // 5 minute ticker.
-		url, title := ext.getRedditLiveNow(bot)
-		if url == "" || title == "" {
-			return
-		}
-		if ext.announcedLive[url] {
-			return
-		}
-		ext.announcedLive[url] = true
-		bot.SendMassNotice(utils.Format(ext.Texts.TempRedditBreaking, map[string]string{"url": url, "title": title}))
 	}
 }
 
-// ProcessURL will try to check if link was ever on reddit.
-func (ext *ExtensionReddit) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {
-	// Announce each link only once.
-	if ext.announced[channel+urlinfo.URL] {
+// TickListener will check for reddit live pinned topics.
+func (ext *ExtensionReddit) TickListener(message events.EventMessage) {
+
+	url, title := ext.getRedditLiveNow()
+	if url == "" || title == "" {
 		return
 	}
-
-	if urlinfo.ShortInfo == "" { // There is no short info yet. Put reddit info there.
-		urlinfo.ShortInfo = ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
-	} else if len(urlinfo.ShortInfo) < 100 { // There is some space left in the short info.
-		reddit := ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
-		if reddit != "" {
-			urlinfo.ShortInfo += " | " + reddit
-		}
-	} else { // Better send as separate notice.
-		go func() {
-			reddit := ext.getRedditInfo(bot, urlinfo.URL, urlinfo.Title, channel)
-			if reddit != "" {
-				bot.SendNotice(transport, channel, reddit)
-			}
-		}()
+	if ext.announcedLive[url] {
+		return
 	}
+	ext.announcedLive[url] = true
+	ext.bot.SendMassNotice(utils.Format(ext.Texts.TempRedditBreaking, map[string]string{"url": url, "title": title}))
+
+}
+
+// ProcessURLListener will try to check if link was ever on reddit.
+func (ext *ExtensionReddit) ProcessURLListener(message events.EventMessage) {
+	// Announce each link only once.
+	if ext.announced[message.Channel+message.Message] {
+		return
+	}
+	// Send a notice with URL info.
+	go func() {
+		reddit := ext.getRedditInfo(message.Message, message.Channel)
+		if reddit != "" {
+			ext.bot.SendNotice(message.SourceTransport, message.Channel, reddit)
+		}
+	}()
+
 }

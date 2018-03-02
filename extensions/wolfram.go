@@ -18,6 +18,7 @@ type ExtensionWolfram struct {
 	Extension
 	announced map[string]bool
 	Texts     *extensionWolframTexts
+	bot       *papaBot.Bot
 }
 
 type extensionWolframTexts struct {
@@ -61,30 +62,31 @@ func (ext *ExtensionWolfram) Init(bot *papaBot.Bot) error {
 		false, false, false,
 		"<query>", "Search Wolfram Alpha for <query>.",
 		ext.commandWolfram})
+	ext.bot = bot
 	return nil
 }
 
-func (ext *ExtensionWolfram) queryWolfram(bot *papaBot.Bot, query string) string {
-	appId := bot.GetVar("WolframKey")
+func (ext *ExtensionWolfram) queryWolfram(query string) string {
+	appId := ext.bot.GetVar("WolframKey")
 	if appId == "" {
-		bot.Log.Error("Wolfram Alpha AppID key not set! Set the 'WolframKey' variable in the bot.")
+		ext.bot.Log.Error("Wolfram Alpha AppID key not set! Set the 'WolframKey' variable in the bot.")
 		return ""
 	}
 
-	body, err := bot.GetPageBodyByURL(
+	err, _, body := ext.bot.GetPageBody(
 		fmt.Sprintf(
 			"http://api.wolframalpha.com/v2/query?format=plaintext&appid=%s&podindex=1,2&input=%s",
 			appId, strings.Replace(url.QueryEscape(query), "+", "%20", -1),
-		))
+		), nil)
 	if err != nil {
-		bot.Log.Warningf("Error getting Wolfram data: %s", err)
+		ext.bot.Log.Warningf("Error getting Wolfram data: %s", err)
 		return ""
 	}
 
 	// Parse XML.
 	data := new(queryResult)
 	if err := xml.Unmarshal(body, &data); err != nil {
-		bot.Log.Errorf("Error parsing Wolfram data: %s", err)
+		ext.bot.Log.Errorf("Error parsing Wolfram data: %s", err)
 		return ""
 	}
 
@@ -126,7 +128,7 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, nick, user, channe
 		return
 	}
 
-	content := ext.queryWolfram(bot, search)
+	content := ext.queryWolfram(search)
 
 	// Error occured.
 	if content == "" {

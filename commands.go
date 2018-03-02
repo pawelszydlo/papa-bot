@@ -4,8 +4,8 @@ package papaBot
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/pawelszydlo/papa-bot/transports"
+	"github.com/pawelszydlo/papa-bot/events"
+	"github.com/sirupsen/logrus"
 	"math/rand"
 	"strings"
 )
@@ -47,20 +47,21 @@ func (bot *Bot) initBotCommands() {
 	bot.RegisterCommand(&BotCommand{
 		[]string{"var", "v"},
 		true, true, false,
-		"list | get <name> | set <name> <value>", "Controls custom variables",
+		"list | get <name> | set <name> <value>", "Controls custom variables.",
 		commandVar})
+	// Ignore.
+	bot.RegisterCommand(&BotCommand{
+		[]string{"ignore"},
+		false, true, true,
+		"add <nick> <userName> | remove <nick> <userName>", "Manages ignore list.",
+		commandIgnore})
 
 	bot.commandsHideParams["auth"] = true
 	bot.commandsHideParams["useradd"] = true
 }
 
 // handleBotCommand handles commands directed at the bot.
-func (bot *Bot) handleBotCommand(transport string, message transports.CommandMessage) {
-	// Check if sender is not ignored.
-	if bot.isNickIgnored(transport, message.Nick) {
-		return
-	}
-
+func (bot *Bot) handleBotCommand(message events.EventMessage) {
 	// Catch errors.
 	defer func() {
 		if Debug {
@@ -74,14 +75,13 @@ func (bot *Bot) handleBotCommand(transport string, message transports.CommandMes
 
 	// Was this command sent on a private query?
 	private := false
-	if bot.NickIsMe(transport, message.Channel) {
+	if bot.NickIsMe(message.SourceTransport, message.Channel) {
 		private = true
 		receiver = message.Nick
 	}
 	// Was the command sent by the owner?
-	sender_complete := message.Nick + "!" + message.UserName
-	owner := bot.UserIsOwner(sender_complete)
-	admin := bot.UserIsAdmin(sender_complete)
+	owner := bot.UserIsOwner(message.FullName)
+	admin := bot.UserIsAdmin(message.FullName)
 
 	params := strings.Split(message.Message, " ")
 	message.Message = params[0]
@@ -98,7 +98,8 @@ func (bot *Bot) handleBotCommand(transport string, message transports.CommandMes
 	if !private && !owner && !admin { // Command limits apply.
 		if bot.commandUseLimit[message.Message+message.Nick] >= bot.Config.CommandsPer5 {
 			if !bot.commandWarn[message.Channel] { // Warning was not yet sent.
-				bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.CommandLimit))
+				bot.SendPrivMessage(
+					message.SourceTransport, receiver, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.CommandLimit))
 				bot.commandWarn[message.Channel] = true
 			}
 			return
@@ -110,18 +111,21 @@ func (bot *Bot) handleBotCommand(transport string, message transports.CommandMes
 	if cmd, exists := bot.commands[message.Message]; exists {
 		// Check if command needs to be run through query.
 		if cmd.Private && !private {
-			bot.SendPrivMessage(transport, message.Channel, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsPriv))
+			bot.SendPrivMessage(
+				message.SourceTransport, message.Channel, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsPriv))
 			return
 		}
 		// Check if command needs to be run by the owner.
 		if cmd.Owner && !owner || cmd.Admin && !admin {
-			bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsAdmin))
+			bot.SendPrivMessage(
+				message.SourceTransport, receiver, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsAdmin))
 			return
 		}
-		cmd.CommandFunc(bot, message.Nick, message.UserName, message.Channel, receiver, transport, private, params)
+		cmd.CommandFunc(
+			bot, message.Nick, message.FullName, message.Channel, receiver, message.SourceTransport, private, params)
 	} else { // Unknown command.
-		if message.TalkBack && rand.Int()%10 > 3 {
-			bot.SendPrivMessage(transport, receiver, fmt.Sprintf(
+		if rand.Int()%10 > 3 {
+			bot.SendPrivMessage(message.SourceTransport, receiver, fmt.Sprintf(
 				"%s, %s", message.Nick, bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
 		}
 	}
@@ -133,9 +137,8 @@ func commandHelp(bot *Bot, nick, user, channel, receiver, transport string, priv
 		receiver = nick
 	}
 
-	sender_complete := nick + "!" + user
-	owner := bot.UserIsOwner(sender_complete)
-	admin := bot.UserIsAdmin(sender_complete)
+	owner := bot.UserIsOwner(user)
+	admin := bot.UserIsAdmin(user)
 	// Build a list of all command aliases.
 	helpCommandKeys := map[string][]string{}
 	helpCommands := map[string]*BotCommand{}
@@ -163,7 +166,8 @@ func commandHelp(bot *Bot, nick, user, channel, receiver, transport string, priv
 		}
 		message := ""
 		if transport == "irc" {
-			message = fmt.Sprintf("\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
+			message = fmt.Sprintf(
+				"\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
 		} else {
 			message = fmt.Sprintf("%s %s - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
 		}
@@ -178,7 +182,7 @@ func commandHelp(bot *Bot, nick, user, channel, receiver, transport string, priv
 // commandAuth is a command for authenticating an user with the bot.
 func commandAuth(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) == 2 {
-		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
+		if err := bot.authenticateUser(params[0], user, params[1]); err != nil {
 			bot.Log.Warningf("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
@@ -186,10 +190,28 @@ func commandAuth(bot *Bot, nick, user, channel, receiver, transport string, priv
 	}
 }
 
+// commandIgnore will control the ignore list.
+func commandIgnore(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
+	if len(params) == 2 {
+		if bot.UserIsOwner(user) {
+			bot.SendPrivMessage(transport, receiver, "You cannot ignore the owner.")
+			return
+		}
+		command := params[0]
+		fullName := params[1]
+		if command == "add" {
+			bot.AddToIgnoreList(fullName)
+		} else if command == "remove" {
+			bot.RemoveFromIgnoreList(fullName)
+		}
+		bot.SendPrivMessage(transport, receiver, "Ignore list changed.")
+	}
+}
+
 // commandUserAdd will add a new user to bot's database and authenticate.
 func commandUserAdd(bot *Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) == 2 {
-		if bot.UserIsAuthenticated(nick + "!" + user) {
+		if bot.UserIsAuthenticated(user) {
 			bot.SendPrivMessage(transport, receiver, "You are already authenticated.")
 			return
 		}
@@ -243,7 +265,7 @@ func commandSayMore(bot *Bot, nick, user, channel, receiver, transport string, p
 		return
 	} else {
 		bot.SendNotice(transport, receiver, bot.urlMoreInfo[transport+receiver])
-		delete(bot.urlMoreInfo, receiver)
+		delete(bot.urlMoreInfo, transport+receiver)
 	}
 }
 

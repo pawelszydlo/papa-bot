@@ -17,6 +17,7 @@ type ExtensionWiki struct {
 	linkRe    *regexp.Regexp
 	cleanupRe *regexp.Regexp
 	Texts     *extensionWikiTexts
+	bot       *papaBot.Bot
 }
 
 type extensionWikiTexts struct {
@@ -41,6 +42,7 @@ func (ext *ExtensionWiki) Init(bot *papaBot.Bot) error {
 		false, false, false,
 		"<article>", "Search wikipedia for <article>.",
 		ext.commandWiki})
+	ext.bot = bot
 	return nil
 }
 
@@ -78,23 +80,23 @@ func (ext *ExtensionWiki) cleanWikiBody(content string) string {
 }
 
 // searchWiki will query Wikipedia database for information.
-func (ext *ExtensionWiki) searchWiki(bot *papaBot.Bot, lang, search string) (string, string) {
+func (ext *ExtensionWiki) searchWiki(lang, search string) (string, string) {
 	// Fetch data.
-	body, err := bot.GetPageBodyByURL(
+	err, _, body := ext.bot.GetPageBody(
 		fmt.Sprintf(
 			"http://%s.wikipedia.org/w/api.php?action=query&prop=revisions&format=json&rvprop=content&rvlimit=1"+
 				"&rvsection=0&generator=search&redirects=&gsrwhat=text&gsrlimit=1&gsrsearch=%s",
 			lang, url.QueryEscape(search),
-		))
+		), nil)
 	if err != nil {
-		bot.Log.Warningf("Error getting wiki data: %s", err)
+		ext.bot.Log.Warningf("Error getting wiki data: %s", err)
 		return "", ""
 	}
 
 	// Convert from JSON
 	var raw_data interface{}
 	if err := json.Unmarshal(body, &raw_data); err != nil {
-		bot.Log.Warningf("Error parsing wiki data: %s", err)
+		ext.bot.Log.Warningf("Error parsing wiki data: %s", err)
 		return "", ""
 	}
 	// Hacky digging.
@@ -132,7 +134,7 @@ func (ext *ExtensionWiki) searchWiki(bot *papaBot.Bot, lang, search string) (str
 	return "", ""
 }
 
-// commandMovie is a command for manually searching for movies.
+// commandWiki is a command for manually searching for wikipedia entries.
 func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
 	if len(params) < 1 {
 		return
@@ -144,7 +146,7 @@ func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, rec
 		return
 	}
 
-	_, content := ext.searchWiki(bot, bot.Config.Language, search)
+	_, content := ext.searchWiki(bot.Config.Language, search)
 
 	// Announce.
 	contentPreview := content

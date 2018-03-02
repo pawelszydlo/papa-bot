@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/extensions"
 	"time"
 )
@@ -22,27 +23,24 @@ func init() {
 type MyExtension struct {
 	extensions.Extension
 	startTime time.Time
+	bot       *papaBot.Bot
 }
 
 // Override any methods you need. For more help please take a look at bot's built in extensions.
 
 // Will be run on bot's init or when extension is registered after bot's init.
 func (ext *MyExtension) Init(bot *papaBot.Bot) error {
+	ext.bot = bot
 	ext.startTime = time.Now()
+	bot.EventDispatcher.RegisterListener(events.EventTick, ext.Tick)
 	return nil
 }
 
-// Will be run every 5 minutes. Daily will be set to true once per day.
-func (ext *MyExtension) Tick(bot *papaBot.Bot, daily bool) {
-	bot.SendMassNotice(
+// Will be run every 5 minutes.
+func (ext *MyExtension) Tick(message events.EventMessage) {
+	ext.bot.SendMassNotice(
 		fmt.Sprintf("I have been running for %.0f minutes now.", time.Since(ext.startTime).Minutes()))
 }
-
-// Will be run whenever an URL is found in the message.
-// func (ext *MyExtension) ProcessURL(bot *papaBot.Bot, transport, channel, sender, msg string, urlinfo *papaBot.UrlInfo) {}
-
-// Will be run on every public message the bot receives.
-// func (ext *MyExtension) ProcessMessage(bot *papaBot.Bot, transport, channel, nick, msg string) {}
 
 // Entry point
 func main() {

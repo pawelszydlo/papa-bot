@@ -2,19 +2,19 @@ package ircTransport
 
 import (
 	"crypto/tls"
-	"github.com/Sirupsen/logrus"
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/transports"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/pelletier/go-toml"
+	"github.com/sirupsen/logrus"
 	"github.com/sorcix/irc"
 	"net"
 	"time"
 )
 
 // New creates a new transport instance.
-func New(name string, fullConfig *toml.Tree, logger *logrus.Logger,
-	scribeChannel chan transports.ScribeMessage,
-	commandChannel chan transports.CommandMessage,
+func New(transportName, botName string, fullConfig *toml.Tree, logger *logrus.Logger,
+	eventDispatcher *events.EventDispatcher,
 ) transports.Transport {
 
 	// Init the transport.
@@ -23,7 +23,7 @@ func New(name string, fullConfig *toml.Tree, logger *logrus.Logger,
 
 		antiFloodDelay: 5,
 		rejoinDelay:    15 * time.Second,
-		name:           name,
+		name:           botName,
 		user:           fullConfig.GetDefault("irc.user", "papaBot").(string),
 		server:         fullConfig.GetDefault("irc.server", "localhost:6667").(string),
 		channels:       utils.ToStringSlice(fullConfig.GetDefault("irc.channels", []string{"#papabot"}).([]interface{})),
@@ -33,9 +33,9 @@ func New(name string, fullConfig *toml.Tree, logger *logrus.Logger,
 		onChannel:        map[string]bool{},
 		ircEventHandlers: make(map[string][]ircEvenHandlerFunc),
 
-		log:            logger,
-		scribeChannel:  scribeChannel,
-		commandChannel: commandChannel,
+		log:             logger,
+		eventDispatcher: eventDispatcher,
+		transportName:   transportName,
 	}
 
 	// Attach event handlers.
