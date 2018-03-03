@@ -18,7 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 const (
@@ -135,8 +134,8 @@ func (bot *Bot) initialize() {
 	bot.loadVars()
 
 	// Init the transports.
-	bot.Log.Info("Initializing transports...")
 	for transportName, transport := range bot.transports {
+		bot.Log.Infof("Initializing transport %s...", transportName)
 		transport.Init(transportName, bot.Config.Name, bot.fullConfig, bot.Log, bot.EventDispatcher)
 	}
 
@@ -223,17 +222,10 @@ func (bot *Bot) Run() {
 	bot.initialize()
 	defer bot.cleanUp()
 
-	// Create a wait group.
-	wait := sync.WaitGroup{}
-
 	// Start transports.
-	bot.Log.Info("Starting transports...")
-	for _, transport := range bot.transports {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
-			transport.Run()
-		}()
+	for transportName, transport := range bot.transports {
+		bot.Log.Infof("Starting transport %s...", transportName)
+		go transport.Run()
 	}
 
 	// 5 minute ticker.
@@ -262,7 +254,7 @@ func (bot *Bot) Run() {
 	bot.EventDispatcher.Trigger(events.EventMessage{"bot", events.EventTick, "", "", "", "", true})
 
 	// Wait for all the transports to finish.
-	wait.Wait()
+	select {}
 
 	bot.Log.Infof("Exiting...")
 }
