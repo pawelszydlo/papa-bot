@@ -11,9 +11,10 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 ### Features
 
 * Multiple transports support.
-* Easy to write extensions.
-* Configuration through a TOML file and run time variables.
-* Things that the bot says are all in TOML files, for easy editing and l18n.
+* Easy to write extensions (just take a look [at the example](https://github.com/pawelszydlo/papa-bot/blob/master/example/example.go))
+* Event based operation.
+* Configuration through a TOML file and persistent run time variables.
+* All text messages are in TOML files, for easy editing and l18n.
 * Flood protection.
 * Abuse protection.
 * Ignore list.
@@ -36,13 +37,9 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * BTC price command.
 * Movie information.
 * Custom counters/countdowns.
-* Raw IRC commands.
 * Wikipedia article lookup.
 * Wolfram Alpha lookup.
 
-### Adding your own extensions
-
-Very simple, just take a look [at the example](https://github.com/pawelszydlo/papa-bot/blob/master/example/example.go). 
 
 #### TODO
 
@@ -51,5 +48,5 @@ Urgent:
 * Refactor extensions to format replies according to transport.
 
 Wishlist:
-* Split handling.
-* Alt nicks handling.
+* IRC split handling.
+* Alt nicks handling, cross-transport people identification.
