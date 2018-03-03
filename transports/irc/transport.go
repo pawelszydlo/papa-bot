@@ -11,6 +11,8 @@ import (
 
 	"fmt"
 	"github.com/pawelszydlo/papa-bot/events"
+	"github.com/pawelszydlo/papa-bot/utils"
+	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
 	"github.com/sorcix/irc"
 )
@@ -63,6 +65,41 @@ type IRCTransport struct {
 	onChannel map[string]bool
 	// Registered event handlers.
 	ircEventHandlers map[string][]ircEvenHandlerFunc
+}
+
+// Init initializes a transport instance.
+func (transport *IRCTransport) Init(transportName, botName string, fullConfig *toml.Tree, logger *logrus.Logger,
+	eventDispatcher *events.EventDispatcher,
+) {
+
+	// Init the transport.
+	transport.messages = make(chan *irc.Message)
+	transport.antiFloodDelay = 5
+	transport.rejoinDelay = 15 * time.Second
+	transport.name = botName
+	transport.user = fullConfig.GetDefault("irc.user", "papaBot").(string)
+	transport.server = fullConfig.GetDefault("irc.server", "localhost:6667").(string)
+	transport.channels = utils.ToStringSlice(fullConfig.GetDefault("irc.channels", []string{"#papabot"}).([]interface{}))
+	// State.
+	transport.floodSemaphore = make(chan int, 5)
+	transport.kickedFrom = map[string]bool{}
+	transport.onChannel = map[string]bool{}
+	transport.ircEventHandlers = make(map[string][]ircEvenHandlerFunc)
+	// Utility objects.
+	transport.log = logger
+	transport.eventDispatcher = eventDispatcher
+	transport.transportName = transportName
+
+	// Prepare TLS config if needed.
+	if fullConfig.GetDefault("irc.use_tls", false).(bool) {
+		transport.tlsConfig = &tls.Config{}
+		if fullConfig.GetDefault("irc.tls_skip_verify", false).(bool) {
+			transport.tlsConfig.InsecureSkipVerify = true
+		}
+	}
+
+	// Attach event handlers.
+	transport.assignEventHandlers()
 }
 
 // registerIrcEventHandler will register a new handler for the given IRC event.

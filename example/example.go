@@ -19,25 +19,23 @@ func init() {
 	flag.Parse()
 }
 
-// Create your own extension simply by embedding the Extension struct.
+// Create your own extension.
 type MyExtension struct {
-	extensions.Extension
 	startTime time.Time
 	bot       *papaBot.Bot
 }
 
-// Override any methods you need. For more help please take a look at bot's built in extensions.
-
-// Will be run on bot's init or when extension is registered after bot's init.
+// Will be run on bot's init or when extension is registered after bot's init. This is the only require function
+// that your extension must have.
 func (ext *MyExtension) Init(bot *papaBot.Bot) error {
 	ext.bot = bot
 	ext.startTime = time.Now()
-	bot.EventDispatcher.RegisterListener(events.EventTick, ext.Tick)
+	bot.EventDispatcher.RegisterListener(events.EventTick, ext.TickListener)
 	return nil
 }
 
-// Will be run every 5 minutes.
-func (ext *MyExtension) Tick(message events.EventMessage) {
+// Will be attached to a EventTick event that is happening every 5 minutes.
+func (ext *MyExtension) TickListener(message events.EventMessage) {
 	ext.bot.SendMassNotice(
 		fmt.Sprintf("I have been running for %.0f minutes now.", time.Since(ext.startTime).Minutes()))
 }

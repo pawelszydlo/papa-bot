@@ -2,55 +2,10 @@ package ircTransport
 
 import (
 	"crypto/tls"
-	"github.com/pawelszydlo/papa-bot/events"
-	"github.com/pawelszydlo/papa-bot/transports"
-	"github.com/pawelszydlo/papa-bot/utils"
-	"github.com/pelletier/go-toml"
-	"github.com/sirupsen/logrus"
 	"github.com/sorcix/irc"
 	"net"
 	"time"
 )
-
-// New creates a new transport instance.
-func New(transportName, botName string, fullConfig *toml.Tree, logger *logrus.Logger,
-	eventDispatcher *events.EventDispatcher,
-) transports.Transport {
-
-	// Init the transport.
-	transport := &IRCTransport{
-		messages: make(chan *irc.Message),
-
-		antiFloodDelay: 5,
-		rejoinDelay:    15 * time.Second,
-		name:           botName,
-		user:           fullConfig.GetDefault("irc.user", "papaBot").(string),
-		server:         fullConfig.GetDefault("irc.server", "localhost:6667").(string),
-		channels:       utils.ToStringSlice(fullConfig.GetDefault("irc.channels", []string{"#papabot"}).([]interface{})),
-
-		floodSemaphore:   make(chan int, 5),
-		kickedFrom:       map[string]bool{},
-		onChannel:        map[string]bool{},
-		ircEventHandlers: make(map[string][]ircEvenHandlerFunc),
-
-		log:             logger,
-		eventDispatcher: eventDispatcher,
-		transportName:   transportName,
-	}
-
-	// Prepare TLS config if needed.
-	if fullConfig.GetDefault("irc.use_tls", false).(bool) {
-		transport.tlsConfig = &tls.Config{}
-		if fullConfig.GetDefault("irc.tls_skip_verify", false).(bool) {
-			transport.tlsConfig.InsecureSkipVerify = true
-		}
-	}
-
-	// Attach event handlers.
-	transport.assignEventHandlers()
-
-	return transport
-}
 
 // connect attempts to connect to the given IRC server.
 func (transport *IRCTransport) connect() error {

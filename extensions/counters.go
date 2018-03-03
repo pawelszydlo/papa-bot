@@ -14,7 +14,6 @@ import (
 
 // ExtensionCounters - enables the creation of custom counters.
 type ExtensionCounters struct {
-	Extension
 	counters map[int]*extensionCountersCounter
 	bot      *papaBot.Bot
 }

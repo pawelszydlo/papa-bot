@@ -12,7 +12,6 @@ import (
 
 // TODO: check why this extension doesn't fetch data.
 type ExtensionMovies struct {
-	Extension
 	announced map[string]bool
 	bot       *papaBot.Bot
 }

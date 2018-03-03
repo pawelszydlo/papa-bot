@@ -11,7 +11,6 @@ import (
 
 // ExtensionDuplicates checks for duplicate URLs posted.
 type ExtensionDuplicates struct {
-	Extension
 	Texts     *extensionDuplicatesTexts
 	announced map[string]time.Time
 	bot       *papaBot.Bot
@@ -73,7 +72,7 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 			}
 			elapsed := utils.HumanizedSince(utils.MustForceLocalTimezone(timestamp))
 			duplicate = utils.Format(ext.Texts.TempDuplicateMulti,
-				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count - 1)})
+				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count-1)})
 		}
 		// Only announce once per 5 minutes per link.
 		if duplicate != "" && time.Since(ext.announced[message.Channel+message.Message]) > 5*time.Minute {

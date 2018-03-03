@@ -20,7 +20,7 @@ import (
 )
 
 // RegisterExtension will register a new transport with the bot.
-func (bot *Bot) RegisterTransport(name string, newFunction transports.NewTransportFunction) {
+func (bot *Bot) RegisterTransport(name string, transport transports.Transport) {
 	// Is the transport enabled in the config?
 	if bot.fullConfig.GetDefault(fmt.Sprintf("%s.enabled", name), false).(bool) {
 		for existingName := range bot.transports {
@@ -28,7 +28,7 @@ func (bot *Bot) RegisterTransport(name string, newFunction transports.NewTranspo
 				bot.Log.Fatalf("Transport under alias '%s' already exists.", name)
 			}
 		}
-		bot.transports[name] = newFunction(name, bot.Config.Name, bot.fullConfig, bot.Log, bot.EventDispatcher)
+		bot.transports[name] = transport
 		bot.Log.Infof("Added transport: %s", name)
 	}
 }

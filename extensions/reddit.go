@@ -24,7 +24,6 @@ Used custom variables:
 - redditDaily - if set, show daily interesting link.
 */
 type ExtensionReddit struct {
-	Extension
 	announced     map[string]bool
 	announcedLive map[string]bool
 	Texts         *extensionRedditTexts

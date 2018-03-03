@@ -8,7 +8,6 @@ import (
 
 // ExtensionTalk makes the bot a bit more talkative.
 type ExtensionTalk struct {
-	Extension
 	Texts *extensionTalkTexts
 	bot   *papaBot.Bot
 }

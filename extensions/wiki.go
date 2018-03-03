@@ -12,7 +12,6 @@ import (
 
 // ExtensionWiki - finds Wikipedia articles.
 type ExtensionWiki struct {
-	Extension
 	announced map[string]bool
 	linkRe    *regexp.Regexp
 	cleanupRe *regexp.Regexp

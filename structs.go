@@ -64,7 +64,7 @@ type Bot struct {
 	webContentSampleRe *regexp.Regexp
 }
 
-// Interface for handling of extensions.
+// Interface representing an extension.
 type extension interface {
 	Init(bot *Bot) error
 }

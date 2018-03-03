@@ -15,7 +15,6 @@ Used custom variables:
 - WolframKey - Your Wolfram Alpha AppID key.
 */
 type ExtensionWolfram struct {
-	Extension
 	announced map[string]bool
 	Texts     *extensionWolframTexts
 	bot       *papaBot.Bot

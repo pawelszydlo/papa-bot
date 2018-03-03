@@ -96,7 +96,7 @@ func New(configFile, textsFile string) *Bot {
 	bot.EventDispatcher = events.New(bot.Log)
 
 	// Register built-in transports.
-	bot.RegisterTransport("irc", ircTransport.New)
+	bot.RegisterTransport("irc", new(ircTransport.IRCTransport))
 
 	// Load texts.
 	if err := bot.LoadTexts("bot", bot.Texts); err != nil {
@@ -131,6 +131,12 @@ func (bot *Bot) initialize() {
 
 	// Load custom vars.
 	bot.loadVars()
+
+	// Init the transports.
+	bot.Log.Info("Initializing transports...")
+	for transportName, transport := range bot.transports {
+		transport.Init(transportName, bot.Config.Name, bot.fullConfig, bot.Log, bot.EventDispatcher)
+	}
 
 	// Init the ignore list.
 	ignored := strings.Split(bot.GetVar("_ignored"), " ")

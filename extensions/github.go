@@ -10,7 +10,6 @@ import (
 
 // ExtensionGitHub - extension for getting basic repository information.
 type ExtensionGitHub struct {
-	Extension
 	gitHubRe *regexp.Regexp
 	bot      *papaBot.Bot
 }
