@@ -53,7 +53,7 @@ func (bot *Bot) initBotCommands() {
 	bot.RegisterCommand(&BotCommand{
 		[]string{"ignore"},
 		false, true, true,
-		"add <nick> <userName> | remove <nick> <userName>", "Manages ignore list.",
+		"add <userName> | remove <userName>", "Manages ignore list.",
 		commandIgnore})
 
 	bot.commandsHideParams["auth"] = true
