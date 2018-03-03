@@ -97,7 +97,8 @@ func (bot *Bot) handleBotCommand(message events.EventMessage) {
 		if bot.commandUseLimit[command+message.Nick] >= bot.Config.CommandsPer5 { // Per command+person.
 			if !bot.commandWarn[message.Channel] { // Warning was not yet sent.
 				bot.SendMessage(
-					message.SourceTransport, message.Channel, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.CommandLimit))
+					message.SourceTransport, message.Channel,
+					fmt.Sprintf("%s, %s", message.Nick, bot.Texts.CommandLimit), message.Context)
 				bot.commandWarn[message.Channel] = true
 			}
 			return
@@ -110,7 +111,8 @@ func (bot *Bot) handleBotCommand(message events.EventMessage) {
 		// Check if command needs to be run through private message.
 		if cmd.Private && !private {
 			bot.SendMessage(
-				message.SourceTransport, message.Channel, fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsPriv))
+				message.SourceTransport, message.Channel,
+				fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsPriv), message.Context)
 			return
 		}
 		// Check if command needs to be run by the owner.
@@ -118,22 +120,23 @@ func (bot *Bot) handleBotCommand(message events.EventMessage) {
 			bot.SendAutoMessage(
 				private,
 				message.SourceTransport, message.Nick, message.Channel,
-				fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsAdmin))
+				fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsAdmin), message.Context)
 			return
 		}
 		cmd.CommandFunc(
-			bot, message.Nick, message.FullName, message.Channel, message.SourceTransport, private, params)
+			bot, message.Nick, message.FullName, message.Channel, message.SourceTransport, message.Context,
+			private, params)
 	} else { // Unknown command.
 		if rand.Int()%10 > 3 {
 			bot.SendAutoMessage(private, message.SourceTransport, message.Nick, message.Channel, fmt.Sprintf(
-				"%s", bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
+				"%s", bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]), message.Context)
 
 		}
 	}
 }
 
 // commandHelp will print help for all the commands.
-func commandHelp(bot *Bot, nick, user, channel, transport string, priv bool, params []string) {
+func commandHelp(bot *Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 	if len(params) == 0 || params[0] != "pub" { // By default help only gets sent on priv.
 		priv = true
 	}
@@ -172,79 +175,79 @@ func commandHelp(bot *Bot, nick, user, channel, transport string, priv bool, par
 		} else {
 			message = fmt.Sprintf("%s %s - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
 		}
-		bot.SendAutoMessage(priv, transport, nick, channel, message)
+		bot.SendAutoMessage(priv, transport, nick, channel, message, context)
 
 	}
 	return
 }
 
 // commandAuth is a command for authenticating an user with the bot.
-func commandAuth(bot *Bot, nick, user, channel, transport string, priv bool, params []string) {
+func commandAuth(bot *Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 	if len(params) == 2 {
 		if err := bot.authenticateUser(params[0], user, params[1]); err != nil {
 			bot.Log.Warningf("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
-		bot.SendPrivMessage(transport, nick, "You are now logged in.")
+		bot.SendPrivMessage(transport, nick, "You are now logged in.", context)
 	}
 }
 
 // commandIgnore will control the ignore list.
-func commandIgnore(bot *Bot, nick, user, channel, transport string, priv bool, params []string) {
+func commandIgnore(bot *Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 	if len(params) == 2 {
 		command := params[0]
 		fullName := params[1]
 		if command == "add" {
 			if bot.UserIsOwner(fullName) {
-				bot.SendPrivMessage(transport, nick, "You cannot ignore the owner.")
+				bot.SendPrivMessage(transport, nick, "You cannot ignore the owner.", context)
 				return
 			}
 			bot.AddToIgnoreList(fullName)
 		} else if command == "remove" {
 			bot.RemoveFromIgnoreList(fullName)
 		}
-		bot.SendPrivMessage(transport, nick, "Ignore list changed.")
+		bot.SendPrivMessage(transport, nick, "Ignore list changed.", context)
 	}
 }
 
 // commandUserAdd will add a new user to bot's database and authenticate.
-func commandUserAdd(bot *Bot, nick, user, channel, transport string, priv bool, params []string) {
+func commandUserAdd(bot *Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 	if len(params) == 2 {
 		if bot.UserIsAuthenticated(user) {
-			bot.SendPrivMessage(transport, nick, "You are already authenticated.")
+			bot.SendPrivMessage(transport, nick, "You are already authenticated.", context)
 			return
 		}
 
 		if err := bot.addUser(params[0], params[1], false, false); err != nil {
 			bot.Log.Warningf("Couldn't add user %s: %s", params[0], err)
-			bot.SendPrivMessage(transport, nick, fmt.Sprintf("Can't add user: %s", err))
+			bot.SendPrivMessage(transport, nick, fmt.Sprintf("Can't add user: %s", err), context)
 			return
 		}
 		if err := bot.authenticateUser(params[0], nick+"!"+user, params[1]); err != nil {
 			bot.Log.Warningf("Couldn't authenticate %s: %s", nick, err)
 			return
 		}
-		bot.SendPrivMessage(transport, nick, "User added. You are now logged in.")
+		bot.SendPrivMessage(transport, nick, "User added. You are now logged in.", context)
 	}
 }
 
 // commandVar gets, sets and lists custom variables.
-func commandVar(bot *Bot, nick, user, channel, transport string, priv bool, params []string) {
+func commandVar(bot *Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 	if len(params) < 1 {
 		return
 	}
 	command := params[0]
 	if command == "list" {
-		bot.SendPrivMessage(transport, nick, "Custom variables:")
+		bot.SendPrivMessage(transport, nick, "Custom variables:", context)
 		for key, val := range bot.customVars {
-			bot.SendPrivMessage(transport, nick, fmt.Sprintf("%s = %s", key, val))
+			bot.SendPrivMessage(transport, nick, fmt.Sprintf("%s = %s", key, val), context)
 		}
 		return
 	}
 
 	if len(params) == 2 && command == "get" {
 		name := params[1]
-		bot.SendPrivMessage(transport, nick, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
+		bot.SendPrivMessage(transport, nick, fmt.Sprintf("%s = %s", name, bot.GetVar(name)), context)
 		return
 	}
 
@@ -252,25 +255,26 @@ func commandVar(bot *Bot, nick, user, channel, transport string, priv bool, para
 		name := params[1]
 		value := strings.Join(params[2:], " ")
 		bot.SetVar(name, value)
-		bot.SendPrivMessage(transport, nick, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
+		bot.SendPrivMessage(transport, nick, fmt.Sprintf("%s = %s", name, bot.GetVar(name)), context)
 		return
 	}
 }
 
 // commandSayMore gives more info, if bot has any.
-func commandSayMore(bot *Bot, nick, user, channel, transport string, priv bool, params []string) {
+func commandSayMore(bot *Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 
 	if bot.urlMoreInfo[transport+channel] == "" {
-		bot.SendAutoMessage(priv, transport, nick, channel, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd))
+		bot.SendAutoMessage(
+			priv, transport, nick, channel, fmt.Sprintf("%s, %s", nick, bot.Texts.NothingToAdd), context)
 		return
 	} else {
-		bot.SendAutoMessage(priv, transport, nick, channel, bot.urlMoreInfo[transport+channel])
+		bot.SendAutoMessage(priv, transport, nick, channel, bot.urlMoreInfo[transport+channel], context)
 		delete(bot.urlMoreInfo, transport+channel)
 	}
 }
 
 // commandFindUrl searches bot's database using FTS for links matching the query.
-func commandFindUrl(bot *Bot, nick, user, channel, transport string, priv bool, params []string) {
+func commandFindUrl(bot *Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 	if len(params) == 0 {
 		return
 	}
@@ -308,13 +312,14 @@ func commandFindUrl(bot *Bot, nick, user, channel, transport string, priv bool, 
 	}
 	if len(found) > 0 {
 		if priv {
-			bot.SendPrivMessage(transport, nick, bot.Texts.SearchPrivateNotice)
+			bot.SendPrivMessage(transport, nick, bot.Texts.SearchPrivateNotice, context)
 		}
-		bot.SendAutoMessage(priv, transport, nick, channel, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchResults))
+		bot.SendAutoMessage(
+			priv, transport, nick, channel, fmt.Sprintf("%s, %s", nick, bot.Texts.SearchResults), context)
 		for i := range found {
-			bot.SendAutoMessage(priv, transport, nick, channel, found[i])
+			bot.SendAutoMessage(priv, transport, nick, channel, found[i], context)
 		}
 	} else {
-		bot.SendAutoMessage(priv, transport, nick, channel, fmt.Sprintf("%s", bot.Texts.SearchNoResults))
+		bot.SendAutoMessage(priv, transport, nick, channel, fmt.Sprintf("%s", bot.Texts.SearchNoResults), context)
 	}
 }

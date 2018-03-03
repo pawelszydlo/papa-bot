@@ -76,7 +76,7 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 		}
 		// Only announce once per 5 minutes per link.
 		if duplicate != "" && time.Since(ext.announced[message.Channel+message.Message]) > 5*time.Minute {
-			ext.bot.SendNotice(message.SourceTransport, message.Channel, duplicate)
+			ext.bot.SendNotice(message.SourceTransport, message.Channel, duplicate, message.Context)
 			ext.announced[message.Channel+message.Message] = time.Now()
 		}
 	}

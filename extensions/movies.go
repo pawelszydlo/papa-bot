@@ -65,7 +65,7 @@ func (ext *ExtensionMovies) searchOmdb(bot *papaBot.Bot, title string, data *mov
 }
 
 // commandMovie is a command for manually searching for movies.
-func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, transport string, priv bool, params []string) {
+func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 	if len(params) < 1 {
 		return
 	}
@@ -89,6 +89,6 @@ func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, 
 	// Announce.
 	notice := fmt.Sprintf("%s (%s, %s) | %s | http://www.imdb.com/title/%s | %s",
 		data.Title, data.Genre, data.Year, data.ImdbRating, data.ImdbID, data.Plot)
-	bot.SendAutoNotice(priv, transport, nick, channel, notice)
+	bot.SendAutoNotice(priv, transport, nick, channel, notice, context)
 	ext.announced[channel+title] = true
 }

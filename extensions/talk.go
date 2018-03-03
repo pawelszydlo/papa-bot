@@ -32,18 +32,20 @@ func (ext *ExtensionTalk) Init(bot *papaBot.Bot) error {
 
 // JoinedListener says something when bot joins a channel.
 func (ext *ExtensionTalk) JoinedListener(message events.EventMessage) {
-	if !message.IsBot || message.SourceTransport == "mattermost" {
+	if !message.AtBot || message.SourceTransport == "mattermost" {
 		return
 	}
 	ext.bot.SendMessage(
-		message.SourceTransport, message.Channel, ext.Texts.Hellos[rand.Intn(len(ext.Texts.Hellos))])
+		message.SourceTransport, message.Channel,
+		ext.Texts.Hellos[rand.Intn(len(ext.Texts.Hellos))], message.Context)
 }
 
 // ReJoinedListener says something when bot joins a channel.
 func (ext *ExtensionTalk) ReJoinedListener(message events.EventMessage) {
-	if !message.IsBot {
+	if !message.AtBot {
 		return
 	}
 	ext.bot.SendMessage(
-		message.SourceTransport, message.Channel, ext.Texts.HellosAfterKick[rand.Intn(len(ext.Texts.HellosAfterKick))])
+		message.SourceTransport, message.Channel,
+		ext.Texts.HellosAfterKick[rand.Intn(len(ext.Texts.HellosAfterKick))], message.Context)
 }

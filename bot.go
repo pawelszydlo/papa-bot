@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	Version = "1.0"
+	Version = "1.0.1"
 	Debug   = false // Set to true to crash on runtime errors.
 )
 
@@ -244,14 +244,17 @@ func (bot *Bot) Run() {
 			if time.Since(bot.nextDailyTick) >= 0 {
 				bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
 				bot.Log.Debugf("Daily tick now. Next at %s.", bot.nextDailyTick)
-				bot.EventDispatcher.Trigger(events.EventMessage{"bot", events.EventDailyTick, "", "", "", "", true})
+				bot.EventDispatcher.Trigger(events.EventMessage{
+					"bot", events.EventDailyTick, "", "", "", "", "", true})
 			} else {
-				bot.EventDispatcher.Trigger(events.EventMessage{"bot", events.EventTick, "", "", "", "", true})
+				bot.EventDispatcher.Trigger(events.EventMessage{
+					"bot", events.EventTick, "", "", "", "", "", true})
 			}
 		}
 	}()
 	// First tick, before ticker goes off.
-	bot.EventDispatcher.Trigger(events.EventMessage{"bot", events.EventTick, "", "", "", "", true})
+	bot.EventDispatcher.Trigger(events.EventMessage{
+		"bot", events.EventTick, "", "", "", "", "", true})
 
 	// Wait for all the transports to finish.
 	select {}

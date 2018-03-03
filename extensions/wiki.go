@@ -134,7 +134,7 @@ func (ext *ExtensionWiki) searchWiki(lang, search string) (string, string) {
 }
 
 // commandWiki is a command for manually searching for wikipedia entries.
-func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, transport string, priv bool, params []string) {
+func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, transport, context string, priv bool, params []string) {
 	if len(params) < 1 {
 		return
 	}
@@ -147,16 +147,21 @@ func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, tra
 
 	_, content := ext.searchWiki(bot.Config.Language, search)
 
+	maxLen := 300
+	if transport == "mattermost" {
+		maxLen = 3000
+	}
+
 	// Announce.
 	contentPreview := content
 	contentFull := ""
-	if len(content) > 300 {
-		contentPreview = content[:300] + "…"
+	if len(content) > maxLen {
+		contentPreview = content[:maxLen] + "…"
 		contentFull = content
 	}
 
 	notice := fmt.Sprintf("%s, %s", nick, contentPreview)
-	bot.SendAutoMessage(priv, transport, nick, channel, notice)
+	bot.SendAutoMessage(priv, transport, nick, channel, notice, context)
 	ext.announced[channel+search] = true
 
 	if contentFull != "" {

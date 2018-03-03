@@ -48,7 +48,7 @@ type MattermostTransport struct {
 	// Anti flood buffered semaphore
 	floodSemaphore chan int
 	// Channels the bot is on. channelId -> name
-	onChannel map[string]string
+	onChannel map[string]*model.Channel
 	// Registered event handlers.
 	eventHandlers map[string][]eventHandlerFunc
 	// User identification cache userId -> nick
@@ -72,7 +72,7 @@ func (transport *MattermostTransport) Init(transportName, botName string, fullCo
 		fullConfig.GetDefault("mattermost.channels", []string{"#papabot"}).([]interface{}))
 	// State.
 	transport.floodSemaphore = make(chan int, 5)
-	transport.onChannel = map[string]string{}
+	transport.onChannel = map[string]*model.Channel{}
 	transport.eventHandlers = map[string][]eventHandlerFunc{}
 	transport.users = map[string]string{}
 	// Utility objects.
@@ -82,7 +82,9 @@ func (transport *MattermostTransport) Init(transportName, botName string, fullCo
 }
 
 // sendEvent triggers an event for the bot.
-func (transport *MattermostTransport) sendEvent(eventCode events.EventCode, direct bool, channel, nick, userId string, message ...interface{}) {
+func (transport *MattermostTransport) sendEvent(
+	eventCode events.EventCode, context string, direct bool, channel, nick, userId string, message ...interface{}) {
+
 	eventMessage := events.EventMessage{
 		transport.transportName,
 		eventCode,
@@ -90,6 +92,7 @@ func (transport *MattermostTransport) sendEvent(eventCode events.EventCode, dire
 		userId,
 		channel,
 		fmt.Sprint(message...),
+		context,
 		direct,
 	}
 	transport.eventDispatcher.Trigger(eventMessage)
@@ -124,23 +127,16 @@ func (transport *MattermostTransport) updateStatus() {
 // joinChannels will make the transport join configured channels.
 func (transport *MattermostTransport) joinChannels() {
 	for _, channelName := range transport.channels {
-		if channel, response := transport.client.GetChannelByName(channelName, transport.mmTeam.Id, ""); response.Error != nil {
+		if channel, response := transport.client.GetChannelByName(
+			channelName, transport.mmTeam.Id, ""); response.Error != nil {
 			transport.log.Fatalf("Failed to get info for channel '%s' %s.", channelName, response.Error)
 		} else {
-			transport.onChannel[channel.Id] = channelName
-			transport.sendEvent(events.EventJoinedChannel, true, channelName, transport.botName, transport.mmUser.Id, "")
+			transport.onChannel[channel.Id] = channel
+			transport.sendEvent(
+				events.EventJoinedChannel, "", true, channelName, transport.botName, transport.mmUser.Id, "")
 			transport.log.Infof("Joined channel '%s'", channelName)
 		}
 	}
-}
-
-// OnChannels returns all channels the bot is on.
-func (transport *MattermostTransport) OnChannels() map[string]bool {
-	chanMap := make(map[string]bool)
-	for _, chanName := range transport.onChannel {
-		chanMap[chanName] = true
-	}
-	return chanMap
 }
 
 // imOnChannel will tell if the transport is listening on that channel.
@@ -152,32 +148,26 @@ func (transport *MattermostTransport) imOnChannel(channelId string) bool {
 }
 
 // channelNameToId converts channel name to it's id.
-func (transport *MattermostTransport) channelNameToId(channel string) string {
-	for id, name := range transport.onChannel {
-		if name == channel {
+func (transport *MattermostTransport) channelNameToId(channelName string) string {
+	for id, channel := range transport.onChannel {
+		if channel.Name == channelName {
 			return id
 		}
 	}
-	transport.log.Errorf("Couldn't convert channel name to id! (%s)", channel)
+	transport.log.Errorf("Couldn't convert channel name to id! (%s)", channelName)
 	return ""
 }
 
-// openPrivateChannel will open a new channel, invite the nick and return the channel name.
+// openPrivateChannel will open a new channel and return the channel name.
 func (transport *MattermostTransport) openPrivateChannel(nick string) (string, error) {
 	userId := transport.userNickToId(nick)
-	channelName := transport.mmUser.Id + "_" + userId
-	// Make sure the transport is not on the channel yet.
-	channelId := transport.channelNameToId(channelName)
-	if channelId != "" {
-		return channelName, nil
-	}
 	// Create a new channel.
 	if newChannel, response := transport.client.CreateDirectChannel(transport.mmUser.Id, userId); response.Error != nil {
 		transport.log.Errorf("Couldn't open a private channel to %s %s", nick, response.Error)
 		return "", response.Error
 	} else {
 		transport.log.Infof("Opened a new private channel %s.", newChannel.Name)
-		transport.onChannel[newChannel.Id] = newChannel.Name
+		transport.onChannel[newChannel.Id] = newChannel
 		return newChannel.Name, nil
 	}
 }
@@ -232,10 +222,12 @@ func (transport *MattermostTransport) NickIsMe(nick string) bool {
 	return nick == transport.mmUser.Username
 }
 
-func (transport *MattermostTransport) SendMessage(channel, message string) {
+func (transport *MattermostTransport) SendMessage(channel, message, context string) {
 	post := &model.Post{
 		ChannelId: transport.channelNameToId(channel),
 		Message:   message,
+		ParentId:  context,
+		RootId:    context,
 	}
 	_, response := transport.client.CreatePost(post)
 	if response.Error != nil {
@@ -243,26 +235,26 @@ func (transport *MattermostTransport) SendMessage(channel, message string) {
 	}
 }
 
-func (transport *MattermostTransport) SendPrivMessage(user, message string) {
+func (transport *MattermostTransport) SendPrivMessage(user, message, context string) {
 	if privChannel, err := transport.openPrivateChannel(user); err == nil {
-		transport.SendMessage(privChannel, message)
+		transport.SendMessage(privChannel, "@"+user+" "+message, context)
 	}
 }
 
-func (transport *MattermostTransport) SendNotice(channel, message string) {
+func (transport *MattermostTransport) SendNotice(channel, message, context string) {
 	// There are no notices on Mattermost.
-	transport.SendMessage(channel, "> "+message)
+	transport.SendMessage(channel, "**"+message+"**", context)
 }
 
-func (transport *MattermostTransport) SendPrivNotice(user, message string) {
+func (transport *MattermostTransport) SendPrivNotice(user, message, context string) {
 	// There are no notices on Mattermost.
 	if privChannel, err := transport.openPrivateChannel(user); err == nil {
-		transport.SendMessage(privChannel, "> "+message)
+		transport.SendNotice(privChannel, "@"+user+" "+message, context)
 	}
 }
 
 func (transport *MattermostTransport) SendMassNotice(message string) {
 	for _, channel := range transport.onChannel {
-		transport.SendNotice(channel, message)
+		transport.SendNotice(channel.Name, message, "")
 	}
 }

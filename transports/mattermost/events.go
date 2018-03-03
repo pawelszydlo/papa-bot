@@ -28,16 +28,24 @@ func (transport *MattermostTransport) postedHandler(event *model.WebSocketEvent)
 		return
 	}
 	// Did the message come from one of the channels bot is on?
-	if transport.imOnChannel(post.ChannelId) {
+	if channel, exists := transport.onChannel[post.ChannelId]; exists {
 		processedMsg, direct := transport.directMessage(post.Message)
+
+		event := events.EventChatMessage
+		if channel.Type == model.CHANNEL_DIRECT {
+			event = events.EventPrivateMessage
+		}
+
 		transport.sendEvent(
-			events.EventChatMessage,
+			event,
+			post.Id,
 			direct,
-			transport.onChannel[post.ChannelId],
+			channel.Name,
 			transport.userIdToNick(post.UserId),
 			post.UserId,
 			processedMsg)
-	} else { // Some other message. Check, maybe it is a private chat.
+
+	} else { // Some other message. Check, maybe it is a new private chat.
 		if channel, response := transport.client.GetChannel(post.ChannelId, ""); response.Error != nil {
 			transport.log.Warnf("Couldn't get info for channel %s %s", post.ChannelId, response.Error)
 		} else {
@@ -45,10 +53,11 @@ func (transport *MattermostTransport) postedHandler(event *model.WebSocketEvent)
 				processedMsg, _ := transport.directMessage(post.Message)
 				// Add the channel to the ones bot is on.
 				sender := transport.userIdToNick(post.UserId)
-				transport.onChannel[channel.Id] = channel.Name
+				transport.onChannel[channel.Id] = channel
 				transport.log.Warnf("Added new chanel: %s", channel.Name)
 				transport.sendEvent(
 					events.EventPrivateMessage,
+					post.Id,
 					true,
 					channel.Name,
 					sender,

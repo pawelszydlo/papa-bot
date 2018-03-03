@@ -63,48 +63,48 @@ func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 }
 
 // SendMessage sends a message to the channel.
-func (bot *Bot) SendMessage(transportName, channel, message string) {
+func (bot *Bot) SendMessage(transportName, channel, message, context string) {
 	bot.Log.Debugf("Sending message to [%s]%s: %s", transportName, channel, message)
 	transport := bot.getTransportOrDie(transportName)
-	transport.SendMessage(channel, message)
+	transport.SendMessage(channel, message, context)
 }
 
 // SendPrivMessage sends a private message to a user.
-func (bot *Bot) SendPrivMessage(transportName, nick, message string) {
+func (bot *Bot) SendPrivMessage(transportName, nick, message, context string) {
 	bot.Log.Debugf("Sending private message to [%s]%s: %s", transportName, nick, message)
 	transport := bot.getTransportOrDie(transportName)
-	transport.SendPrivMessage(nick, message)
+	transport.SendPrivMessage(nick, message, context)
 }
 
 // SendAutoMessage is a helper function for sending either a public message to channel or private to nick.
-func (bot *Bot) SendAutoMessage(private bool, transportName, nick, channel, message string) {
+func (bot *Bot) SendAutoMessage(private bool, transportName, nick, channel, message, context string) {
 	if private {
-		bot.SendPrivMessage(transportName, nick, message)
+		bot.SendPrivMessage(transportName, nick, message, context)
 	} else {
-		bot.SendMessage(transportName, channel, message)
+		bot.SendMessage(transportName, channel, message, context)
 	}
 }
 
 // SendNotice sends a notice to the channel.
-func (bot *Bot) SendNotice(transportName, channel, message string) {
+func (bot *Bot) SendNotice(transportName, channel, message, context string) {
 	bot.Log.Debugf("Sending notice to %s: [%s]%s", transportName, channel, message)
 	transport := bot.getTransportOrDie(transportName)
-	transport.SendNotice(channel, message)
+	transport.SendNotice(channel, message, context)
 }
 
 // SendPrivNotice sends a private notice to a user.
-func (bot *Bot) SendPrivNotice(transportName, nick, message string) {
+func (bot *Bot) SendPrivNotice(transportName, nick, message, context string) {
 	bot.Log.Debugf("Sending private notice to [%s]%s: %s", transportName, nick, message)
 	transport := bot.getTransportOrDie(transportName)
-	transport.SendPrivNotice(nick, message)
+	transport.SendPrivNotice(nick, message, context)
 }
 
 // SendAutoNotice is a helper function for sending either a public notice to channel or private to nick.
-func (bot *Bot) SendAutoNotice(private bool, transportName, nick, channel, message string) {
+func (bot *Bot) SendAutoNotice(private bool, transportName, nick, channel, message, context string) {
 	if private {
-		bot.SendPrivNotice(transportName, nick, message)
+		bot.SendPrivNotice(transportName, nick, message, context)
 	} else {
-		bot.SendNotice(transportName, channel, message)
+		bot.SendNotice(transportName, channel, message, context)
 	}
 }
 
@@ -262,20 +262,8 @@ func (bot *Bot) GetVar(name string) string {
 	return bot.customVars[name]
 }
 
-// IsOnChannel checks whether the bot is present on a given channel.
-func (bot *Bot) IsOnChannel(transportName, name string) bool {
-	transport := bot.getTransportOrDie(transportName)
-	if val, ok := transport.OnChannels()[name]; ok && val {
-		return true
-	}
-	return false
-}
-
 // AddMoreInfo will set more information to be viewed for the channel.
 func (bot *Bot) AddMoreInfo(transport, channel, info string) error {
-	if !bot.IsOnChannel(transport, channel) {
-		return errors.New("I'm not on channel " + channel)
-	}
 	bot.urlMoreInfo[transport+channel] = info
 	return nil
 }

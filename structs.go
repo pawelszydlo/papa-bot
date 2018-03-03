@@ -84,7 +84,7 @@ type BotCommand struct {
 	// Help string with the description.
 	HelpDescription string
 	// Function to be executed.
-	CommandFunc func(bot *Bot, nick, fullName, channel, transport string, private bool, params []string)
+	CommandFunc func(bot *Bot, nick, fullName, channel, transport, context string, private bool, params []string)
 }
 
 // Bot's configuration. It will be loaded from the provided file on New(), overwriting any defaults.

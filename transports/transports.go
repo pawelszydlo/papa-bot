@@ -21,14 +21,12 @@ type Transport interface {
 	)
 	// Will be called once, when the bot starts, and should contain the main loop.
 	Run()
-	// Report the channels the transport is on.
-	OnChannels() map[string]bool
 	// check whether a given nick is the transport.
 	NickIsMe(nick string) bool
 	// Send messages.
-	SendMessage(channel, message string)
-	SendNotice(channel, message string)
-	SendPrivMessage(user, message string)
-	SendPrivNotice(user, message string)
+	SendMessage(channel, message, context string)
+	SendNotice(channel, message, context string)
+	SendPrivMessage(user, message, context string)
+	SendPrivNotice(user, message, context string)
 	SendMassNotice(message string)
 }

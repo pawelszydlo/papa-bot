@@ -120,23 +120,23 @@ func (transport *IRCTransport) SendRawMessage(command string, params []string, t
 }
 
 // SendMessage sends a message to the channel.
-func (transport *IRCTransport) SendMessage(channel, message string) {
+func (transport *IRCTransport) SendMessage(channel, message, context string) {
 	transport.sendFloodProtected(irc.PRIVMSG, channel, message)
 }
 
 // SendNotice sends a notice to the channel.
-func (transport *IRCTransport) SendNotice(channel, message string) {
+func (transport *IRCTransport) SendNotice(channel, message, context string) {
 	transport.sendFloodProtected(irc.NOTICE, channel, message)
 }
 
 // SendPrivMessage sends a message to the user.
-func (transport *IRCTransport) SendPrivMessage(user, message string) {
-	transport.SendMessage(user, message)
+func (transport *IRCTransport) SendPrivMessage(user, message, context string) {
+	transport.SendMessage(user, message, context)
 }
 
 // SendPrivNotice sends a notice to the user.
-func (transport *IRCTransport) SendPrivNotice(user, message string) {
-	transport.SendNotice(user, message)
+func (transport *IRCTransport) SendPrivNotice(user, message, context string) {
+	transport.SendNotice(user, message, context)
 }
 
 // SendMassNotice sends a notice to all the channels transport is on.
@@ -183,11 +183,6 @@ func (transport *IRCTransport) isOnChannel(channel string) bool {
 	return transport.onChannel[channel]
 }
 
-// OnChannels will return a map of all channels the transport is on.
-func (transport *IRCTransport) OnChannels() map[string]bool {
-	return transport.onChannel
-}
-
 // NickIsMe checks if the sender is the transport.
 func (transport *IRCTransport) NickIsMe(nick string) bool {
 	return nick == transport.name
@@ -202,6 +197,7 @@ func (transport *IRCTransport) sendEvent(eventCode events.EventCode, direct bool
 		fullName,
 		channel,
 		fmt.Sprint(message...),
+		"",
 		direct,
 	}
 	transport.eventDispatcher.Trigger(eventMessage)

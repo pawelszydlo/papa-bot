@@ -24,7 +24,7 @@ func (transport *MattermostTransport) connect() {
 		transport.mmUser = user
 		transport.log.Infof("Logged in as %s (%s).", user.Username, user.Id)
 	}
-	transport.sendEvent(events.EventConnected, true, "", transport.botName, transport.mmUser.Id, "")
+	transport.sendEvent(events.EventConnected, "", true, "", transport.botName, transport.mmUser.Id, "")
 }
 
 // Run will execute the main loop.
