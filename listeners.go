@@ -130,7 +130,7 @@ func (bot *Bot) scribeListener(message events.EventMessage) {
 
 		scribe := log.New(f, "", log.Ldate|log.Ltime)
 		if message.EventCode == events.EventChatMessage {
-			scribe.Println(fmt.Sprintf("%s %s", message.Nick, message.Message))
+			scribe.Println(fmt.Sprintf("%s: %s", message.Nick, message.Message))
 		} else if message.EventCode == events.EventChatNotice {
 			scribe.Println(fmt.Sprintf("Notice from %s: %s", message.Nick, message.Message))
 		} else { // Must be channel activity.
