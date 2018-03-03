@@ -32,7 +32,7 @@ func (ext *ExtensionTalk) Init(bot *papaBot.Bot) error {
 
 // JoinedListener says something when bot joins a channel.
 func (ext *ExtensionTalk) JoinedListener(message events.EventMessage) {
-	if !message.IsBot {
+	if !message.IsBot || message.SourceTransport == "mattermost" {
 		return
 	}
 	ext.bot.SendMessage(
