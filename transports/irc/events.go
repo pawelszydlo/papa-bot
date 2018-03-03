@@ -156,13 +156,13 @@ func handlerMsg(transport *IRCTransport, m *irc.Message) {
 
 		if msg == "VERSION" {
 			transport.log.Debugf("Replying to VERSION query from %s...", nick)
-			transport.SendNotice(nick, "\x01VERSION papaBot running on insomnia.\x01")
+			transport.SendNotice(nick, "\x01VERSION papaBot running on insomnia.\x01", "")
 			return
 		}
 
 		if msg == "FINGER" {
 			transport.log.Debugf("Replying to FINGER query from %s...", nick)
-			transport.SendNotice(nick, "\x01FINGER yourself.\x01")
+			transport.SendNotice(nick, "\x01FINGER yourself.\x01", "")
 			return
 		}
 
