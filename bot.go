@@ -12,6 +12,7 @@ import (
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/transports"
 	"github.com/pawelszydlo/papa-bot/transports/irc"
+	"github.com/pawelszydlo/papa-bot/transports/mattermost"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
@@ -97,6 +98,7 @@ func New(configFile, textsFile string) *Bot {
 
 	// Register built-in transports.
 	bot.RegisterTransport("irc", new(ircTransport.IRCTransport))
+	bot.RegisterTransport("mattermost", new(mattermostTransport.MattermostTransport))
 
 	// Load texts.
 	if err := bot.LoadTexts("bot", bot.Texts); err != nil {

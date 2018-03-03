@@ -72,12 +72,13 @@ func (transport *IRCTransport) Init(transportName, botName string, fullConfig *t
 	eventDispatcher *events.EventDispatcher,
 ) {
 
-	// Init the transport.
+	// Init the transport struct.
 	transport.messages = make(chan *irc.Message)
 	transport.antiFloodDelay = 5
 	transport.rejoinDelay = 15 * time.Second
 	transport.name = botName
 	transport.user = fullConfig.GetDefault("irc.user", "papaBot").(string)
+	transport.password = fullConfig.GetDefault("irc.password", "").(string)
 	transport.server = fullConfig.GetDefault("irc.server", "localhost:6667").(string)
 	transport.channels = utils.ToStringSlice(fullConfig.GetDefault("irc.channels", []string{"#papabot"}).([]interface{}))
 	// State.
@@ -192,7 +193,7 @@ func (transport *IRCTransport) NickIsMe(nick string) bool {
 	return nick == transport.name
 }
 
-// scribe forwards the message to the bot for logging.
+// sendEvent triggers an event for the bot.
 func (transport *IRCTransport) sendEvent(eventCode events.EventCode, direct bool, channel, nick, fullName string, message ...interface{}) {
 	eventMessage := events.EventMessage{
 		transport.transportName,

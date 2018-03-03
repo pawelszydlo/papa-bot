@@ -1,6 +1,8 @@
 package events
 
 // Events and dispatcher.
+//go:generate stringer -type=EventCode
+// TODO: find out why the above doesn't work...
 
 import (
 	"github.com/sirupsen/logrus"
@@ -90,7 +92,7 @@ func (dispatcher *EventDispatcher) RegisterListener(eventCode EventCode, listene
 func (dispatcher *EventDispatcher) Trigger(eventMessage EventMessage) {
 	if dispatcher.isIgnored(eventMessage) {
 		dispatcher.log.Infof(
-			"Ignoring event %v from %s (%s)", eventMessage.EventCode, eventMessage.Nick, eventMessage.FullName)
+			"Ignoring event %s from %s (%s)", eventMessage.EventCode, eventMessage.Nick, eventMessage.FullName)
 		return
 	}
 	for _, listener := range dispatcher.listeners[eventMessage.EventCode] {

@@ -30,6 +30,8 @@ func (bot *Bot) RegisterTransport(name string, transport transports.Transport) {
 		}
 		bot.transports[name] = transport
 		bot.Log.Infof("Added transport: %s", name)
+	} else {
+		bot.Log.Infof("Transport under alias '%s' disabled in the config.", name)
 	}
 }
 

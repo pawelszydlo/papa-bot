@@ -26,6 +26,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 ### Supported transports
 
 * IRC (built using [github.com/sorcix/irc](http://github.com/sorcix/irc) library.)
+* Mattermost
 * that's about it for now...
 
 ### Bundled extensions

@@ -133,6 +133,10 @@ func (bot *Bot) scribeListener(message events.EventMessage) {
 			scribe.Println(fmt.Sprintf("%s: %s", message.Nick, message.Message))
 		} else if message.EventCode == events.EventChatNotice {
 			scribe.Println(fmt.Sprintf("Notice from %s: %s", message.Nick, message.Message))
+		} else if message.EventCode == events.EventJoinedChannel {
+			scribe.Println(fmt.Sprintf("* %s joined.", message.Nick))
+		} else if message.EventCode == events.EventPartChannel {
+			scribe.Println(fmt.Sprintf("* %s left.", message.Nick))
 		} else { // Must be channel activity.
 			scribe.Println(fmt.Sprintf("* %s %s", message.Nick, message.Message))
 		}

@@ -35,7 +35,7 @@ func (ext *ExtensionTalk) JoinedListener(message events.EventMessage) {
 	if !message.IsBot {
 		return
 	}
-	ext.bot.SendPrivMessage(
+	ext.bot.SendMessage(
 		message.SourceTransport, message.Channel, ext.Texts.Hellos[rand.Intn(len(ext.Texts.Hellos))])
 }
 
@@ -44,6 +44,6 @@ func (ext *ExtensionTalk) ReJoinedListener(message events.EventMessage) {
 	if !message.IsBot {
 		return
 	}
-	ext.bot.SendPrivMessage(
+	ext.bot.SendMessage(
 		message.SourceTransport, message.Channel, ext.Texts.HellosAfterKick[rand.Intn(len(ext.Texts.HellosAfterKick))])
 }
