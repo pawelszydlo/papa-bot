@@ -58,9 +58,12 @@ type EventMessage struct {
 	Nick, FullName string
 	Channel        string
 	Message        string
+	// Context for the message, will be passed back if any listener sends a message.
+	Context string
 	// Was the message directed at the bot? If yes, bot will check for commands.
+	// Message directed at the bot should be stripped of the prefixes like dot or bot's name.
 	// In case of join, part etc. this will indicate whether bot was the subject.
-	IsBot bool
+	AtBot bool
 }
 
 // Type for a valid event listener function.
