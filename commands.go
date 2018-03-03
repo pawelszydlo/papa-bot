@@ -195,7 +195,7 @@ func commandIgnore(bot *Bot, nick, user, channel, transport string, priv bool, p
 		command := params[0]
 		fullName := params[1]
 		if command == "add" {
-			if bot.UserIsOwner(user) {
+			if bot.UserIsOwner(fullName) {
 				bot.SendPrivMessage(transport, nick, "You cannot ignore the owner.")
 				return
 			}
