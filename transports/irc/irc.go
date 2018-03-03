@@ -38,6 +38,14 @@ func New(transportName, botName string, fullConfig *toml.Tree, logger *logrus.Lo
 		transportName:   transportName,
 	}
 
+	// Prepare TLS config if needed.
+	if fullConfig.GetDefault("irc.use_tls", false).(bool) {
+		transport.tlsConfig = &tls.Config{}
+		if fullConfig.GetDefault("irc.tls_skip_verify", false).(bool) {
+			transport.tlsConfig.InsecureSkipVerify = true
+		}
+	}
+
 	// Attach event handlers.
 	transport.assignEventHandlers()
 
