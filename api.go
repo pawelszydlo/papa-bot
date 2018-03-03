@@ -61,19 +61,29 @@ func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 }
 
 // SendMessage sends a message to the channel.
-func (bot *Bot) SendPrivMessage(transportName, channel, message string) {
+func (bot *Bot) SendMessage(transportName, channel, message string) {
+	bot.Log.Debugf("Sending message to [%s]%s: %s", transportName, channel, message)
 	transport := bot.getTransportOrDie(transportName)
-	transport.SendPrivMessage(channel, message)
+	transport.SendMessage(channel, message)
+}
+
+// SendPrivMessage sends a private message to a user.
+func (bot *Bot) SendPrivMessage(transportName, nick, message string) {
+	bot.Log.Debugf("Sending private message to [%s]%s: %s", transportName, nick, message)
+	transport := bot.getTransportOrDie(transportName)
+	transport.SendPrivMessage(nick, message)
 }
 
 // SendNotice sends a notice to the channel.
 func (bot *Bot) SendNotice(transportName, channel, message string) {
+	bot.Log.Debugf("Sending notice to %s: [%s]%s", transportName, channel, message)
 	transport := bot.getTransportOrDie(transportName)
 	transport.SendNotice(channel, message)
 }
 
 // SendMassNotice sends a notice to all the channels bot is on, on all transports.
 func (bot *Bot) SendMassNotice(message string) {
+	bot.Log.Debugf("Sending mass notice: %s", message)
 	for _, transport := range bot.transports {
 		transport.SendMassNotice(message)
 	}

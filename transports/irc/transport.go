@@ -83,25 +83,21 @@ func (transport *IRCTransport) SendRawMessage(command string, params []string, t
 
 // SendMessage sends a message to the channel.
 func (transport *IRCTransport) SendMessage(channel, message string) {
-	transport.log.Debugf("Sending message to %s: %s", channel, message)
 	transport.sendFloodProtected(irc.PRIVMSG, channel, message)
 }
 
 // SendNotice sends a notice to the channel.
 func (transport *IRCTransport) SendNotice(channel, message string) {
-	transport.log.Debugf("Sending notice to %s: %s", channel, message)
 	transport.sendFloodProtected(irc.NOTICE, channel, message)
 }
 
 // SendMessage sends a message to the channel.
 func (transport *IRCTransport) SendPrivMessage(user, message string) {
-	// In IRC, priv messages are the same as channel messages.
 	transport.SendMessage(user, message)
 }
 
 // SendMassNotice sends a notice to all the channels transport is on.
 func (transport *IRCTransport) SendMassNotice(message string) {
-	transport.log.Debugf("Sending mass notice: %s", message)
 	for _, channel := range transport.getChannelsOn() {
 		transport.sendFloodProtected(irc.NOTICE, channel, message)
 	}
