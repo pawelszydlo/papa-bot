@@ -4,7 +4,7 @@ package papaBot
 
 import (
 	"fmt"
-	"github.com/mvdan/xurls"
+	"mvdan.cc/xurls"
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"log"
@@ -39,7 +39,7 @@ func (bot *Bot) messageListener(message events.EventMessage) {
 func (bot *Bot) handleURLsListener(message events.EventMessage) {
 
 	// Find all URLs in the message.
-	links := xurls.Strict.FindAllString(message.Message, -1)
+	links := xurls.Strict().FindAllString(message.Message, -1)
 	// Remove multiple same links from one message.
 	links = utils.RemoveDuplicates(links)
 	for i := range links {
