@@ -99,6 +99,11 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 			continue
 		}
 
+		// On mattermost we can skip all link info display.
+		if message.SourceTransport == "mattermost" {
+			return
+		}
+
 		// Announce the title, save the description.
 		if title != "" {
 			if description != "" {
