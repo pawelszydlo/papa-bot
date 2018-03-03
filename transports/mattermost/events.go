@@ -55,7 +55,6 @@ func (transport *MattermostTransport) postedHandler(event *model.WebSocketEvent)
 					post.Message)
 			}
 		}
-		transport.log.Warnf("%+v", post)
 	}
 
 }
