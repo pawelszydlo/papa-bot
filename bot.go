@@ -52,7 +52,7 @@ func New(configFile, textsFile string) *Bot {
 		DailyTickMinute:            0,
 		Language:                   fullConfig.GetDefault("bot.language", "en").(string),
 		Name:                       fullConfig.GetDefault("bot.name", "papaBot").(string),
-		LogLevel:                   logrus.InfoLevel,
+		LogLevel:                   logrus.DebugLevel,
 	}
 
 	// Init bot struct.

@@ -54,7 +54,7 @@ func (transport *MattermostTransport) Run() {
 						handler(event)
 					}
 				} else { // No handler for this type of event.
-					transport.log.Debugf("No handler for event: %s", event.Event)
+					// transport.log.Debugf("No handler for event: %s", event.Event)
 				}
 			} else {
 				break
