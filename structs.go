@@ -69,22 +69,6 @@ type extension interface {
 	Init(bot *Bot) error
 }
 
-// Url information passed between url processors.
-type UrlInfo struct {
-	// The URL itself.
-	URL string
-	// Title (this is a bit special, with one extension in mind).
-	Title string
-	// Content type (if available).
-	ContentType string
-	// Body (will be available only for type/html and type/text).
-	Body []byte
-	// Short info will be sent as a notice to the channel immediately.
-	ShortInfo string
-	// Long info will be saved as "more".
-	LongInfo string
-}
-
 // Bot's commands.
 type BotCommand struct {
 	// Names of the command (main and aliases).
