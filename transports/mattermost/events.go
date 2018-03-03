@@ -42,6 +42,7 @@ func (transport *MattermostTransport) postedHandler(event *model.WebSocketEvent)
 			transport.log.Warnf("Couldn't get info for channel %s %s", post.ChannelId, response.Error)
 		} else {
 			if channel.Type == model.CHANNEL_DIRECT {
+				processedMsg, _ := transport.directMessage(post.Message)
 				// Add the channel to the ones bot is on.
 				sender := transport.userIdToNick(post.UserId)
 				transport.onChannel[channel.Id] = channel.Name
@@ -52,7 +53,7 @@ func (transport *MattermostTransport) postedHandler(event *model.WebSocketEvent)
 					channel.Name,
 					sender,
 					post.UserId,
-					post.Message)
+					processedMsg)
 			}
 		}
 	}
