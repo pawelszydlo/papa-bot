@@ -100,6 +100,9 @@ func (dispatcher *EventDispatcher) Trigger(eventMessage EventMessage) {
 
 // isIgnored will check whether the message comes from an ignored person.
 func (dispatcher *EventDispatcher) isIgnored(eventMessage EventMessage) bool {
+	if eventMessage.FullName == "" {
+		return false
+	}
 	for _, person := range dispatcher.blackList {
 		if person == eventMessage.FullName {
 			return true
