@@ -153,7 +153,7 @@ func (ext *ExtensionBtc) TickListener(message events.EventMessage) {
 	}
 }
 
-func (ext *ExtensionBtc) commandBtc(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
+func (ext *ExtensionBtc) commandBtc(bot *papaBot.Bot, nick, user, channel, transport string, priv bool, params []string) {
 	// Answer only once per 5 minutes per channel.
 	if time.Since(ext.LastAsk[channel]) > 5*time.Minute {
 		ext.LastAsk[channel] = time.Now()
@@ -166,13 +166,14 @@ func (ext *ExtensionBtc) commandBtc(bot *papaBot.Bot, nick, user, channel, recei
 		price, _ := strconv.ParseFloat(ext.HourlyData["last"].(string), 64)
 		diff := price - ext.HourlyData["open"].(float64)
 
-		bot.SendNotice(transport, receiver, utils.Format(ext.Texts.TempBtcNotice, map[string]string{
+		bot.SendAutoNotice(priv, transport, nick, channel, utils.Format(ext.Texts.TempBtcNotice, map[string]string{
 			"price": fmt.Sprintf("$%.2f", price),
 			"diff":  ext.diffStr(diff)}))
+
 	} else {
 		// Only warn once.
 		if !ext.Warned[channel] {
-			bot.SendPrivMessage(transport, receiver, fmt.Sprintf("%s, %s", nick, ext.Texts.NothingHasChanged))
+			bot.SendAutoMessage(priv, transport, nick, channel, fmt.Sprintf("%s, %s", nick, ext.Texts.NothingHasChanged))
 			ext.Warned[channel] = true
 		}
 	}

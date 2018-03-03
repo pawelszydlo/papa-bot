@@ -117,7 +117,7 @@ func (ext *ExtensionWolfram) queryWolfram(query string) string {
 }
 
 // commandMovie is a command for manually searching for movies.
-func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
+func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, nick, user, channel, transport string, priv bool, params []string) {
 	if len(params) < 1 {
 		return
 	}
@@ -144,10 +144,14 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, nick, user, channe
 	}
 
 	notice := fmt.Sprintf("%s, %s", nick, contentPreview)
-	bot.SendPrivMessage(transport, receiver, notice)
+	bot.SendAutoMessage(priv, transport, nick, channel, notice)
 	ext.announced[channel+search] = true
 
 	if contentFull != "" {
-		bot.AddMoreInfo(transport, receiver, contentFull)
+		if priv {
+			bot.AddMoreInfo(transport, nick, contentFull)
+		} else {
+			bot.AddMoreInfo(transport, channel, contentFull)
+		}
 	}
 }

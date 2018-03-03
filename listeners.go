@@ -4,10 +4,10 @@ package papaBot
 
 import (
 	"fmt"
-	"mvdan.cc/xurls"
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"log"
+	"mvdan.cc/xurls"
 	"os"
 	"regexp"
 	"time"

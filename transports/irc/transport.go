@@ -91,9 +91,14 @@ func (transport *IRCTransport) SendNotice(channel, message string) {
 	transport.sendFloodProtected(irc.NOTICE, channel, message)
 }
 
-// SendMessage sends a message to the channel.
+// SendPrivMessage sends a message to the user.
 func (transport *IRCTransport) SendPrivMessage(user, message string) {
 	transport.SendMessage(user, message)
+}
+
+// SendPrivNotice sends a notice to the user.
+func (transport *IRCTransport) SendPrivNotice(user, message string) {
+	transport.SendNotice(user, message)
 }
 
 // SendMassNotice sends a notice to all the channels transport is on.

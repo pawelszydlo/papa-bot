@@ -74,11 +74,36 @@ func (bot *Bot) SendPrivMessage(transportName, nick, message string) {
 	transport.SendPrivMessage(nick, message)
 }
 
+// SendAutoMessage is a helper function for sending either a public message to channel or private to nick.
+func (bot *Bot) SendAutoMessage(private bool, transportName, nick, channel, message string) {
+	if private {
+		bot.SendPrivMessage(transportName, nick, message)
+	} else {
+		bot.SendMessage(transportName, channel, message)
+	}
+}
+
 // SendNotice sends a notice to the channel.
 func (bot *Bot) SendNotice(transportName, channel, message string) {
 	bot.Log.Debugf("Sending notice to %s: [%s]%s", transportName, channel, message)
 	transport := bot.getTransportOrDie(transportName)
 	transport.SendNotice(channel, message)
+}
+
+// SendPrivNotice sends a private notice to a user.
+func (bot *Bot) SendPrivNotice(transportName, nick, message string) {
+	bot.Log.Debugf("Sending private notice to [%s]%s: %s", transportName, nick, message)
+	transport := bot.getTransportOrDie(transportName)
+	transport.SendPrivNotice(nick, message)
+}
+
+// SendAutoNotice is a helper function for sending either a public notice to channel or private to nick.
+func (bot *Bot) SendAutoNotice(private bool, transportName, nick, channel, message string) {
+	if private {
+		bot.SendPrivNotice(transportName, nick, message)
+	} else {
+		bot.SendNotice(transportName, channel, message)
+	}
 }
 
 // SendMassNotice sends a notice to all the channels bot is on, on all transports.

@@ -65,8 +65,12 @@ func (ext *ExtensionMovies) searchOmdb(bot *papaBot.Bot, title string, data *mov
 	}
 }
 
-// announce announces movie info to the channel.
-func (ext *ExtensionMovies) findAndAnnounce(bot *papaBot.Bot, transport, channel, title string) {
+// commandMovie is a command for manually searching for movies.
+func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, transport string, priv bool, params []string) {
+	if len(params) < 1 {
+		return
+	}
+	title := strings.Join(params, " ")
 	// Announce each movie only once.
 	if ext.announced[channel+title] {
 		return
@@ -86,15 +90,6 @@ func (ext *ExtensionMovies) findAndAnnounce(bot *papaBot.Bot, transport, channel
 	// Announce.
 	notice := fmt.Sprintf("%s (%s, %s) | %s | http://www.imdb.com/title/%s | %s",
 		data.Title, data.Genre, data.Year, data.ImdbRating, data.ImdbID, data.Plot)
-	bot.SendNotice(transport, channel, notice)
+	bot.SendAutoNotice(priv, transport, nick, channel, notice)
 	ext.announced[channel+title] = true
-}
-
-// commandMovie is a command for manually searching for movies.
-func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, receiver, transport string, priv bool, params []string) {
-	if len(params) < 1 {
-		return
-	}
-	title := strings.Join(params, " ")
-	ext.findAndAnnounce(bot, transport, receiver, title)
 }

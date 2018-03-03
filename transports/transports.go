@@ -17,6 +17,7 @@ type Transport interface {
 	SendMessage(channel, message string)
 	SendNotice(channel, message string)
 	SendPrivMessage(user, message string)
+	SendPrivNotice(user, message string)
 	SendMassNotice(message string)
 }
 
