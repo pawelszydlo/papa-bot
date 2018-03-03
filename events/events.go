@@ -91,6 +91,7 @@ func (dispatcher *EventDispatcher) Trigger(eventMessage EventMessage) {
 	if dispatcher.isIgnored(eventMessage) {
 		dispatcher.log.Infof(
 			"Ignoring event %v from %s (%s)", eventMessage.EventCode, eventMessage.Nick, eventMessage.FullName)
+		return
 	}
 	for _, listener := range dispatcher.listeners[eventMessage.EventCode] {
 		go listener(eventMessage)

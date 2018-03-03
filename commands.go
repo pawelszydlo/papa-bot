@@ -192,13 +192,13 @@ func commandAuth(bot *Bot, nick, user, channel, transport string, priv bool, par
 // commandIgnore will control the ignore list.
 func commandIgnore(bot *Bot, nick, user, channel, transport string, priv bool, params []string) {
 	if len(params) == 2 {
-		if bot.UserIsOwner(user) {
-			bot.SendPrivMessage(transport, nick, "You cannot ignore the owner.")
-			return
-		}
 		command := params[0]
 		fullName := params[1]
 		if command == "add" {
+			if bot.UserIsOwner(user) {
+				bot.SendPrivMessage(transport, nick, "You cannot ignore the owner.")
+				return
+			}
 			bot.AddToIgnoreList(fullName)
 		} else if command == "remove" {
 			bot.RemoveFromIgnoreList(fullName)

@@ -42,14 +42,14 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 	result, err := ext.bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
 		FROM urls WHERE link=? AND channel=? AND transport=?
-		ORDER BY timestamp DESC LIMIT 1`, message.Message, message.Channel, message.SourceTransport)
+		ORDER BY timestamp DESC LIMIT 1,1`, message.Message, message.Channel, message.SourceTransport)
 	if err != nil {
 		ext.bot.Log.Warningf("Can't query the database for duplicates: %s", err)
 		return
 	}
 	defer result.Close()
 
-	// Announce a duplicate
+	// Because bot already recorded this occurrence, we are interested in the one before, hence LIMIT 1,1.
 	if result.Next() {
 		var nick string
 		var timestr string
@@ -60,8 +60,7 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 		}
 		timestamp, _ := time.Parse("2006-01-02 15:04:05", timestr)
 		duplicate := ""
-		// All these checks occur after the bot has already saved the link to db, hence two for duplicate.
-		// Only one duplicate
+		// Only one duplicate.
 		if count == 2 {
 			if ext.bot.AreSamePeople(nick, message.Nick) {
 				nick = ext.Texts.DuplicateYou
@@ -74,7 +73,7 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 			}
 			elapsed := utils.HumanizedSince(utils.MustForceLocalTimezone(timestamp))
 			duplicate = utils.Format(ext.Texts.TempDuplicateMulti,
-				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count)})
+				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count - 1)})
 		}
 		// Only announce once per 5 minutes per link.
 		if duplicate != "" && time.Since(ext.announced[message.Channel+message.Message]) > 5*time.Minute {
