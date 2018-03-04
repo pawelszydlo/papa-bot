@@ -6,6 +6,7 @@ import (
 	"github.com/pawelszydlo/papa-bot"
 	"net/url"
 	"strings"
+	"github.com/pawelszydlo/papa-bot/events"
 )
 
 /*
@@ -16,6 +17,7 @@ Used custom variables:
 */
 type ExtensionAqicn struct {
 	bot *papaBot.Bot
+	resultCache     map[string]string
 }
 
 // Structs for Aqicn responses.
@@ -51,6 +53,7 @@ type aqiValue struct {
 
 // Init inits the extension.
 func (ext *ExtensionAqicn) Init(bot *papaBot.Bot) error {
+	ext.resultCache = map[string]string{}
 	// Register new command.
 	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"aq"},
@@ -58,6 +61,7 @@ func (ext *ExtensionAqicn) Init(bot *papaBot.Bot) error {
 		"<station>", "Show air quality for <station>.",
 		ext.commandAqicn})
 	ext.bot = bot
+	bot.EventDispatcher.RegisterListener(events.EventTick, ext.TickListener)
 	return nil
 }
 
@@ -104,6 +108,12 @@ func (ext *ExtensionAqicn) queryAqicn(city, transport string) string {
 	token := ext.bot.GetVar("aqicnToken")
 	if token == "" {
 		ext.bot.Log.Errorf("Aqicn.org Token key not set! Set the 'aqicnToken' variable in the bot.")
+	}
+
+	// Check if we have this cached.
+	cacheKey := transport + city
+	if cached, exists := ext.resultCache[cacheKey]; exists {
+		return cached
 	}
 
 	err, _, body := ext.bot.GetPageBody(
@@ -171,10 +181,20 @@ func (ext *ExtensionAqicn) queryAqicn(city, transport string) string {
 			}
 		}
 	}
+	finalResult := ""
 	if transport == "mattermost" {
-		return strings.Join(result, "\n")
+		finalResult = strings.Join(result, "\n")
+	} else {
+		finalResult = strings.Join(result, " | ")
 	}
-	return strings.Join(result, " | ")
+	ext.resultCache[cacheKey] = finalResult
+	return finalResult
+}
+
+// TickListener will clear announce cache.
+func (ext *ExtensionAqicn) TickListener(message events.EventMessage) {
+	// Clear the announcement cache.
+	ext.resultCache = map[string]string{}
 }
 
 // commandMovie is a command for manually searching for movies.
