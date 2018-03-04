@@ -14,31 +14,36 @@ const (
 	// Normal chat message.
 	EventChatMessage EventCode = iota
 	// Chat notice.
-	EventChatNotice EventCode = iota
+	EventChatNotice
 	// Private message received.
-	EventPrivateMessage EventCode = iota
+	EventPrivateMessage
 	// URL found in the message.
-	EventURLFound EventCode = iota
+	EventURLFound
+
+	// Bot activity, like command or event handler started.
+	EventBotWorking
+	// Bot finished activity.
+	EventBotDone
 
 	// Transport connected.
-	EventConnected EventCode = iota
+	EventConnected
 	// Someone joined a channel.
-	EventJoinedChannel EventCode = iota
+	EventJoinedChannel
 	// Bot re-joined a channel.
-	EventReJoinedChannel EventCode = iota
+	EventReJoinedChannel
 	// Someone left a channel.
-	EventPartChannel EventCode = iota
+	EventPartChannel
 	// Someone was kicked from a channel.
-	EventKickedFromChannel EventCode = iota
+	EventKickedFromChannel
 	// Someone was banned from a channel.
-	EventBannedFromChannel EventCode = iota
+	EventBannedFromChannel
 	// Other channel operations.
-	EventChannelOps EventCode = iota
+	EventChannelOps
 
 	// Bot tick.
-	EventTick EventCode = iota
+	EventTick
 	// Daily bot tick.
-	EventDailyTick EventCode = iota
+	EventDailyTick
 )
 
 // Event code groups, for convenience.
