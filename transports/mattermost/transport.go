@@ -255,6 +255,8 @@ func (transport *MattermostTransport) SendPrivNotice(user, message, context stri
 
 func (transport *MattermostTransport) SendMassNotice(message string) {
 	for _, channel := range transport.onChannel {
-		transport.SendNotice(channel.Name, message, "")
+		if channel.Type != model.CHANNEL_DIRECT {  // Do not send notices to private chats.
+			transport.SendNotice(channel.Name, message, "")
+		}
 	}
 }
