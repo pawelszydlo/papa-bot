@@ -133,7 +133,7 @@ func (ext *ExtensionAqicn) queryAqicn(city, transport string) string {
 	// Gather data for each station.
 	result := []string{}
 	if transport == "mattermost" {
-		result = append(result, "\n\n| Station | AQI | PM10 | PM2.5 | O3 | NO2 |")
+		result = append(result, "\n\n| Station | AQI | PM2.5 | PM10 | O3 | NO2 |")
 		result = append(result, "| -----: | :----: | :----: | :----:| :----: | :----: | :----: |")
 	}
 	for _, station := range searchResult.Data {
@@ -153,8 +153,8 @@ func (ext *ExtensionAqicn) queryAqicn(city, transport string) string {
 			if transport == "mattermost" {
 				line := fmt.Sprintf("| %s | ", queryResult.Data.City.Name)
 				line += ext.format("aqi", float64(queryResult.Data.Aqi))
-				line += ext.format("pm10", float64(queryResult.Data.Iaqi.Pm10.V))
 				line += ext.format("pm25", float64(queryResult.Data.Iaqi.Pm25.V))
+				line += ext.format("pm10", float64(queryResult.Data.Iaqi.Pm10.V))
 				line += ext.format("o3", float64(queryResult.Data.Iaqi.O3.V))
 				line += ext.format("no2", float64(queryResult.Data.Iaqi.No2.V))
 				result = append(result, line)
