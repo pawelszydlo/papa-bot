@@ -2,7 +2,6 @@ package events
 
 // Events and dispatcher.
 //go:generate stringer -type=EventCode
-// TODO: find out why the above doesn't work...
 
 import (
 	"github.com/sirupsen/logrus"
@@ -88,7 +87,7 @@ func (dispatcher *EventDispatcher) RegisterMultiListener(eventCodes []EventCode,
 func (dispatcher *EventDispatcher) RegisterListener(eventCode EventCode, listener EventListenerFunc) {
 	// RegisterExtension will register a new extension with the bot.
 	dispatcher.listeners[eventCode] = append(dispatcher.listeners[eventCode], listener)
-	dispatcher.log.Debugf("Added listener for event \"%v\": %v", eventCode, listener)
+	dispatcher.log.Debugf("Added listener for event \"%s\": %v", eventCode, listener)
 }
 
 // Trigger will trigger an event.
