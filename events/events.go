@@ -99,7 +99,15 @@ func (dispatcher *EventDispatcher) Trigger(eventMessage EventMessage) {
 		return
 	}
 	for _, listener := range dispatcher.listeners[eventMessage.EventCode] {
-		go listener(eventMessage)
+		go func(listener EventListenerFunc) {
+			// Catch errors.
+			defer func() {
+				if r := recover(); r != nil {
+					dispatcher.log.Errorf("FATAL ERROR in event handler for %v: %v", eventMessage.EventCode, r)
+				}
+			}()
+			listener(eventMessage)
+		}(listener)
 	}
 }
 
