@@ -147,7 +147,7 @@ func (ext *ExtensionAqicn) queryAqicn(city, transport string) string {
 	// Gather data for each station.
 	result := []string{}
 	if transport == "mattermost" {
-		result = append(result, "\n\n| Station | AQI | PM2.5 | PM10 | O3 | NO2 |")
+		result = append(result, "\n\n| Station | AQI | PM₂₅| PM₁₀ | O₃ | NO₂ |")
 		result = append(result, "| -----: | :----: | :----: | :----:| :----: | :----: | :----: |")
 	}
 	for _, station := range searchResult.Data {
@@ -165,7 +165,7 @@ func (ext *ExtensionAqicn) queryAqicn(city, transport string) string {
 			ext.bot.Log.Errorf("Error loading Aqicn.org data for %d: %s", station.Uid, err)
 		} else {
 			if transport == "mattermost" {
-				line := fmt.Sprintf("| %s | ", queryResult.Data.City.Name)
+				line := fmt.Sprintf("| [%s](http://aqicn.org/city/@%d) | ", queryResult.Data.City.Name, station.Uid)
 				line += ext.format("aqi", float64(queryResult.Data.Aqi))
 				line += ext.format("pm25", float64(queryResult.Data.Iaqi.Pm25.V))
 				line += ext.format("pm10", float64(queryResult.Data.Iaqi.Pm10.V))
