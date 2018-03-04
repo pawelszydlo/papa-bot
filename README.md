@@ -36,6 +36,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Check if link was posted on Reddit.
 * GitHub repository information.
 * BTC price command.
+* Air quality data search.
 * Movie information.
 * Custom counters/countdowns.
 * Wikipedia article lookup.
