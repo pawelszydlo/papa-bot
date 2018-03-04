@@ -53,7 +53,7 @@ type aqiValue struct {
 func (ext *ExtensionAqicn) Init(bot *papaBot.Bot) error {
 	// Register new command.
 	bot.RegisterCommand(&papaBot.BotCommand{
-		[]string{"aqi"},
+		[]string{"aq"},
 		false, false, false,
 		"<station>", "Show air quality for <station>.",
 		ext.commandAqicn})
