@@ -130,7 +130,9 @@ func (ext *ExtensionAqicn) queryAqicn(city, transport string) string {
 		ext.bot.Log.Infof("Found %d stations for city '%s'.", len(searchResult.Data), city)
 	}
 	// Limit number of stations to five.
-	searchResult.Data = searchResult.Data[:5]
+	if len(searchResult.Data) > 5 {
+		searchResult.Data = searchResult.Data[:5]
+	}
 
 	// Gather data for each station.
 	result := []string{}
