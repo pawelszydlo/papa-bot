@@ -45,8 +45,8 @@ type MattermostTransport struct {
 	// Mattermost identity.
 	mmUser *model.User
 	mmTeam *model.Team
-	// Anti flood buffered semaphore
-	floodSemaphore chan int
+	// Websocket client.
+	webSocketClient *model.WebSocketClient
 	// Channels the bot is on. channelId -> name
 	onChannel map[string]*model.Channel
 	// Registered event handlers.
@@ -71,7 +71,6 @@ func (transport *MattermostTransport) Init(transportName, botName string, fullCo
 	transport.channels = utils.ToStringSlice(
 		fullConfig.GetDefault("mattermost.channels", []string{"#papabot"}).([]interface{}))
 	// State.
-	transport.floodSemaphore = make(chan int, 5)
 	transport.onChannel = map[string]*model.Channel{}
 	transport.eventHandlers = map[string][]eventHandlerFunc{}
 	transport.users = map[string]string{}
@@ -79,6 +78,12 @@ func (transport *MattermostTransport) Init(transportName, botName string, fullCo
 	transport.log = logger
 	transport.eventDispatcher = eventDispatcher
 	transport.transportName = transportName
+}
+
+// typingListener will pretend that the bot is typing.
+func (transport *MattermostTransport) typingListener(message events.EventMessage) {
+	transport.log.Warn("typing")
+	transport.webSocketClient.UserTyping(transport.channelNameToId(message.Channel), message.Context)
 }
 
 // sendEvent triggers an event for the bot.

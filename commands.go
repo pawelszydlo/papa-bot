@@ -64,6 +64,12 @@ func (bot *Bot) initBotCommands() {
 func (bot *Bot) handleBotCommand(message events.EventMessage) {
 	// Catch errors.
 	defer func() {
+		// Run a work done event.
+		bot.EventDispatcher.Trigger(events.EventMessage{
+			message.SourceTransport,
+			events.EventBotDone,
+			"", "", message.Channel, "", message.Context, false,
+		})
 		if Debug {
 			return
 		} // When in debug mode fail on all errors.
@@ -71,6 +77,13 @@ func (bot *Bot) handleBotCommand(message events.EventMessage) {
 			bot.Log.Errorf("FATAL ERROR in bot command: %s", r)
 		}
 	}()
+
+	// Run a work start event.
+	bot.EventDispatcher.Trigger(events.EventMessage{
+		message.SourceTransport,
+		events.EventBotWorking,
+		"", "", message.Channel, "", "", false,
+	})
 
 	// Was this command sent through a private message?
 	private := false
@@ -123,6 +136,7 @@ func (bot *Bot) handleBotCommand(message events.EventMessage) {
 				fmt.Sprintf("%s, %s", message.Nick, bot.Texts.NeedsAdmin), message.Context)
 			return
 		}
+		// Execute the command.
 		cmd.CommandFunc(
 			bot, message.Nick, message.FullName, message.Channel, message.SourceTransport, message.Context,
 			private, params)

@@ -33,20 +33,26 @@ func (transport *MattermostTransport) Run() {
 	transport.updateInfo()
 	transport.updateStatus()
 
-	// Register event handlers.
+	// Register bot event listeners.
+	transport.eventDispatcher.RegisterListener(events.EventBotWorking, transport.typingListener)
+
+	// Register transport event handlers.
 	transport.registerAllEventHandlers()
 
 	// Start websocket for communication.
-	webSocketClient, err := model.NewWebSocketClient4(transport.websocket, transport.client.AuthToken)
+	webClient, err := model.NewWebSocketClient4(transport.websocket, transport.client.AuthToken)
 	if err != nil {
 		transport.log.Fatalf("Failed to connect to the web socket at %s: %s", transport.websocket, err)
+	} else {
+		transport.webSocketClient = webClient
 	}
-	webSocketClient.Listen()
+
+	transport.webSocketClient.Listen()
 
 	// Main loop.
 	for {
 		select {
-		case event, ok := <-webSocketClient.EventChannel:
+		case event, ok := <-transport.webSocketClient.EventChannel:
 			if ok {
 				// Are there any handlers registered for this event?
 				if handlers, exists := transport.eventHandlers[event.Event]; exists {
