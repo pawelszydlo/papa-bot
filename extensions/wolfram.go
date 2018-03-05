@@ -6,6 +6,7 @@ import (
 	"github.com/pawelszydlo/papa-bot"
 	"net/url"
 	"strings"
+	"github.com/pawelszydlo/papa-bot/events"
 )
 
 /*
@@ -116,14 +117,14 @@ func (ext *ExtensionWolfram) queryWolfram(query string) string {
 }
 
 // commandMovie is a command for manually searching for movies.
-func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, nick, user, channel, transport, context string, priv bool, params []string) {
+func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 	if len(params) < 1 {
 		return
 	}
 	search := strings.Join(params, " ")
 
 	// Announce each article only once.
-	if ext.announced[channel+search] {
+	if ext.announced[sourceEvent.Channel+search] {
 		return
 	}
 
@@ -135,7 +136,7 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, nick, user, channe
 	}
 
 	maxLen := 300
-	if transport == "mattermost" {
+	if sourceEvent.SourceTransport == "mattermost" {
 		maxLen = 3000
 	}
 
@@ -147,15 +148,11 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, nick, user, channe
 		contentFull = content
 	}
 
-	notice := fmt.Sprintf("%s, %s", nick, contentPreview)
-	bot.SendAutoMessage(priv, transport, nick, channel, notice, context)
-	ext.announced[channel+search] = true
+	notice := fmt.Sprintf("%s, %s", sourceEvent.Nick, contentPreview)
+	bot.SendMessage(sourceEvent, notice)
+	ext.announced[sourceEvent.Channel+search] = true
 
 	if contentFull != "" {
-		if priv {
-			bot.AddMoreInfo(transport, nick, contentFull)
-		} else {
-			bot.AddMoreInfo(transport, channel, contentFull)
-		}
+		bot.AddMoreInfo(sourceEvent.SourceTransport, sourceEvent.Channel, contentFull)
 	}
 }

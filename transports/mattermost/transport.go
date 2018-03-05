@@ -82,8 +82,9 @@ func (transport *MattermostTransport) Init(transportName, botName string, fullCo
 
 // typingListener will pretend that the bot is typing.
 func (transport *MattermostTransport) typingListener(message events.EventMessage) {
-	transport.log.Warn("typing")
-	transport.webSocketClient.UserTyping(transport.channelNameToId(message.Channel), message.Context)
+	if message.SourceTransport == "mattermost" {
+		transport.webSocketClient.UserTyping(transport.channelNameToId(message.Channel), message.Context)
+	}
 }
 
 // sendEvent triggers an event for the bot.
@@ -227,7 +228,8 @@ func (transport *MattermostTransport) NickIsMe(nick string) bool {
 	return nick == transport.mmUser.Username
 }
 
-func (transport *MattermostTransport) SendMessage(channel, message, context string) {
+// postMessage will send a message through th eclient.
+func (transport *MattermostTransport) postMessage(channel, message, context string) {
 	post := &model.Post{
 		ChannelId: transport.channelNameToId(channel),
 		Message:   message,
@@ -240,28 +242,25 @@ func (transport *MattermostTransport) SendMessage(channel, message, context stri
 	}
 }
 
-func (transport *MattermostTransport) SendPrivMessage(user, message, context string) {
-	if privChannel, err := transport.openPrivateChannel(user); err == nil {
-		transport.SendMessage(privChannel, "@"+user+" "+message, context)
+func (transport *MattermostTransport) SendMessage(sourceEvent *events.EventMessage, message string) {
+	transport.postMessage(sourceEvent.Channel, message, sourceEvent.Context)
+}
+
+func (transport *MattermostTransport) SendPrivateMessage(sourceEvent *events.EventMessage, nick, message string) {
+	if privChannel, err := transport.openPrivateChannel(nick); err == nil {
+		transport.postMessage(privChannel, message, "")
 	}
 }
 
-func (transport *MattermostTransport) SendNotice(channel, message, context string) {
+func (transport *MattermostTransport) SendNotice(sourceEvent *events.EventMessage, message string) {
 	// There are no notices on Mattermost.
-	transport.SendMessage(channel, "**"+message+"**", context)
-}
-
-func (transport *MattermostTransport) SendPrivNotice(user, message, context string) {
-	// There are no notices on Mattermost.
-	if privChannel, err := transport.openPrivateChannel(user); err == nil {
-		transport.SendNotice(privChannel, "@"+user+" "+message, context)
-	}
+	transport.SendMessage(sourceEvent, "**"+message+"**")
 }
 
 func (transport *MattermostTransport) SendMassNotice(message string) {
 	for _, channel := range transport.onChannel {
 		if channel.Type != model.CHANNEL_DIRECT {  // Do not send notices to private chats.
-			transport.SendNotice(channel.Name, message, "")
+			transport.postMessage(channel.Name, message, "")
 		}
 	}
 }

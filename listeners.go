@@ -31,7 +31,7 @@ func (bot *Bot) messageListener(message events.EventMessage) {
 
 	// Handles the commands.
 	if message.AtBot {
-		bot.handleBotCommand(message)
+		bot.handleBotCommand(&message)
 	}
 }
 
@@ -83,7 +83,7 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 			message.SourceTransport,
 			events.EventURLFound,
 			message.Nick,
-			message.FullName,
+			message.UserId,
 			message.Channel,
 			finalLink,
 			message.Context,
@@ -107,9 +107,9 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 		// Announce the title, save the description.
 		if title != "" {
 			if description != "" {
-				bot.SendNotice(message.SourceTransport, message.Channel, title+" …", message.Context)
+				bot.SendNotice(&message, title+" …")
 			} else {
-				bot.SendNotice(message.SourceTransport, message.Channel, title, message.Context)
+				bot.SendNotice(&message, title)
 			}
 			bot.lastURLAnnouncedTime[linkKey] = time.Now()
 			bot.lastURLAnnouncedLinesPassed[linkKey] = 0

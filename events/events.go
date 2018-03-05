@@ -59,7 +59,7 @@ type EventMessage struct {
 	// Event code.
 	EventCode EventCode
 	// Sender information
-	Nick, FullName string
+	Nick, UserId string
 	Channel        string
 	Message        string
 	// Context for the message, will be passed back if any listener sends a message.
@@ -68,6 +68,14 @@ type EventMessage struct {
 	// Message directed at the bot should be stripped of the prefixes like dot or bot's name.
 	// In case of join, part etc. this will indicate whether bot was the subject.
 	AtBot bool
+}
+
+// IsPrivate will tell if an event was triggered by a private chat message.
+func (message *EventMessage) IsPrivate() bool {
+	if message.EventCode == EventPrivateMessage {
+		return true
+	}
+	return false
 }
 
 // Type for a valid event listener function.
@@ -99,7 +107,7 @@ func (dispatcher *EventDispatcher) RegisterListener(eventCode EventCode, listene
 func (dispatcher *EventDispatcher) Trigger(eventMessage EventMessage) {
 	if dispatcher.isIgnored(eventMessage) {
 		dispatcher.log.Infof(
-			"Ignoring event %s from %s (%s)", eventMessage.EventCode, eventMessage.Nick, eventMessage.FullName)
+			"Ignoring event %s from %s (%s)", eventMessage.EventCode, eventMessage.Nick, eventMessage.UserId)
 		return
 	}
 	for _, listener := range dispatcher.listeners[eventMessage.EventCode] {
@@ -117,11 +125,11 @@ func (dispatcher *EventDispatcher) Trigger(eventMessage EventMessage) {
 
 // isIgnored will check whether the message comes from an ignored person.
 func (dispatcher *EventDispatcher) isIgnored(eventMessage EventMessage) bool {
-	if eventMessage.FullName == "" {
+	if eventMessage.UserId == "" {
 		return false
 	}
 	for _, person := range dispatcher.blackList {
-		if person == eventMessage.FullName {
+		if person == eventMessage.UserId {
 			return true
 		}
 	}

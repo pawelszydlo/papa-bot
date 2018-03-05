@@ -17,6 +17,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"github.com/pawelszydlo/papa-bot/events"
 )
 
 // RegisterExtension will register a new transport with the bot.
@@ -63,49 +64,24 @@ func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 }
 
 // SendMessage sends a message to the channel.
-func (bot *Bot) SendMessage(transportName, channel, message, context string) {
-	bot.Log.Debugf("Sending message to [%s]%s: %s", transportName, channel, message)
-	transport := bot.getTransportOrDie(transportName)
-	transport.SendMessage(channel, message, context)
+func (bot *Bot) SendMessage(sourceEvent *events.EventMessage, message string) {
+	bot.Log.Debugf("Sending message to [%s]%s: %s", sourceEvent.SourceTransport, sourceEvent.Channel, message)
+	transport := bot.getTransportOrDie(sourceEvent.SourceTransport)
+	transport.SendMessage(sourceEvent, message)
 }
 
-// SendPrivMessage sends a private message to a user.
-func (bot *Bot) SendPrivMessage(transportName, nick, message, context string) {
-	bot.Log.Debugf("Sending private message to [%s]%s: %s", transportName, nick, message)
-	transport := bot.getTransportOrDie(transportName)
-	transport.SendPrivMessage(nick, message, context)
-}
-
-// SendAutoMessage is a helper function for sending either a public message to channel or private to nick.
-func (bot *Bot) SendAutoMessage(private bool, transportName, nick, channel, message, context string) {
-	if private {
-		bot.SendPrivMessage(transportName, nick, message, context)
-	} else {
-		bot.SendMessage(transportName, channel, message, context)
-	}
+// SendPrivateMessage sends a message directly to the user.
+func (bot *Bot) SendPrivateMessage(sourceEvent *events.EventMessage, nick, message string) {
+	bot.Log.Debugf("Sending private message to [%s]%s: %s", sourceEvent.SourceTransport, nick, message)
+	transport := bot.getTransportOrDie(sourceEvent.SourceTransport)
+	transport.SendPrivateMessage(sourceEvent, nick, message)
 }
 
 // SendNotice sends a notice to the channel.
-func (bot *Bot) SendNotice(transportName, channel, message, context string) {
-	bot.Log.Debugf("Sending notice to %s: [%s]%s", transportName, channel, message)
-	transport := bot.getTransportOrDie(transportName)
-	transport.SendNotice(channel, message, context)
-}
-
-// SendPrivNotice sends a private notice to a user.
-func (bot *Bot) SendPrivNotice(transportName, nick, message, context string) {
-	bot.Log.Debugf("Sending private notice to [%s]%s: %s", transportName, nick, message)
-	transport := bot.getTransportOrDie(transportName)
-	transport.SendPrivNotice(nick, message, context)
-}
-
-// SendAutoNotice is a helper function for sending either a public notice to channel or private to nick.
-func (bot *Bot) SendAutoNotice(private bool, transportName, nick, channel, message, context string) {
-	if private {
-		bot.SendPrivNotice(transportName, nick, message, context)
-	} else {
-		bot.SendNotice(transportName, channel, message, context)
-	}
+func (bot *Bot) SendNotice(sourceEvent *events.EventMessage, message string) {
+	bot.Log.Debugf("Sending notice to [%s]%s: %s", sourceEvent.SourceTransport, sourceEvent.Channel, message)
+	transport := bot.getTransportOrDie(sourceEvent.SourceTransport)
+	transport.SendNotice(sourceEvent, message)
 }
 
 // SendMassNotice sends a notice to all the channels bot is on, on all transports.
@@ -275,21 +251,21 @@ func (bot *Bot) NextDailyTick() time.Time {
 }
 
 // AddToIgnoreList will add a user to the ignore list.
-func (bot *Bot) AddToIgnoreList(fullName string) {
+func (bot *Bot) AddToIgnoreList(userId string) {
 	ignored := strings.Split(bot.GetVar("_ignored"), " ")
-	ignored = utils.RemoveDuplicates(append(ignored, fullName))
+	ignored = utils.RemoveDuplicates(append(ignored, userId))
 	bot.SetVar("_ignored", strings.Join(ignored, " "))
 	// Update the actual blocklist in the event handler.
 	bot.EventDispatcher.SetBlackList(ignored)
-	bot.Log.Infof("%s added to ignore list.", fullName)
+	bot.Log.Infof("%s added to ignore list.", userId)
 }
 
 // RemoveFromIgnoreList will remove user from the ignore list.
-func (bot *Bot) RemoveFromIgnoreList(fullName string) {
+func (bot *Bot) RemoveFromIgnoreList(userId string) {
 	ignored := strings.Split(bot.GetVar("_ignored"), " ")
-	ignored = utils.RemoveFromSlice(ignored, fullName)
+	ignored = utils.RemoveFromSlice(ignored, userId)
 	bot.SetVar("_ignored", strings.Join(ignored, " "))
 	// Update the actual blocklist in the event handler.
 	bot.EventDispatcher.SetBlackList(ignored)
-	bot.Log.Infof("%s removed from ignore list.", fullName)
+	bot.Log.Infof("%s removed from ignore list.", userId)
 }

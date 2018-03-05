@@ -198,12 +198,12 @@ func (ext *ExtensionAqicn) TickListener(message events.EventMessage) {
 }
 
 // commandMovie is a command for manually searching for movies.
-func (ext *ExtensionAqicn) commandAqicn(bot *papaBot.Bot, nick, user, channel, transport, context string, priv bool, params []string) {
+func (ext *ExtensionAqicn) commandAqicn(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 	if len(params) < 1 {
 		return
 	}
 	search := strings.Join(params, " ")
-	result := ext.queryAqicn(search, transport)
+	result := ext.queryAqicn(search, sourceEvent.SourceTransport)
 
-	bot.SendAutoMessage(priv, transport, nick, channel, result, context)
+	bot.SendMessage(sourceEvent, result)
 }

@@ -120,23 +120,28 @@ func (transport *IRCTransport) SendRawMessage(command string, params []string, t
 }
 
 // SendMessage sends a message to the channel.
-func (transport *IRCTransport) SendMessage(channel, message, context string) {
-	transport.sendFloodProtected(irc.PRIVMSG, channel, message)
+func (transport *IRCTransport) SendMessage(sourceEvent *events.EventMessage, message string) {
+	transport.sendIRCMessage(sourceEvent.Channel, message)
+}
+
+// SendPrivateMessage sends a message to the nick.
+func (transport *IRCTransport) SendPrivateMessage(sourceEvent *events.EventMessage, nick, message string) {
+	transport.sendIRCMessage(nick, message)
 }
 
 // SendNotice sends a notice to the channel.
-func (transport *IRCTransport) SendNotice(channel, message, context string) {
+func (transport *IRCTransport) SendNotice(sourceEvent *events.EventMessage, message string) {
+	transport.sendIRCNotice(sourceEvent.Channel, message)
+}
+
+// sendIRCMessage sends a message to the channel.
+func (transport *IRCTransport) sendIRCMessage(channel, message string) {
+	transport.sendFloodProtected(irc.PRIVMSG, channel, message)
+}
+
+// sendIRCNotice sends a notice to the channel.
+func (transport *IRCTransport) sendIRCNotice(channel, message string) {
 	transport.sendFloodProtected(irc.NOTICE, channel, message)
-}
-
-// SendPrivMessage sends a message to the user.
-func (transport *IRCTransport) SendPrivMessage(user, message, context string) {
-	transport.SendMessage(user, message, context)
-}
-
-// SendPrivNotice sends a notice to the user.
-func (transport *IRCTransport) SendPrivNotice(user, message, context string) {
-	transport.SendNotice(user, message, context)
 }
 
 // SendMassNotice sends a notice to all the channels transport is on.
@@ -189,12 +194,12 @@ func (transport *IRCTransport) NickIsMe(nick string) bool {
 }
 
 // sendEvent triggers an event for the bot.
-func (transport *IRCTransport) sendEvent(eventCode events.EventCode, direct bool, channel, nick, fullName string, message ...interface{}) {
+func (transport *IRCTransport) sendEvent(eventCode events.EventCode, direct bool, channel, nick, userId string, message ...interface{}) {
 	eventMessage := events.EventMessage{
 		transport.transportName,
 		eventCode,
 		nick,
-		fullName,
+		userId,
 		channel,
 		fmt.Sprint(message...),
 		"",

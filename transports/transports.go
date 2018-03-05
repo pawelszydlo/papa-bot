@@ -23,10 +23,12 @@ type Transport interface {
 	Run()
 	// check whether a given nick is the transport.
 	NickIsMe(nick string) bool
-	// Send messages.
-	SendMessage(channel, message, context string)
-	SendNotice(channel, message, context string)
-	SendPrivMessage(user, message, context string)
-	SendPrivNotice(user, message, context string)
+	// Send message in reply to sourceEvent.
+	SendMessage(sourceEvent *events.EventMessage, message string)
+	// Send message in reply to sourceEvent as a direct chat with the user.
+	SendPrivateMessage(sourceEvent *events.EventMessage, nick, message string)
+	// Send notice in reply to sourceEvent.
+	SendNotice(sourceEvent *events.EventMessage, message string)
+	// Send notice to all the channels the transport is on.
 	SendMassNotice(message string)
 }

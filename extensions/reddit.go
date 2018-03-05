@@ -164,12 +164,12 @@ func (ext *ExtensionReddit) getRedditLiveNow() (string, string) {
 }
 
 // commandReddit will display one of the interesting articles from Reddit.
-func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, nick, user, channel, transport, context string, priv bool, params []string) {
+func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 	post := ext.getRedditHot()
 	if post != nil {
 		data := post.toStrings()
-		message := fmt.Sprintf("%s, %s (/r/%s - %s)", nick, data["title"], data["subreddit"], data["url"])
-		bot.SendAutoMessage(priv, transport, nick, channel, message, context)
+		message := fmt.Sprintf("%s, %s (/r/%s - %s)", sourceEvent.Nick, data["title"], data["subreddit"], data["url"])
+		bot.SendMessage(sourceEvent, message)
 	}
 }
 
@@ -243,7 +243,7 @@ func (ext *ExtensionReddit) ProcessURLListener(message events.EventMessage) {
 	go func() {
 		reddit := ext.getRedditInfo(message.Message, message.Channel)
 		if reddit != "" {
-			ext.bot.SendNotice(message.SourceTransport, message.Channel, reddit, message.Context)
+			ext.bot.SendNotice(&message, reddit)
 		}
 	}()
 

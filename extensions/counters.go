@@ -87,7 +87,17 @@ func (ext *ExtensionCounters) TickListener(message events.EventMessage) {
 	// Check if it's time to announce the counter.
 	for id, c := range ext.counters {
 		if time.Since(c.nextTick) > 0 {
-			ext.bot.SendNotice(c.transport, c.channel, c.message(), message.Context)
+			sourceEvent := &events.EventMessage{
+				c.transport,
+				events.EventChannelOps,
+				ext.bot.Config.Name,
+				"",
+				c.channel,
+				"",
+				message.Context,
+				false,
+			}
+			ext.bot.SendNotice(sourceEvent, c.message())
 			c.nextTick = c.nextTick.Add(c.interval * time.Hour)
 			ext.bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
 		}
@@ -144,40 +154,36 @@ func (ext *ExtensionCounters) loadCounters() {
 }
 
 // commandCounters is a command for handling the counters.
-func (ext *ExtensionCounters) commandCounters(
-	bot *papaBot.Bot, nick, user, channel, transport, context string, priv bool, params []string) {
+func (ext *ExtensionCounters) commandCounters(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 
 	if len(params) < 1 {
 		return
 	}
 	command := params[0]
-	fullName := nick + "!" + user
 
 	// List.
 	if command == "list" {
 		if len(ext.counters) > 0 {
-			bot.SendPrivMessage(transport, nick, "Counters:", context)
+			bot.SendMessage(sourceEvent, "Counters:")
 			for id, c := range ext.counters {
-				bot.SendPrivMessage(transport, nick, fmt.Sprintf(
-					"%d: %s | %s | interval %dh | %s", id, c.channel, c.date, c.interval, c.text), context)
+				bot.SendMessage(sourceEvent, fmt.Sprintf(
+					"%d: %s | %s | interval %dh | %s", id, c.channel, c.date, c.interval, c.text))
 			}
 		} else {
-			bot.SendPrivMessage(transport, nick, "No counters yet.", context)
+			bot.SendMessage(sourceEvent, "No counters yet.")
 		}
 		return
 	}
 
 	if command == "help" {
-		bot.SendPrivMessage(transport, nick, "To add a new counter:", context)
-		bot.SendPrivMessage(transport, nick, "add <date> <time> <interval> <channel> <text>", context)
-		bot.SendPrivMessage(
-			transport, nick, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce`+
-				` interval in hours, channel is the name of the channel to announce on, text is the announcement text.`,
-			context)
-		bot.SendPrivMessage(
-			transport, nick,
-			"Announcement text may contain placeholders: {{ .days }}, {{ .hours }}, {{ .minutes }}, {{ .since }}",
-			context)
+		bot.SendMessage(sourceEvent, "To add a new counter:")
+		bot.SendMessage(sourceEvent, "add <date> <time> <interval> <channel> <text>")
+		bot.SendMessage(
+			sourceEvent, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce`+
+				` interval in hours, channel is the name of the channel to announce on, text is the announcement text.`)
+		bot.SendMessage(
+			sourceEvent,
+			"Announcement text may contain placeholders: {{ .days }}, {{ .hours }}, {{ .minutes }}, {{ .since }}")
 		return
 	}
 
@@ -185,30 +191,40 @@ func (ext *ExtensionCounters) commandCounters(
 	if len(params) == 2 && command == "announce" {
 		id, err := strconv.Atoi(params[1])
 		if err != nil || ext.counters[id] == nil {
-			bot.SendPrivMessage(transport, nick, "Wrong id.", context)
+			bot.SendMessage(sourceEvent, "Wrong id.")
 			return
 		}
-		bot.SendPrivMessage(transport, nick,
-			fmt.Sprintf("Announcing counter %d to %s...", id, ext.counters[id].channel), context)
-		bot.SendPrivMessage(transport, ext.counters[id].channel, ext.counters[id].message(), context)
+		bot.SendMessage(sourceEvent,
+			fmt.Sprintf("Announcing counter %d to %s...", id, ext.counters[id].channel))
+		fakeEvent := &events.EventMessage{
+			ext.counters[id].transport,
+			events.EventChannelOps,
+			ext.bot.Config.Name,
+			"",
+			ext.counters[id].channel,
+			"",
+			sourceEvent.Context,
+			false,
+		}
+		bot.SendMessage(fakeEvent, ext.counters[id].message())
 	}
 
 	// Delete.
 	if len(params) == 2 && command == "del" {
 		id := params[1]
-		bot.SendPrivMessage(transport, nick, fmt.Sprintf("Deleting counter number %s...", id), context)
+		bot.SendMessage(sourceEvent, fmt.Sprintf("Deleting counter number %s...", id))
 		query := ""
 		// Bot owner can delete all counters.
-		if bot.UserIsOwner(user) {
+		if bot.UserIsOwner(sourceEvent.UserId) {
 			query = `DELETE FROM counters WHERE id=?;`
 		} else {
 			// User must be an admin, he can delete only his own counters.
-			nick := bot.GetAuthenticatedNick(user)
+			nick := bot.GetAuthenticatedNick(sourceEvent.UserId)
 			query = fmt.Sprintf(`DELETE FROM counters WHERE id=? AND creator="%s";`, nick)
 		}
 		if _, err := bot.Db.Exec(query, id); err != nil {
 			bot.Log.Warningf("Error while deleting a counter: %s", err)
-			bot.SendPrivMessage(transport, nick, fmt.Sprintf("Error: %s", err), context)
+			bot.SendMessage(sourceEvent, fmt.Sprintf("Error: %s", err))
 			return
 		}
 		// Reload  counters.
@@ -220,19 +236,19 @@ func (ext *ExtensionCounters) commandCounters(
 	if len(params) > 5 && command == "add" {
 		// Sanity check parameters.
 		if _, err := time.Parse("2006-01-0215:04:05", params[1]+params[2]); err != nil {
-			bot.SendPrivMessage(transport, nick, "Date and time must be in format: 2015-12-31 12:54:00", context)
+			bot.SendMessage(sourceEvent, "Date and time must be in format: 2015-12-31 12:54:00")
 			return
 		}
 		dateStr := params[1] + " " + params[2]
 		interval, err := strconv.ParseInt(params[3], 10, 32)
 		if err != nil {
-			bot.SendPrivMessage(transport, nick, "interval parameter must be a number.", context)
+			bot.SendMessage(sourceEvent, "interval parameter must be a number.")
 			return
 		}
-		channel = params[4]
+		channel := params[4]
 
 		text := strings.Join(params[5:], " ")
-		nick := bot.GetAuthenticatedNick(fullName)
+		nick := bot.GetAuthenticatedNick(sourceEvent.UserId)
 		// Add counter to database.
 		query := `
 			INSERT INTO counters (channel, creator, announce_text, interval, target_date)
@@ -240,10 +256,10 @@ func (ext *ExtensionCounters) commandCounters(
 			`
 		if _, err := bot.Db.Exec(query, channel, nick, text, interval, dateStr); err != nil {
 			bot.Log.Warningf("Error while adding a counter: %s", err)
-			bot.SendPrivMessage(transport, nick, fmt.Sprintf("Error: %s", err), context)
+			bot.SendMessage(sourceEvent, fmt.Sprintf("Error: %s", err))
 			return
 		}
-		bot.SendPrivMessage(transport, nick, "Counter created.", context)
+		bot.SendMessage(sourceEvent, "Counter created.")
 		// Reload  counters.
 		ext.loadCounters()
 		return

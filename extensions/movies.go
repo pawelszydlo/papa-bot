@@ -6,6 +6,7 @@ import (
 	"github.com/pawelszydlo/papa-bot"
 	"net/url"
 	"strings"
+	"github.com/pawelszydlo/papa-bot/events"
 )
 
 /* ExtensionMovies - finds movie titles in the messages and provides other movie related commands. */
@@ -65,13 +66,13 @@ func (ext *ExtensionMovies) searchOmdb(bot *papaBot.Bot, title string, data *mov
 }
 
 // commandMovie is a command for manually searching for movies.
-func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, transport, context string, priv bool, params []string) {
+func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 	if len(params) < 1 {
 		return
 	}
 	title := strings.Join(params, " ")
 	// Announce each movie only once.
-	if ext.announced[channel+title] {
+	if ext.announced[sourceEvent.Channel+title] {
 		return
 	}
 	title = strings.Replace(title, `"`, "", -1)
@@ -89,6 +90,6 @@ func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, nick, user, channel, 
 	// Announce.
 	notice := fmt.Sprintf("%s (%s, %s) | %s | http://www.imdb.com/title/%s | %s",
 		data.Title, data.Genre, data.Year, data.ImdbRating, data.ImdbID, data.Plot)
-	bot.SendAutoNotice(priv, transport, nick, channel, notice, context)
-	ext.announced[channel+title] = true
+	bot.SendNotice(sourceEvent, notice)
+	ext.announced[sourceEvent.Channel+title] = true
 }

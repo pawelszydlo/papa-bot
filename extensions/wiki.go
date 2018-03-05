@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"github.com/pawelszydlo/papa-bot/events"
 )
 
 // ExtensionWiki - finds Wikipedia articles.
@@ -134,21 +135,21 @@ func (ext *ExtensionWiki) searchWiki(lang, search string) (string, string) {
 }
 
 // commandWiki is a command for manually searching for wikipedia entries.
-func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, transport, context string, priv bool, params []string) {
+func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 	if len(params) < 1 {
 		return
 	}
 	search := strings.Join(params, " ")
 
 	// Announce each article only once.
-	if ext.announced[channel+search] {
+	if ext.announced[sourceEvent.Channel+search] {
 		return
 	}
 
 	_, content := ext.searchWiki(bot.Config.Language, search)
 
 	maxLen := 300
-	if transport == "mattermost" {
+	if sourceEvent.SourceTransport == "mattermost" {
 		maxLen = 3000
 	}
 
@@ -160,15 +161,11 @@ func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, nick, user, channel, tra
 		contentFull = content
 	}
 
-	notice := fmt.Sprintf("%s, %s", nick, contentPreview)
-	bot.SendAutoMessage(priv, transport, nick, channel, notice, context)
-	ext.announced[channel+search] = true
+	notice := fmt.Sprintf("%s, %s", sourceEvent.Nick, contentPreview)
+	bot.SendMessage(sourceEvent, notice)
+	ext.announced[sourceEvent.Channel+search] = true
 
 	if contentFull != "" {
-		if priv {
-			bot.AddMoreInfo(transport, nick, contentFull)
-		} else {
-			bot.AddMoreInfo(transport, channel, contentFull)
-		}
+		bot.AddMoreInfo(sourceEvent.SourceTransport, sourceEvent.Channel, contentFull)
 	}
 }
