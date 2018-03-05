@@ -46,8 +46,6 @@ type IRCTransport struct {
 
 	// Operational.
 
-	// Transport name.
-	transportName string
 	// IRC messages stream.
 	messages chan *irc.Message
 	// Network connection.
@@ -68,7 +66,7 @@ type IRCTransport struct {
 }
 
 // Init initializes a transport instance.
-func (transport *IRCTransport) Init(transportName, botName string, fullConfig *toml.Tree, logger *logrus.Logger,
+func (transport *IRCTransport) Init(botName string, fullConfig *toml.Tree, logger *logrus.Logger,
 	eventDispatcher *events.EventDispatcher,
 ) {
 
@@ -89,7 +87,6 @@ func (transport *IRCTransport) Init(transportName, botName string, fullConfig *t
 	// Utility objects.
 	transport.log = logger
 	transport.eventDispatcher = eventDispatcher
-	transport.transportName = transportName
 
 	// Prepare TLS config if needed.
 	if fullConfig.GetDefault("irc.use_tls", false).(bool) {
@@ -101,6 +98,11 @@ func (transport *IRCTransport) Init(transportName, botName string, fullConfig *t
 
 	// Attach event handlers.
 	transport.assignEventHandlers()
+}
+
+// Name of the transport.
+func (transport *IRCTransport) Name() string {
+	return "irc"
 }
 
 // registerIrcEventHandler will register a new handler for the given IRC event.
@@ -196,7 +198,7 @@ func (transport *IRCTransport) NickIsMe(nick string) bool {
 // sendEvent triggers an event for the bot.
 func (transport *IRCTransport) sendEvent(eventCode events.EventCode, direct bool, channel, nick, userId string, message ...interface{}) {
 	eventMessage := events.EventMessage{
-		transport.transportName,
+		transport.Name(),
 		eventCode,
 		nick,
 		userId,

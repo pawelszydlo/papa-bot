@@ -38,8 +38,6 @@ type MattermostTransport struct {
 
 	// Operational.
 
-	// Transport name.
-	transportName string
 	// Mattermost client
 	client *model.Client4
 	// Mattermost identity.
@@ -56,7 +54,7 @@ type MattermostTransport struct {
 }
 
 // Init initializes a transport instance.
-func (transport *MattermostTransport) Init(transportName, botName string, fullConfig *toml.Tree, logger *logrus.Logger,
+func (transport *MattermostTransport) Init(botName string, fullConfig *toml.Tree, logger *logrus.Logger,
 	eventDispatcher *events.EventDispatcher,
 ) {
 	// Init the transport struct.
@@ -77,12 +75,16 @@ func (transport *MattermostTransport) Init(transportName, botName string, fullCo
 	// Utility objects.
 	transport.log = logger
 	transport.eventDispatcher = eventDispatcher
-	transport.transportName = transportName
+}
+
+// Name of the transport.
+func (transport *MattermostTransport) Name() string {
+	return "mattermost"
 }
 
 // typingListener will pretend that the bot is typing.
 func (transport *MattermostTransport) typingListener(message events.EventMessage) {
-	if message.SourceTransport == "mattermost" {
+	if message.Transport == transport.Name() {
 		transport.webSocketClient.UserTyping(transport.channelNameToId(message.Channel), message.Context)
 	}
 }
@@ -92,7 +94,7 @@ func (transport *MattermostTransport) sendEvent(
 	eventCode events.EventCode, context string, direct bool, channel, nick, userId string, message ...interface{}) {
 
 	eventMessage := events.EventMessage{
-		transport.transportName,
+		transport.Name(),
 		eventCode,
 		nick,
 		userId,

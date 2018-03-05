@@ -55,7 +55,7 @@ var EventsChannelMessages = []EventCode{EventChatNotice, EventChatMessage}
 // Message for the events channel.
 type EventMessage struct {
 	// Name of the transport that triggered the event.
-	SourceTransport string
+	Transport string
 	// Event code.
 	EventCode EventCode
 	// Sender information

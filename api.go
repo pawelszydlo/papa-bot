@@ -21,18 +21,19 @@ import (
 )
 
 // RegisterExtension will register a new transport with the bot.
-func (bot *Bot) RegisterTransport(name string, transport transports.Transport) {
+func (bot *Bot) RegisterTransport(transport transports.Transport) {
 	// Is the transport enabled in the config?
+	name := transport.Name()
 	if bot.fullConfig.GetDefault(fmt.Sprintf("%s.enabled", name), false).(bool) {
 		for existingName := range bot.transports {
 			if name == existingName {
-				bot.Log.Fatalf("Transport under alias '%s' already exists.", name)
+				bot.Log.Fatalf("Transport with name '%s' is already registered.", name)
 			}
 		}
 		bot.transports[name] = transport
 		bot.Log.Infof("Added transport: %s", name)
 	} else {
-		bot.Log.Infof("Transport under alias '%s' disabled in the config.", name)
+		bot.Log.Infof("Transport with name '%s' disabled in the config.", name)
 	}
 }
 
@@ -65,22 +66,22 @@ func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 
 // SendMessage sends a message to the channel.
 func (bot *Bot) SendMessage(sourceEvent *events.EventMessage, message string) {
-	bot.Log.Debugf("Sending message to [%s]%s: %s", sourceEvent.SourceTransport, sourceEvent.Channel, message)
-	transport := bot.getTransportOrDie(sourceEvent.SourceTransport)
+	bot.Log.Debugf("Sending message to [%s]%s: %s", sourceEvent.Transport, sourceEvent.Channel, message)
+	transport := bot.getTransportOrDie(sourceEvent.Transport)
 	transport.SendMessage(sourceEvent, message)
 }
 
 // SendPrivateMessage sends a message directly to the user.
 func (bot *Bot) SendPrivateMessage(sourceEvent *events.EventMessage, nick, message string) {
-	bot.Log.Debugf("Sending private message to [%s]%s: %s", sourceEvent.SourceTransport, nick, message)
-	transport := bot.getTransportOrDie(sourceEvent.SourceTransport)
+	bot.Log.Debugf("Sending private message to [%s]%s: %s", sourceEvent.Transport, nick, message)
+	transport := bot.getTransportOrDie(sourceEvent.Transport)
 	transport.SendPrivateMessage(sourceEvent, nick, message)
 }
 
 // SendNotice sends a notice to the channel.
 func (bot *Bot) SendNotice(sourceEvent *events.EventMessage, message string) {
-	bot.Log.Debugf("Sending notice to [%s]%s: %s", sourceEvent.SourceTransport, sourceEvent.Channel, message)
-	transport := bot.getTransportOrDie(sourceEvent.SourceTransport)
+	bot.Log.Debugf("Sending notice to [%s]%s: %s", sourceEvent.Transport, sourceEvent.Channel, message)
+	transport := bot.getTransportOrDie(sourceEvent.Transport)
 	transport.SendNotice(sourceEvent, message)
 }
 

@@ -203,7 +203,7 @@ func (ext *ExtensionAqicn) commandAqicn(bot *papaBot.Bot, sourceEvent *events.Ev
 		return
 	}
 	search := strings.Join(params, " ")
-	result := ext.queryAqicn(search, sourceEvent.SourceTransport)
+	result := ext.queryAqicn(search, sourceEvent.Transport)
 
 	bot.SendMessage(sourceEvent, result)
 }

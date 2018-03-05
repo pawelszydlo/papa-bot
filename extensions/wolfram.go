@@ -136,7 +136,7 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 	}
 
 	maxLen := 300
-	if sourceEvent.SourceTransport == "mattermost" {
+	if sourceEvent.Transport == "mattermost" {
 		maxLen = 3000
 	}
 
@@ -153,6 +153,6 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 	ext.announced[sourceEvent.Channel+search] = true
 
 	if contentFull != "" {
-		bot.AddMoreInfo(sourceEvent.SourceTransport, sourceEvent.Channel, contentFull)
+		bot.AddMoreInfo(sourceEvent.Transport, sourceEvent.Channel, contentFull)
 	}
 }

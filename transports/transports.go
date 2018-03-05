@@ -11,9 +11,10 @@ import (
 
 // Transport interface.
 type Transport interface {
+	// Name should return the transport's name. This can be called before init!
+	Name() string
 	// Init will always be called after a transport instance is created.
 	Init(
-		transportName string,
 		botName string,
 		fullConfig *toml.Tree,
 		logger *logrus.Logger,

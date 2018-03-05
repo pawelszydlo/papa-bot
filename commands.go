@@ -65,7 +65,7 @@ func (bot *Bot) handleBotCommand(sourceEvent *events.EventMessage) {
 	defer func() {
 		// Run a work done event.
 		bot.EventDispatcher.Trigger(events.EventMessage{
-			sourceEvent.SourceTransport,
+			sourceEvent.Transport,
 			events.EventBotDone,
 			"", "", sourceEvent.Channel, "", sourceEvent.Context, false,
 		})
@@ -79,7 +79,7 @@ func (bot *Bot) handleBotCommand(sourceEvent *events.EventMessage) {
 
 	// Run a work start event.
 	bot.EventDispatcher.Trigger(events.EventMessage{
-		sourceEvent.SourceTransport,
+		sourceEvent.Transport,
 		events.EventBotWorking,
 		"", "", sourceEvent.Channel, "", "", false,
 	})
@@ -155,7 +155,7 @@ func commandHelp(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 		commands := strings.Join(helpCommandKeys[pointerStr], ", ")
 		options := ""
 		if cmd.Private {
-			if sourceEvent.SourceTransport == "irc" {
+			if sourceEvent.Transport == "irc" {
 				options = " \x0300(private only)\x03"
 			} else {
 				options = " (private only)"
@@ -168,7 +168,7 @@ func commandHelp(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 			continue
 		}
 		result := ""
-		if sourceEvent.SourceTransport == "irc" {
+		if sourceEvent.Transport == "irc" {
 			result = fmt.Sprintf(
 				"\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
 		} else {
@@ -265,12 +265,12 @@ func commandVar(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 // commandSayMore gives more info, if bot has any.
 func commandSayMore(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 
-	if bot.urlMoreInfo[sourceEvent.SourceTransport+sourceEvent.Channel] == "" {
+	if bot.urlMoreInfo[sourceEvent.Transport+sourceEvent.Channel] == "" {
 		bot.SendMessage(sourceEvent, fmt.Sprintf("%s, %s", sourceEvent.Nick, bot.Texts.NothingToAdd))
 		return
 	} else {
-		bot.SendMessage(sourceEvent, bot.urlMoreInfo[sourceEvent.SourceTransport+sourceEvent.Channel])
-		delete(bot.urlMoreInfo, sourceEvent.SourceTransport+sourceEvent.Channel)
+		bot.SendMessage(sourceEvent, bot.urlMoreInfo[sourceEvent.Transport+sourceEvent.Channel])
+		delete(bot.urlMoreInfo, sourceEvent.Transport+sourceEvent.Channel)
 	}
 }
 
