@@ -10,7 +10,6 @@ import (
 	"strings"
 )
 
-// TODO: universal way of handling formatting throughout transports.
 // initBotCommands registers bot commands.
 func (bot *Bot) initBotCommands() {
 	// Help.

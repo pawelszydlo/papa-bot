@@ -43,12 +43,11 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Wolfram Alpha lookup.
 
 
-#### TODO
+##### TODO
 
-Urgent:
-* Write some tests!
-* Refactor extensions to format replies according to transport.
-
-Wishlist:
+* Transports should expose handled text formatting for extensions.
+* Unify extension panic and error handling.
 * IRC split handling.
-* Alt nicks handling, cross-transport people identification.
+* Alt nicks handling
+* Cross-transport people identification.
+* Write some tests!
