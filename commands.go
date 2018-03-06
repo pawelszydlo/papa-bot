@@ -153,12 +153,15 @@ func commandHelp(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 		helpCommands[pointerStr] = cmd
 	}
 	// Print help.
+	results := []string{}
 	for pointerStr, cmd := range helpCommands {
 		commands := strings.Join(helpCommandKeys[pointerStr], ", ")
 		options := ""
 		if cmd.Private {
-			if sourceEvent.TransportName == "irc" {
+			if sourceEvent.TransportFormatting == events.FormatIRC {
 				options = " \x0300(private only)\x03"
+			} else if sourceEvent.TransportFormatting == events.FormatMarkdown {
+				options = " **(private only)**"
 			} else {
 				options = " (private only)"
 			}
@@ -170,18 +173,36 @@ func commandHelp(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 			continue
 		}
 		result := ""
-		if sourceEvent.TransportName == "irc" {
+		if sourceEvent.TransportFormatting == events.FormatIRC {
 			result = fmt.Sprintf(
 				"\x0308%s\x03 \x0310%s\x03 - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
+		} else if sourceEvent.TransportFormatting == events.FormatMarkdown {
+			result = fmt.Sprintf("| %s | %s | %s%s |", commands, cmd.HelpParams, cmd.HelpDescription, options)
 		} else {
 			result = fmt.Sprintf("%s %s - %s%s", commands, cmd.HelpParams, cmd.HelpDescription, options)
 		}
+		results = append(results, result)
+	}
+	// Send the help messages.
+	if sourceEvent.TransportFormatting == events.FormatMarkdown {
+		result := "\n\n| Command | Parameters | Help |\n| :-- | :-- | :-- |\n"
+		result += strings.Join(results, "\n")
 		if forcePriv {
 			bot.SendPrivateMessage(sourceEvent, sourceEvent.Nick, result)
 		} else {
 			bot.SendMessage(sourceEvent, result)
 		}
+	} else {
+		for _, result := range results {
+			if forcePriv {
+				bot.SendPrivateMessage(sourceEvent, sourceEvent.Nick, result)
+			} else {
+				bot.SendMessage(sourceEvent, result)
+			}
+		}
 	}
+
+
 	return
 }
 
