@@ -74,13 +74,14 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 
 		// Insert URL into the db.
 		if _, err := bot.Db.Exec(`INSERT INTO urls(transport, channel, nick, link, quote, title) VALUES(?, ?, ?, ?, ?, ?)`,
-			message.Transport, message.Channel, message.Nick, finalLink, message.Message, title); err != nil {
+			message.TransportName, message.Channel, message.Nick, finalLink, message.Message, title); err != nil {
 			bot.Log.Warningf("Can't add url to database: %s", err)
 		}
 
 		// Trigger url found message.
 		bot.EventDispatcher.Trigger(events.EventMessage{
-			message.Transport,
+			message.TransportName,
+			message.TransportFormatting,
 			events.EventURLFound,
 			message.Nick,
 			message.UserId,
@@ -100,7 +101,7 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 		}
 
 		// On mattermost we can skip all link info display.
-		if message.Transport == "mattermost" {
+		if message.TransportName == "mattermost" {
 			return
 		}
 
@@ -114,7 +115,7 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 			bot.lastURLAnnouncedTime[linkKey] = time.Now()
 			bot.lastURLAnnouncedLinesPassed[linkKey] = 0
 			// Keep the long info for later.
-			bot.AddMoreInfo(message.Transport, message.Channel, description)
+			bot.AddMoreInfo(message.TransportName, message.Channel, description)
 		}
 	}
 }
@@ -126,7 +127,7 @@ func (bot *Bot) scribeListener(message events.EventMessage) {
 	}
 	go func() {
 		logFileName := fmt.Sprintf(
-			"logs/%s_%s_%s.txt", message.Transport, message.Channel, time.Now().Format("2006-01-02"))
+			"logs/%s_%s_%s.txt", message.TransportName, message.Channel, time.Now().Format("2006-01-02"))
 		f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			bot.Log.Errorf("Error opening log file: %s", err)

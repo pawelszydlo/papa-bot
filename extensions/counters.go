@@ -89,6 +89,7 @@ func (ext *ExtensionCounters) TickListener(message events.EventMessage) {
 		if time.Since(c.nextTick) > 0 {
 			sourceEvent := &events.EventMessage{
 				c.transport,
+				events.FormatPlain,
 				events.EventChannelOps,
 				ext.bot.Config.Name,
 				"",
@@ -198,6 +199,7 @@ func (ext *ExtensionCounters) commandCounters(bot *papaBot.Bot, sourceEvent *eve
 			fmt.Sprintf("Announcing counter %d to %s...", id, ext.counters[id].channel))
 		fakeEvent := &events.EventMessage{
 			ext.counters[id].transport,
+			events.FormatPlain,
 			events.EventChannelOps,
 			ext.bot.Config.Name,
 			"",

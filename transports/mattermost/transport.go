@@ -84,7 +84,7 @@ func (transport *MattermostTransport) Name() string {
 
 // typingListener will pretend that the bot is typing.
 func (transport *MattermostTransport) typingListener(message events.EventMessage) {
-	if message.Transport == transport.Name() {
+	if message.TransportName == transport.Name() {
 		transport.webSocketClient.UserTyping(transport.channelNameToId(message.Channel), message.Context)
 	}
 }
@@ -95,6 +95,7 @@ func (transport *MattermostTransport) sendEvent(
 
 	eventMessage := events.EventMessage{
 		transport.Name(),
+		events.FormatMarkdown,
 		eventCode,
 		nick,
 		userId,

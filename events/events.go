@@ -52,10 +52,20 @@ var EventsChannelActivity = []EventCode{
 	EventBannedFromChannel}
 var EventsChannelMessages = []EventCode{EventChatNotice, EventChatMessage}
 
+// Message formatting options.
+type Formatting int
+const (
+	FormatPlain Formatting = iota
+	FormatIRC
+	FormatMarkdown
+)
+
 // Message for the events channel.
 type EventMessage struct {
 	// Name of the transport that triggered the event.
-	Transport string
+	TransportName string
+	// Message formatting accepted by the transport.
+	TransportFormatting Formatting
 	// Event code.
 	EventCode EventCode
 	// Sender information

@@ -245,16 +245,16 @@ func (bot *Bot) Run() {
 				bot.nextDailyTick = bot.nextDailyTick.Add(24 * time.Hour)
 				bot.Log.Debugf("Daily tick now. Next at %s.", bot.nextDailyTick)
 				bot.EventDispatcher.Trigger(events.EventMessage{
-					"bot", events.EventDailyTick, "", "", "", "", "", true})
+					"bot", events.FormatPlain, events.EventDailyTick, "", "", "", "", "", true})
 			} else {
 				bot.EventDispatcher.Trigger(events.EventMessage{
-					"bot", events.EventTick, "", "", "", "", "", true})
+					"bot", events.FormatPlain,events.EventTick, "", "", "", "", "", true})
 			}
 		}
 	}()
 	// First tick, before ticker goes off.
 	bot.EventDispatcher.Trigger(events.EventMessage{
-		"bot", events.EventTick, "", "", "", "", "", true})
+		"bot", events.FormatPlain,events.EventTick, "", "", "", "", "", true})
 
 	// Wait for all the transports to finish.
 	select {}

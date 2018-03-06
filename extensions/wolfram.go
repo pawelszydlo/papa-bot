@@ -66,7 +66,7 @@ func (ext *ExtensionWolfram) Init(bot *papaBot.Bot) error {
 	return nil
 }
 
-func (ext *ExtensionWolfram) queryWolfram(query string) string {
+func (ext *ExtensionWolfram) queryWolfram(query string, format events.Formatting) string {
 	appId := ext.bot.GetVar("WolframKey")
 	if appId == "" {
 		ext.bot.Log.Error("Wolfram Alpha AppID key not set! Set the 'WolframKey' variable in the bot.")
@@ -108,7 +108,13 @@ func (ext *ExtensionWolfram) queryWolfram(query string) string {
 		// Get the result.
 		if pod.Id == "Result" || pod.Id == "Value" {
 			for _, subpod := range pod.Subpods {
-				result = append(result, "\x0308"+subpod.PlainText+"\x03")
+				if format == events.FormatMarkdown {
+					result = append(result, "**"+subpod.PlainText+"**")
+				} else if format == events.FormatIRC {
+					result = append(result, "\x0308"+subpod.PlainText+"\x03")
+				} else {
+					result = append(result, subpod.PlainText)
+				}
 			}
 		}
 	}
@@ -128,7 +134,7 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 		return
 	}
 
-	content := ext.queryWolfram(search)
+	content := ext.queryWolfram(search, sourceEvent.TransportFormatting)
 
 	// Error occured.
 	if content == "" {
@@ -136,7 +142,7 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 	}
 
 	maxLen := 300
-	if sourceEvent.Transport == "mattermost" {
+	if sourceEvent.TransportFormatting == events.FormatMarkdown {
 		maxLen = 3000
 	}
 
@@ -153,6 +159,6 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 	ext.announced[sourceEvent.Channel+search] = true
 
 	if contentFull != "" {
-		bot.AddMoreInfo(sourceEvent.Transport, sourceEvent.Channel, contentFull)
+		bot.AddMoreInfo(sourceEvent.TransportName, sourceEvent.Channel, contentFull)
 	}
 }

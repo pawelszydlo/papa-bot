@@ -41,7 +41,7 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 	result, err := ext.bot.Db.Query(`
 		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
 		FROM urls WHERE link=? AND channel=? AND transport=?
-		ORDER BY timestamp DESC LIMIT 1,1`, message.Message, message.Channel, message.Transport)
+		ORDER BY timestamp DESC LIMIT 1,1`, message.Message, message.Channel, message.TransportName)
 	if err != nil {
 		ext.bot.Log.Warningf("Can't query the database for duplicates: %s", err)
 		return

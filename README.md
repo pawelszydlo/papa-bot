@@ -45,7 +45,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 
 ##### TODO
 
-* Transports should expose handled text formatting for extensions.
+* Figure out the bot-transports-events package entanglement so that transport can be passed in event.
 * Unify extension panic and error handling.
 * IRC split handling.
 * Alt nicks handling

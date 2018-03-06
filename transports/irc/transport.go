@@ -199,6 +199,7 @@ func (transport *IRCTransport) NickIsMe(nick string) bool {
 func (transport *IRCTransport) sendEvent(eventCode events.EventCode, direct bool, channel, nick, userId string, message ...interface{}) {
 	eventMessage := events.EventMessage{
 		transport.Name(),
+		events.FormatIRC,
 		eventCode,
 		nick,
 		userId,

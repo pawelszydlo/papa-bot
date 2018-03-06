@@ -99,7 +99,7 @@ func (ext *ExtensionReddit) getRedditListing(url string, listing *redditListing)
 }
 
 // getRedditInfo fetches information about a link from Reddit.
-func (ext *ExtensionReddit) getRedditInfo(url, channel string) string {
+func (ext *ExtensionReddit) getRedditInfo(url, channel string, format events.Formatting) string {
 	// Get the listing.
 	url = fmt.Sprintf("https://www.reddit.com/api/info.json?url=%s", url)
 	var listing redditListing
@@ -168,7 +168,12 @@ func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, sourceEvent *events.
 	post := ext.getRedditHot()
 	if post != nil {
 		data := post.toStrings()
-		message := fmt.Sprintf("%s, %s (/r/%s - %s)", sourceEvent.Nick, data["title"], data["subreddit"], data["url"])
+		message := ""
+		if sourceEvent.TransportFormatting == events.FormatMarkdown {
+			message = fmt.Sprintf("%s, [%s (/r/%s)](%s)", sourceEvent.Nick, data["title"], data["subreddit"], data["url"])
+		} else {
+			message = fmt.Sprintf("%s, %s (/r/%s - %s)", sourceEvent.Nick, data["title"], data["subreddit"], data["url"])
+		}
 		bot.SendMessage(sourceEvent, message)
 	}
 }
@@ -241,7 +246,7 @@ func (ext *ExtensionReddit) ProcessURLListener(message events.EventMessage) {
 	}
 	// Send a notice with URL info.
 	go func() {
-		reddit := ext.getRedditInfo(message.Message, message.Channel)
+		reddit := ext.getRedditInfo(message.Message, message.Channel, message.TransportFormatting)
 		if reddit != "" {
 			ext.bot.SendNotice(&message, reddit)
 		}

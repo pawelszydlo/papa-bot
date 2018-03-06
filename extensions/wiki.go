@@ -149,7 +149,7 @@ func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, sourceEvent *events.Even
 	_, content := ext.searchWiki(bot.Config.Language, search)
 
 	maxLen := 300
-	if sourceEvent.Transport == "mattermost" {
+	if sourceEvent.TransportName == "mattermost" {
 		maxLen = 3000
 	}
 
@@ -166,6 +166,6 @@ func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, sourceEvent *events.Even
 	ext.announced[sourceEvent.Channel+search] = true
 
 	if contentFull != "" {
-		bot.AddMoreInfo(sourceEvent.Transport, sourceEvent.Channel, contentFull)
+		bot.AddMoreInfo(sourceEvent.TransportName, sourceEvent.Channel, contentFull)
 	}
 }
