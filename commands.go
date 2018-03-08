@@ -128,8 +128,9 @@ func (bot *Bot) handleBotCommand(sourceEvent *events.EventMessage) {
 		// Execute the command.
 		cmd.CommandFunc(bot, sourceEvent, params)
 	} else { // Unknown command.
-		if rand.Int()%10 > 3 {
-			bot.SendMessage(sourceEvent, fmt.Sprintf("%s", bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
+		if sourceEvent.IsPrivate() && rand.Int()%10 > 5 { // Talk back only on private chats.
+			bot.SendMessage(
+				sourceEvent, fmt.Sprintf("%s", bot.Texts.WrongCommand[rand.Intn(len(bot.Texts.WrongCommand))]))
 
 		}
 	}
