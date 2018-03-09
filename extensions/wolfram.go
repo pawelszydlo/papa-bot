@@ -16,7 +16,7 @@ Used custom variables:
 - WolframKey - Your Wolfram Alpha AppID key.
 */
 type ExtensionWolfram struct {
-	announced map[string]bool
+	announced map[string]string
 	Texts     *extensionWolframTexts
 	bot       *papaBot.Bot
 }
@@ -49,7 +49,7 @@ type subPod struct {
 // Init inits the extension.
 func (ext *ExtensionWolfram) Init(bot *papaBot.Bot) error {
 	// Init variables.
-	ext.announced = map[string]bool{}
+	ext.announced = map[string]string{}
 	// Load texts.
 	texts := &extensionWolframTexts{}
 	if err := bot.LoadTexts("wolfram", texts); err != nil {
@@ -73,6 +73,7 @@ func (ext *ExtensionWolfram) queryWolfram(query string, format events.Formatting
 		return ""
 	}
 
+	ext.bot.Log.Debugf("Querying WolframAlpha for %s...", query)
 	err, _, body := ext.bot.GetPageBody(
 		fmt.Sprintf(
 			"http://api.wolframalpha.com/v2/query?format=plaintext&appid=%s&podindex=1,2&input=%s",
@@ -129,8 +130,9 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 	}
 	search := strings.Join(params, " ")
 
-	// Announce each article only once.
-	if ext.announced[sourceEvent.Channel+search] {
+	// Check if we have the result cached.
+	if val, exists := ext.announced[sourceEvent.Channel+search]; exists {
+		bot.SendMessage(sourceEvent, fmt.Sprintf("%s, %s", sourceEvent.Nick, val))
 		return
 	}
 
@@ -154,9 +156,8 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 		contentFull = content
 	}
 
-	notice := fmt.Sprintf("%s, %s", sourceEvent.Nick, contentPreview)
-	bot.SendMessage(sourceEvent, notice)
-	ext.announced[sourceEvent.Channel+search] = true
+	bot.SendMessage(sourceEvent, fmt.Sprintf("%s, %s", sourceEvent.Nick, contentPreview))
+	ext.announced[sourceEvent.Channel+search] = contentPreview
 
 	if contentFull != "" {
 		bot.AddMoreInfo(sourceEvent.TransportName, sourceEvent.Channel, contentFull)
