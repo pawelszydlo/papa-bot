@@ -59,14 +59,14 @@ type redditListing struct {
 	}
 }
 
-func (postData *redditPostData) toStrings() map[string]string {
+func (postData *redditPostData) toStrings(ext *ExtensionReddit) map[string]string {
 	// Try to shorten the url if it is a self post.
 	if strings.HasPrefix(postData.Domain, "self.") {
 		postData.Url = "http://redd.it/" + postData.Id
 	}
 	return map[string]string{
 		"id":           postData.Id,
-		"created":      utils.HumanizedSince(time.Unix(int64(postData.Created), 0)),
+		"created":      ext.bot.Humanizer.TimeDiffNow(time.Unix(int64(postData.Created), 0)),
 		"author":       postData.Author,
 		"subreddit":    postData.Subreddit,
 		"score":        fmt.Sprintf("%d", postData.Score),
@@ -120,7 +120,7 @@ func (ext *ExtensionReddit) getRedditInfo(url, channel string, format events.For
 			if len(postData.Title) > 200 {
 				postData.Title = postData.Title[:200] + "(…)"
 			}
-			message = utils.Format(ext.Texts.TempRedditAnnounce, postData.toStrings())
+			message = utils.Format(ext.Texts.TempRedditAnnounce, postData.toStrings(ext))
 			bestScore = postData.Score
 		}
 	}
@@ -167,7 +167,7 @@ func (ext *ExtensionReddit) getRedditLiveNow() (string, string) {
 func (ext *ExtensionReddit) commandReddit(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 	post := ext.getRedditHot()
 	if post != nil {
-		data := post.toStrings()
+		data := post.toStrings(ext)
 		message := ""
 		if sourceEvent.TransportFormatting == events.FormatMarkdown {
 			message = fmt.Sprintf("%s, [%s (/r/%s)](%s)", sourceEvent.Nick, data["title"], data["subreddit"], data["url"])
@@ -218,7 +218,7 @@ func (ext *ExtensionReddit) DailyTickListener(message events.EventMessage) {
 	if ext.bot.GetVar("redditDaily") != "" {
 		post := ext.getRedditHot()
 		if post != nil {
-			ext.bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings()))
+			ext.bot.SendMassNotice(utils.Format(ext.Texts.TempRedditDaily, post.toStrings(ext)))
 		}
 	}
 }

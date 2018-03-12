@@ -12,6 +12,7 @@ import (
 
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/transports"
+	"github.com/pawelszydlo/humanize"
 )
 
 // Bot itself.
@@ -34,6 +35,8 @@ type Bot struct {
 	Config *Configuration
 	// Bot texts struct.
 	Texts *botTexts
+	// Values humanizer.
+	Humanizer *humanize.Humanizer
 	// Currently authenticated users.
 	authenticatedUsers  map[string]string
 	authenticatedAdmins map[string]string

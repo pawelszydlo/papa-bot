@@ -11,65 +11,11 @@ import (
 	"html"
 	"log"
 	"os"
-	"sort"
 	"strings"
 	"text/template"
 	"time"
 	"unicode"
 )
-
-// TODO: refactor date humanization to enable l18n.
-const (
-	Minute   = 60
-	Hour     = 60 * Minute
-	Day      = 24 * Hour
-	Week     = 7 * Day
-	Month    = 30 * Day
-	Year     = 12 * Month
-	LongTime = 37 * Year
-)
-
-var magnitudes = []struct {
-	diff   int64
-	format string
-	divby  int64
-}{
-	{60, "chwilkę temu", 1},
-	{2 * Minute, "1 minutę temu", 1},
-	{5 * Minute, "%d minuty temu", Minute},
-	{Hour, "%d minut temu", Minute},
-	{2 * Hour, "1 godzinę temu", 1},
-	{5 * Hour, "%d godziny temu", Hour},
-	{Day, "%d godzin temu", Hour},
-	{2 * Day, "1 dzień temu", 1},
-	{Week, "%d dni temu", Day},
-	{2 * Week, "1 tydzień temu", 1},
-	{5 * Week, "%d tygodnie temu", Week},
-	{Month, "%d tygodni temu", Week},
-	{2 * Month, "1 miesiąc temu", 1},
-	{5 * Month, "%d miesiące temu", Month},
-	{Year, "%d miesięcy temu", Month},
-	{18 * Month, "1 rok temu", 1},
-	{5 * Year, "%d lata temu", Year},
-	{LongTime, "%d lat temu", Year},
-}
-
-// HumanizedSince returns a humanized time passed string.
-func HumanizedSince(past time.Time) string {
-	diff := time.Now().Unix() - past.Unix()
-
-	// Find the magnitude closest but bigger then diff.
-	n := sort.Search(len(magnitudes), func(i int) bool {
-		return magnitudes[i].diff > diff
-	})
-
-	magnitude := magnitudes[n]
-	// If magnitude has a placeholder for a number, insert it.
-	if strings.Contains(magnitude.format, "%d") {
-		return fmt.Sprintf(magnitude.format, diff/magnitude.divby)
-	}
-	return magnitude.format
-}
 
 // StripTags strips HTML tags from text.
 func StripTags(text string) string {

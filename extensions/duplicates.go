@@ -58,19 +58,18 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 			return
 		}
 		timestamp, _ := time.Parse("2006-01-02 15:04:05", timestr)
+		elapsed := ext.bot.Humanizer.TimeDiffNow(utils.MustForceLocalTimezone(timestamp))
 		duplicate := ""
 		// Only one duplicate.
 		if count == 2 {
 			if ext.bot.AreSamePeople(nick, message.Nick) {
 				nick = ext.Texts.DuplicateYou
 			}
-			elapsed := utils.HumanizedSince(utils.MustForceLocalTimezone(timestamp))
 			duplicate = utils.Format(ext.Texts.TempDuplicateFirst, map[string]string{"nick": nick, "elapsed": elapsed})
 		} else if count > 2 { // More duplicates exist
 			if ext.bot.AreSamePeople(nick, message.Nick) {
 				nick = ext.Texts.DuplicateYou
 			}
-			elapsed := utils.HumanizedSince(utils.MustForceLocalTimezone(timestamp))
 			duplicate = utils.Format(ext.Texts.TempDuplicateMulti,
 				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count-1)})
 		}

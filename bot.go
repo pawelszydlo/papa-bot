@@ -18,6 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
+	"github.com/pawelszydlo/humanize"
 )
 
 const (
@@ -94,6 +95,13 @@ func New(configFile, textsFile string) *Bot {
 
 	// Setup event dispatcher.
 	bot.EventDispatcher = events.New(bot.Log)
+
+	// Create value humanizer.
+	if humanizer, err := humanize.New(bot.Config.Language); err != nil {
+		bot.Log.Fatalf("Can't init humanizer: %s", err)
+	} else {
+		bot.Humanizer = humanizer
+	}
 
 	// Register built-in transports.
 	bot.RegisterTransport(new(ircTransport.IRCTransport))

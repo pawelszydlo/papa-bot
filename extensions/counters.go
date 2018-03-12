@@ -30,7 +30,7 @@ type extensionCountersCounter struct {
 }
 
 // message will produce an announcement message for the counter.
-func (cs *extensionCountersCounter) message() string {
+func (cs *extensionCountersCounter) message(ext *ExtensionCounters) string {
 	diff := time.Since(cs.date)
 	days := int(math.Abs(diff.Hours())) / 24
 	hours := int(math.Abs(diff.Hours())) - days*24
@@ -39,7 +39,7 @@ func (cs *extensionCountersCounter) message() string {
 		"days":    fmt.Sprintf("%d", days),
 		"hours":   fmt.Sprintf("%d", hours),
 		"minutes": fmt.Sprintf("%d", minutes),
-		"since":   utils.HumanizedSince(cs.date),
+		"since":   ext.bot.Humanizer.TimeDiffNow(cs.date),
 	}
 	return utils.Format(cs.textTmp, vars)
 }
@@ -98,7 +98,7 @@ func (ext *ExtensionCounters) TickListener(message events.EventMessage) {
 				message.Context,
 				false,
 			}
-			ext.bot.SendNotice(sourceEvent, c.message())
+			ext.bot.SendNotice(sourceEvent, c.message(ext))
 			c.nextTick = c.nextTick.Add(c.interval * time.Hour)
 			ext.bot.Log.Debugf("Counter %d, next tick: %s", id, c.nextTick)
 		}
@@ -208,7 +208,7 @@ func (ext *ExtensionCounters) commandCounters(bot *papaBot.Bot, sourceEvent *eve
 			sourceEvent.Context,
 			false,
 		}
-		bot.SendMessage(fakeEvent, ext.counters[id].message())
+		bot.SendMessage(fakeEvent, ext.counters[id].message(ext))
 	}
 
 	// Delete.
