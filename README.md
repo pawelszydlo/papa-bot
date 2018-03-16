@@ -31,6 +31,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 
 ### Bundled extensions
 
+* Custom reminders.
 * Link title and description.
 * Link duplicates announce.
 * Check if link was posted on Reddit.
