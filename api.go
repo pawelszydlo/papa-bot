@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/transports"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"golang.org/x/net/html/charset"
@@ -17,7 +18,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-	"github.com/pawelszydlo/papa-bot/events"
 )
 
 // RegisterExtension will register a new transport with the bot.

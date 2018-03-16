@@ -69,7 +69,7 @@ func (ext *ExtensionCounters) Init(bot *papaBot.Bot) error {
 	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"c", "counter"},
 		true, false, true,
-		"help | list | announce <id> | del <id> | add <date> <time> <interval> <channel> <text>",
+		"help / list / announce <id> / del <id> / add <date> <time> <interval> <channel> <text>",
 		"Controls custom counters.",
 		ext.commandCounters})
 
@@ -252,6 +252,7 @@ func (ext *ExtensionCounters) commandCounters(bot *papaBot.Bot, sourceEvent *eve
 		text := strings.Join(params[5:], " ")
 		nick := bot.GetAuthenticatedNick(sourceEvent.UserId)
 		// Add counter to database.
+		// TODO: what about the transport?
 		query := `
 			INSERT INTO counters (channel, creator, announce_text, interval, target_date)
 			VALUES (?, ?, ?, ?, ?);

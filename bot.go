@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/onrik/logrus/filename"
+	"github.com/pawelszydlo/humanize"
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/transports"
 	"github.com/pawelszydlo/papa-bot/transports/irc"
@@ -18,7 +19,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
-	"github.com/pawelszydlo/humanize"
 )
 
 const (
@@ -256,13 +256,13 @@ func (bot *Bot) Run() {
 					"bot", events.FormatPlain, events.EventDailyTick, "", "", "", "", "", true})
 			} else {
 				bot.EventDispatcher.Trigger(events.EventMessage{
-					"bot", events.FormatPlain,events.EventTick, "", "", "", "", "", true})
+					"bot", events.FormatPlain, events.EventTick, "", "", "", "", "", true})
 			}
 		}
 	}()
 	// First tick, before ticker goes off.
 	bot.EventDispatcher.Trigger(events.EventMessage{
-		"bot", events.FormatPlain,events.EventTick, "", "", "", "", "", true})
+		"bot", events.FormatPlain, events.EventTick, "", "", "", "", "", true})
 
 	// Wait for all the transports to finish.
 	select {}

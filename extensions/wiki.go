@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"net/url"
 	"regexp"
 	"strings"
-	"github.com/pawelszydlo/papa-bot/events"
 )
 
 // ExtensionWiki - finds Wikipedia articles.

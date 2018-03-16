@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"net/url"
 	"strings"
-	"github.com/pawelszydlo/papa-bot/events"
 )
 
 /*
@@ -16,8 +16,8 @@ Used custom variables:
 - AqicnToken- Your Aqicn token.
 */
 type ExtensionAqicn struct {
-	bot *papaBot.Bot
-	resultCache     map[string]string
+	bot         *papaBot.Bot
+	resultCache map[string]string
 }
 
 // Structs for Aqicn responses.
@@ -72,7 +72,7 @@ func (ext *ExtensionAqicn) qualityIndexLevel(stat string, value float64) int {
 		"pm10": {25, 50, 90, 180},
 		"o3":   {60, 120, 180, 240},
 		"no2":  {50, 100, 200, 400},
-		"aqi": {50, 100, 150, 200},
+		"aqi":  {50, 100, 150, 200},
 	}
 	for i, normValue := range norms[stat] {
 		if int(value) < normValue {
@@ -100,7 +100,7 @@ func (ext *ExtensionAqicn) format(stat string, value float64) string {
 	if value == 0 { // no readout.
 		return "- |"
 	}
-	return fmt.Sprintf("%.f %s |",value, ext.interpretQualityIndex(stat, value))
+	return fmt.Sprintf("%.f %s |", value, ext.interpretQualityIndex(stat, value))
 }
 
 // queryAqicn will query aqicn.org first for stations matching "city", then for results for those stations.

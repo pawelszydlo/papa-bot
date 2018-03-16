@@ -17,4 +17,5 @@ func RegisterBuiltinExtensions(bot *papaBot.Bot) {
 	bot.RegisterExtension(new(ExtensionWolfram))
 	bot.RegisterExtension(new(ExtensionTalk))
 	bot.RegisterExtension(new(ExtensionAqicn))
+	bot.RegisterExtension(new(ExtensionReminders))
 }

@@ -10,9 +10,9 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/pawelszydlo/humanize"
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/transports"
-	"github.com/pawelszydlo/humanize"
 )
 
 // Bot itself.

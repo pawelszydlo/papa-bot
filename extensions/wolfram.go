@@ -4,9 +4,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"net/url"
 	"strings"
-	"github.com/pawelszydlo/papa-bot/events"
 )
 
 /*

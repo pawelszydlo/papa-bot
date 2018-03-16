@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
+	"github.com/pawelszydlo/papa-bot/events"
 	"net/url"
 	"strings"
-	"github.com/pawelszydlo/papa-bot/events"
 )
 
 /* ExtensionMovies - finds movie titles in the messages and provides other movie related commands. */

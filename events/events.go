@@ -54,6 +54,7 @@ var EventsChannelMessages = []EventCode{EventChatNotice, EventChatMessage}
 
 // Message formatting options.
 type Formatting int
+
 const (
 	FormatPlain Formatting = iota
 	FormatIRC
@@ -70,8 +71,8 @@ type EventMessage struct {
 	EventCode EventCode
 	// Sender information
 	Nick, UserId string
-	Channel        string
-	Message        string
+	Channel      string
+	Message      string
 	// Context for the message, will be passed back if any listener sends a message.
 	Context string
 	// Was the message directed at the bot? If yes, bot will check for commands.

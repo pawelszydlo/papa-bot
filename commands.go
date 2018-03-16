@@ -46,13 +46,13 @@ func (bot *Bot) initBotCommands() {
 	bot.RegisterCommand(&BotCommand{
 		[]string{"var", "v"},
 		true, true, false,
-		"list | get <name> | set <name> <value>", "Controls custom variables.",
+		"list / get <name> / set <name> <value>", "Controls custom variables.",
 		commandVar})
 	// Ignore.
 	bot.RegisterCommand(&BotCommand{
 		[]string{"ignore"},
 		false, true, true,
-		"add <userName> | remove <userName>", "Manages ignore list.",
+		"add <userName> / remove <userName>", "Manages ignore list.",
 		commandIgnore})
 
 	bot.commandsHideParams["auth"] = true
@@ -202,7 +202,6 @@ func commandHelp(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 			}
 		}
 	}
-
 
 	return
 }
