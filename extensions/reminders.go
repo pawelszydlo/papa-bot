@@ -63,7 +63,7 @@ func (ext *ExtensionReminders) Init(bot *papaBot.Bot) error {
 		[]string{"rm", "remind"},
 		false, false, false,
 		"help / list / del <id> / add <time to wait> <text>",
-		"Creates and manages remainders.",
+		"Creates and manages reminders.",
 		ext.commandRemind})
 
 	// Load reminders from the db.
