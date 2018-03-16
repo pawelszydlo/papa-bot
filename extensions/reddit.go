@@ -69,7 +69,7 @@ func (postData *redditPostData) toStrings(ext *ExtensionReddit) map[string]strin
 		"created":      ext.bot.Humanizer.TimeDiffNow(time.Unix(int64(postData.Created), 0), false),
 		"author":       postData.Author,
 		"subreddit":    postData.Subreddit,
-		"score":        fmt.Sprintf("%d", postData.Score),
+		"score":        ext.bot.Humanizer.PrefixFast(float64(postData.Score)),
 		"comments_url": "http://redd.it/" + postData.Id,
 		"comments":     fmt.Sprintf("%d", postData.Comments),
 		"title":        postData.Title,
