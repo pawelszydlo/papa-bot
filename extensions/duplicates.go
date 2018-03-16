@@ -58,7 +58,7 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 			return
 		}
 		timestamp, _ := time.Parse("2006-01-02 15:04:05", timestr)
-		elapsed := ext.bot.Humanizer.TimeDiffNow(utils.MustForceLocalTimezone(timestamp))
+		elapsed := ext.bot.Humanizer.TimeDiffNow(utils.MustForceLocalTimezone(timestamp), false)
 		duplicate := ""
 		// Only one duplicate.
 		if count == 2 {

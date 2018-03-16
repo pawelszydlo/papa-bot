@@ -66,7 +66,7 @@ func (postData *redditPostData) toStrings(ext *ExtensionReddit) map[string]strin
 	}
 	return map[string]string{
 		"id":           postData.Id,
-		"created":      ext.bot.Humanizer.TimeDiffNow(time.Unix(int64(postData.Created), 0)),
+		"created":      ext.bot.Humanizer.TimeDiffNow(time.Unix(int64(postData.Created), 0), false),
 		"author":       postData.Author,
 		"subreddit":    postData.Subreddit,
 		"score":        fmt.Sprintf("%d", postData.Score),

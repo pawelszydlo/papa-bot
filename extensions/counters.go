@@ -39,7 +39,7 @@ func (cs *extensionCountersCounter) message(ext *ExtensionCounters) string {
 		"days":    fmt.Sprintf("%d", days),
 		"hours":   fmt.Sprintf("%d", hours),
 		"minutes": fmt.Sprintf("%d", minutes),
-		"since":   ext.bot.Humanizer.TimeDiffNow(cs.date),
+		"since":   ext.bot.Humanizer.TimeDiffNow(cs.date, false),
 	}
 	return utils.Format(cs.textTmp, vars)
 }
