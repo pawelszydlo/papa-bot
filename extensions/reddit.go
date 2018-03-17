@@ -108,8 +108,6 @@ func (ext *ExtensionReddit) getRedditInfo(url, channel string, format events.For
 		return ""
 	}
 
-	ext.announced[channel+url] = true
-
 	// Find highest rated post and return it.
 	message := ""
 	bestScore := 0
@@ -242,8 +240,10 @@ func (ext *ExtensionReddit) TickListener(message events.EventMessage) {
 func (ext *ExtensionReddit) ProcessURLListener(message events.EventMessage) {
 	// Announce each link only once.
 	if ext.announced[message.Channel+message.Message] {
+		ext.bot.Log.Debugf("Not looking up on reddit, too soon.")
 		return
 	}
+	ext.announced[message.Channel+message.Message] = true
 	// Send a notice with URL info.
 	go func() {
 		reddit := ext.getRedditInfo(message.Message, message.Channel, message.TransportFormatting)
