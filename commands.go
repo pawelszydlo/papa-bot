@@ -78,14 +78,6 @@ func (bot *Bot) handleBotCommand(sourceEvent *events.EventMessage) {
 		}
 	}()
 
-	// Run a work start event.
-	bot.EventDispatcher.Trigger(events.EventMessage{
-		sourceEvent.TransportName,
-		sourceEvent.TransportFormatting,
-		events.EventBotWorking,
-		"", "", sourceEvent.Channel, "", "", false,
-	})
-
 	// Was the command sent by the owner?
 	owner := bot.UserIsOwner(sourceEvent.UserId)
 	admin := bot.UserIsAdmin(sourceEvent.UserId)
@@ -125,6 +117,14 @@ func (bot *Bot) handleBotCommand(sourceEvent *events.EventMessage) {
 			bot.SendMessage(sourceEvent, fmt.Sprintf("%s, %s", sourceEvent.Nick, bot.Texts.NeedsAdmin))
 			return
 		}
+		// Run a work start event.
+		bot.EventDispatcher.Trigger(events.EventMessage{
+			sourceEvent.TransportName,
+			sourceEvent.TransportFormatting,
+			events.EventBotWorking,
+			"", "", sourceEvent.Channel, "", "", false,
+		})
+
 		// Execute the command.
 		cmd.CommandFunc(bot, sourceEvent, params)
 	} else { // Unknown command.

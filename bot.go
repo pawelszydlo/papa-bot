@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	Version = "1.0.1"
+	Version = "1.0.2"
 	Debug   = false // Set to true to crash on runtime errors.
 )
 
