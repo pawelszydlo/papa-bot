@@ -32,14 +32,15 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 ### Bundled extensions
 
 * Custom reminders.
+* Custom counters/countdowns.
 * Link title and description.
 * Link duplicates announce.
-* Check if link was posted on Reddit.
+
+* Link info from Reddit and pinned Reddit live announcements.
 * GitHub repository information.
-* BTC price command.
-* Air quality data search.
-* Movie information.
-* Custom counters/countdowns.
+* BTC price check and rapid change announce (Bitstamp).
+* Air quality data search (acqicn.org).
+* Movie information (OMDb).
 * Wikipedia article lookup.
 * Wolfram Alpha lookup.
 

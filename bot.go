@@ -19,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
+	"net/http/cookiejar"
 )
 
 const (
@@ -60,7 +61,6 @@ func New(configFile, textsFile string) *Bot {
 	bot := &Bot{
 		initDone:            false,
 		Log:                 logrus.New(),
-		HTTPClient:          &http.Client{Timeout: 10 * time.Second},
 		authenticatedUsers:  map[string]string{},
 		authenticatedAdmins: map[string]string{},
 		authenticatedOwners: map[string]string{},
@@ -92,6 +92,13 @@ func New(configFile, textsFile string) *Bot {
 	filenameHook := filename.NewHook()
 	filenameHook.Field = "source"
 	bot.Log.AddHook(filenameHook)
+
+	// Setup HTTP client.
+	cookieJar, _ := cookiejar.New(nil)
+	bot.HTTPClient = &http.Client{
+		Timeout: 10 * time.Second,
+		Jar: cookieJar,
+	}
 
 	// Setup event dispatcher.
 	bot.EventDispatcher = events.New(bot.Log)

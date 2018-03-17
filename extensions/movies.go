@@ -9,29 +9,31 @@ import (
 	"strings"
 )
 
-/* ExtensionMovies - finds movie titles in the messages and provides other movie related commands. */
+/* ExtensionMovies - finds movie titles in the messages and provides other movie related commands.
 
-// TODO: check why this extension doesn't fetch data.
+Used custom variables:
+- omdbKey - Your AMDb API key.
+*/
+
 type ExtensionMovies struct {
 	announced map[string]bool
 	bot       *papaBot.Bot
 }
 
 type movieStruct struct {
-	Error      string
-	Poster     string
-	Runtime    string
-	Director   string
-	Actors     string
-	Language   string
-	Title      string
+	Error string
+
+	Title    string
+	Released string
+	Year     string
+	Type     string
+	Genre    string
+	Poster   string
+	Runtime  string
+
 	Plot       string
-	Country    string
 	ImdbRating string
 	ImdbID     string
-	Type       string
-	Year       string
-	Genre      string
 	ImdbVotes  string
 }
 
@@ -51,16 +53,22 @@ func (ext *ExtensionMovies) Init(bot *papaBot.Bot) error {
 
 // searchOmdb will query Omdb database for movie information.
 func (ext *ExtensionMovies) searchOmdb(bot *papaBot.Bot, title string, data *movieStruct) {
+	key := ext.bot.GetVar("omdbKey")
+	if key == "" {
+		ext.bot.Log.Panic("OMDb API key not set! Set the 'omdbKey' variable in the bot.")
+	}
 	// Fetch movie data.
-	err, _, body := ext.bot.GetPageBody("http://www.omdbapi.com/?y=&plot=short&r=json&t="+url.QueryEscape(title), nil)
+	headers := map[string]string{"User-Agent": "PapaBot version " + papaBot.Version}
+	err, _, body := ext.bot.GetPageBody(
+		fmt.Sprintf("http://www.omdbapi.com/?apikey=%s&plot=short&r=json&t=%s", key, url.QueryEscape(title)),
+		headers)
 	if err != nil {
-		data.Error = fmt.Sprintf("%s", err)
+		data.Error = fmt.Sprintf("Error getting data: %s", err)
 		return
 	}
-
 	// Convert from JSON
 	if err := json.Unmarshal(body, &data); err != nil {
-		data.Error = fmt.Sprintf("%s", err)
+		data.Error = fmt.Sprintf("Error parsing JSON: %s", err)
 		return
 	}
 }
