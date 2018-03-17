@@ -46,7 +46,7 @@ type redditPostData struct {
 	Comments  int `json:"num_comments"`
 	Title     string
 	Url       string
-	Created   float64
+	Created_utc   float64
 	Stickied  bool
 }
 type redditListing struct {
@@ -66,7 +66,7 @@ func (postData *redditPostData) toStrings(ext *ExtensionReddit) map[string]strin
 	}
 	return map[string]string{
 		"id":           postData.Id,
-		"created":      ext.bot.Humanizer.TimeDiffNow(time.Unix(int64(postData.Created), 0), false),
+		"created":      ext.bot.Humanizer.TimeDiffNow(time.Unix(int64(postData.Created_utc), 0), false),
 		"author":       postData.Author,
 		"subreddit":    postData.Subreddit,
 		"score":        ext.bot.Humanizer.PrefixFast(float64(postData.Score)),
