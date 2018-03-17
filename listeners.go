@@ -73,6 +73,7 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 		}
 
 		// Insert URL into the db.
+		bot.Log.Debugf("Storing URL info for: %s", finalLink)
 		if _, err := bot.Db.Exec(`INSERT INTO urls(transport, channel, nick, link, quote, title) VALUES(?, ?, ?, ?, ?, ?)`,
 			message.TransportName, message.Channel, message.Nick, finalLink, message.Message, title); err != nil {
 			bot.Log.Warningf("Can't add url to database: %s", err)

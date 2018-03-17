@@ -38,10 +38,16 @@ func (ext *ExtensionDuplicates) Init(bot *papaBot.Bot) error {
 
 // checkForDuplicates checks for duplicates of the url in the database.
 func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) {
+	// TODO: make this query prettier.
 	result, err := ext.bot.Db.Query(`
-		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), count(*)
+		SELECT IFNULL(nick, ""), IFNULL(timestamp, datetime('now')), (
+			SELECT count(*) FROM urls WHERE link=? AND channel=? AND transport=?
+		)
 		FROM urls WHERE link=? AND channel=? AND transport=?
-		ORDER BY timestamp DESC LIMIT 1,1`, message.Message, message.Channel, message.TransportName)
+		ORDER BY timestamp DESC LIMIT 1,1`,
+		message.Message, message.Channel, message.TransportName,
+		message.Message, message.Channel, message.TransportName,
+	)
 	if err != nil {
 		ext.bot.Log.Warningf("Can't query the database for duplicates: %s", err)
 		return
