@@ -136,7 +136,7 @@ func (bot *Bot) GetPageBody(URL string, customHeaders map[string]string) (error,
 	// Load the body up to PageBodyMaxSize.
 	body := make([]byte, bot.Config.PageBodyMaxSize, bot.Config.PageBodyMaxSize)
 	if num, err := io.ReadFull(resp.Body, body); err != nil && err != io.ErrUnexpectedEOF {
-		return err, finalLink, nil
+		return err, URL, nil
 	} else {
 		// Trim unneeded 0 bytes so that JSON unmarshaller won't complain.
 		body = body[:num]
@@ -168,13 +168,13 @@ func (bot *Bot) GetPageBody(URL string, customHeaders map[string]string) (error,
 		// Detect encoding and transform.
 		encoding, _, _ := charset.DetermineEncoding(sample, detectionContentType)
 		decodedBody, _, _ := transform.Bytes(encoding.NewDecoder(), body)
-		return nil, finalLink, decodedBody
+		return nil, URL, decodedBody
 	} else if strings.Contains(contentType, "application/json") {
-		return nil, finalLink, body
+		return nil, URL, body
 	} else {
 		bot.Log.Debugf("Not fetching the body for Content-Type: %s", contentType)
 	}
-	return nil, "", nil
+	return nil, URL, nil
 }
 
 // LoadTexts loads texts from a section of a config file into a struct, auto handling templates and lists.
