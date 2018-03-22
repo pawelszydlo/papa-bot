@@ -190,10 +190,10 @@ func (ext *ExtensionReminders) printReminders(bot *papaBot.Bot, sourceEvent *eve
 // commandRemind is a command for handling the reminders.
 func (ext *ExtensionReminders) commandRemind(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 
-	if len(params) < 1 {
-		return
+	command := "help"
+	if len(params) > 0 {
+		command = params[0]
 	}
-	command := params[0]
 
 	// List.
 	if command == "list" {
@@ -281,4 +281,5 @@ func (ext *ExtensionReminders) commandRemind(bot *papaBot.Bot, sourceEvent *even
 		ext.loadReminders()
 		return
 	}
+	bot.SendMessage(sourceEvent, "Try `.rm help`")
 }

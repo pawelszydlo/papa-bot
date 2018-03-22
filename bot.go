@@ -17,9 +17,9 @@ import (
 	"github.com/pawelszydlo/papa-bot/utils"
 	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
+	"net/http/cookiejar"
 	"regexp"
 	"strings"
-	"net/http/cookiejar"
 )
 
 const (
@@ -97,7 +97,7 @@ func New(configFile, textsFile string) *Bot {
 	cookieJar, _ := cookiejar.New(nil)
 	bot.HTTPClient = &http.Client{
 		Timeout: 10 * time.Second,
-		Jar: cookieJar,
+		Jar:     cookieJar,
 	}
 
 	// Setup event dispatcher.

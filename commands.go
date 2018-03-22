@@ -211,9 +211,12 @@ func commandAuth(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 	if len(params) == 2 {
 		if err := bot.authenticateUser(params[0], sourceEvent.UserId, params[1]); err != nil {
 			bot.Log.Warningf("Couldn't authenticate %s: %s", params[0], err)
+			bot.SendMessage(sourceEvent, "That's not right.")
 			return
 		}
 		bot.SendMessage(sourceEvent, "You are now logged in.")
+	} else {
+		bot.SendMessage(sourceEvent, bot.Texts.SeeHelp)
 	}
 }
 
@@ -232,6 +235,8 @@ func commandIgnore(bot *Bot, sourceEvent *events.EventMessage, params []string) 
 			bot.RemoveFromIgnoreList(userId)
 		}
 		bot.SendMessage(sourceEvent, "Ignore list changed.")
+	} else {
+		bot.SendMessage(sourceEvent, bot.Texts.SeeHelp)
 	}
 }
 
@@ -253,7 +258,10 @@ func commandUserAdd(bot *Bot, sourceEvent *events.EventMessage, params []string)
 			return
 		}
 		bot.SendMessage(sourceEvent, "User added. You are now logged in.")
+		return
 	}
+	bot.SendMessage(sourceEvent, bot.Texts.SeeHelp)
+
 }
 
 // commandVar gets, sets and lists custom variables.
@@ -283,6 +291,7 @@ func commandVar(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 		bot.SendMessage(sourceEvent, fmt.Sprintf("%s = %s", name, bot.GetVar(name)))
 		return
 	}
+	bot.SendMessage(sourceEvent, bot.Texts.SeeHelp)
 }
 
 // commandSayMore gives more info, if bot has any.
@@ -300,6 +309,7 @@ func commandSayMore(bot *Bot, sourceEvent *events.EventMessage, params []string)
 // commandFindUrl searches bot's database using FTS for links matching the query.
 func commandFindUrl(bot *Bot, sourceEvent *events.EventMessage, params []string) {
 	if len(params) == 0 {
+		bot.SendMessage(sourceEvent, bot.Texts.SeeHelp)
 		return
 	}
 	token := strings.Join(params, " AND ")

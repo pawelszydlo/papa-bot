@@ -38,16 +38,16 @@ type extensionRedditTexts struct {
 
 // Reddit structs.
 type redditPostData struct {
-	Id        string
-	Subreddit string
-	Author    string
-	Domain    string
-	Score     int
-	Comments  int `json:"num_comments"`
-	Title     string
-	Url       string
-	Created_utc   float64
-	Stickied  bool
+	Id          string
+	Subreddit   string
+	Author      string
+	Domain      string
+	Score       int
+	Comments    int `json:"num_comments"`
+	Title       string
+	Url         string
+	Created_utc float64
+	Stickied    bool
 }
 type redditListing struct {
 	Error int

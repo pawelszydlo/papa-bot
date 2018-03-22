@@ -116,4 +116,5 @@ type botTexts struct {
 	CommandLimit        string
 	NothingToAdd        string
 	WrongCommand        []string
+	SeeHelp             string
 }
