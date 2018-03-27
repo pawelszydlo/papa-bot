@@ -54,6 +54,11 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 			bot.Log.Warningf("Could't fetch the body: %s", err)
 		}
 
+		// Update link if needed.
+		if finalLink != "" {
+			link = finalLink
+		}
+
 		// Iterate over meta tags to get the description
 		description := ""
 		metas := metaRe.FindAllStringSubmatch(string(body), -1)
@@ -73,9 +78,9 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 		}
 
 		// Insert URL into the db.
-		bot.Log.Debugf("Storing URL info for: %s", finalLink)
+		bot.Log.Debugf("Storing URL info for: %s", link)
 		if _, err := bot.Db.Exec(`INSERT INTO urls(transport, channel, nick, link, quote, title) VALUES(?, ?, ?, ?, ?, ?)`,
-			message.TransportName, message.Channel, message.Nick, finalLink, message.Message, title); err != nil {
+			message.TransportName, message.Channel, message.Nick, link, message.Message, title); err != nil {
 			bot.Log.Warningf("Can't add url to database: %s", err)
 		}
 
@@ -87,12 +92,12 @@ func (bot *Bot) handleURLsListener(message events.EventMessage) {
 			message.Nick,
 			message.UserId,
 			message.Channel,
-			finalLink,
+			link,
 			message.Context,
 			message.AtBot,
 		})
 
-		linkKey := finalLink + message.Channel
+		linkKey := link + message.Channel
 		// If we can't announce yet, skip this link.
 		if time.Since(bot.lastURLAnnouncedTime[linkKey]) < bot.Config.UrlAnnounceIntervalMinutes*time.Minute {
 			continue
