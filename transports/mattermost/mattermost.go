@@ -27,6 +27,18 @@ func (transport *MattermostTransport) connect() {
 	transport.sendEvent(events.EventConnected, "", true, "", transport.botName, transport.mmUser.Id, "")
 }
 
+// create a websocket connection and set it for the client.
+func (transport *MattermostTransport) connectWebsocket() {
+	// Start websocket for communication.
+	webClient, err := model.NewWebSocketClient4(transport.websocket, transport.client.AuthToken)
+	if err != nil {
+		transport.log.Fatalf("Failed to connect to the web socket at %s: %s", transport.websocket, err)
+	} else {
+		transport.webSocketClient = webClient
+	}
+	transport.webSocketClient.Listen()
+}
+
 // Run will execute the main loop.
 func (transport *MattermostTransport) Run() {
 	transport.connect()
@@ -39,19 +51,18 @@ func (transport *MattermostTransport) Run() {
 	// Register transport event handlers.
 	transport.registerAllEventHandlers()
 
-	// Start websocket for communication.
-	webClient, err := model.NewWebSocketClient4(transport.websocket, transport.client.AuthToken)
-	if err != nil {
-		transport.log.Fatalf("Failed to connect to the web socket at %s: %s", transport.websocket, err)
-	} else {
-		transport.webSocketClient = webClient
-	}
-
-	transport.webSocketClient.Listen()
+	// Connect websocket for actual message transfer.
+	transport.connectWebsocket()
 
 	// Main loop.
 	for {
 		select {
+		case timeout := <-transport.webSocketClient.PingTimeoutChannel:
+			if timeout {
+				transport.log.Errorf(
+					"Mattermost disconected: %s. Reconnecting...", transport.webSocketClient.ListenError)
+				transport.connectWebsocket()
+			}
 		case event, ok := <-transport.webSocketClient.EventChannel:
 			if ok {
 				// Are there any handlers registered for this event?
