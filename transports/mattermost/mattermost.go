@@ -60,7 +60,7 @@ func (transport *MattermostTransport) Run() {
 		case timeout := <-transport.webSocketClient.PingTimeoutChannel:
 			if timeout {
 				transport.log.Errorf(
-					"Mattermost disconected: %s. Reconnecting...", transport.webSocketClient.ListenError)
+					"Mattermost disconnected: %s. Reconnecting...", transport.webSocketClient.ListenError)
 				transport.connectWebsocket()
 			}
 		case event, ok := <-transport.webSocketClient.EventChannel:
