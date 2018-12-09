@@ -29,6 +29,7 @@ type ExtensionBtc struct {
 
 type extensionBtcTexts struct {
 	NothingHasChanged  string
+	NoData             string
 	TempBtcNotice      *template.Template
 	TempBtcSeriousRise *template.Template
 	TempBtcSeriousFall *template.Template
@@ -70,14 +71,29 @@ func (ext *ExtensionBtc) diffStr(diff float64) string {
 	return diffstr
 }
 
-// DailyTickListener announce the price.
-func (ext *ExtensionBtc) DailyTickListener(message events.EventMessage) {
+func (ext *ExtensionBtc) simpleAnnounceMessage() string {
+	if ext.HourlyData == nil {
+		// No data yet received? This can happen only if bot didn't tick the extension!
+		ext.bot.Log.Error("BTC extension wasn't ticked before if was asked a price!")
+		return ext.Texts.NoData
+	}
+
 	price, _ := strconv.ParseFloat(ext.HourlyData["last"].(string), 64)
 	diff := price - ext.HourlyData["open"].(float64)
+	high, _ := strconv.ParseFloat(ext.HourlyData["high"].(string), 64)
+	low, _ := strconv.ParseFloat(ext.HourlyData["low"].(string), 64)
 
-	ext.bot.SendMassNotice(utils.Format(ext.Texts.TempBtcNotice, map[string]string{
-		"price": fmt.Sprintf("$%.2f", price),
-		"diff":  ext.diffStr(diff)}))
+	return utils.Format(ext.Texts.TempBtcNotice, map[string]string{
+		"price": fmt.Sprintf("$%.0f", price),
+		"diff":  ext.diffStr(diff),
+		"low":   fmt.Sprintf("$%.0f", low),
+		"high":  fmt.Sprintf("$%.0f", high),
+	})
+}
+
+// DailyTickListener announce the price.
+func (ext *ExtensionBtc) DailyTickListener(message events.EventMessage) {
+	ext.bot.SendMassNotice(ext.simpleAnnounceMessage())
 }
 
 // TickListener will monitor BTC price and warn if anything serious happens.
@@ -157,17 +173,7 @@ func (ext *ExtensionBtc) commandBtc(bot *papaBot.Bot, sourceEvent *events.EventM
 	if time.Since(ext.LastAsk[sourceEvent.Channel]) > 5*time.Minute {
 		ext.LastAsk[sourceEvent.Channel] = time.Now()
 		ext.Warned[sourceEvent.Channel] = false
-		if ext.HourlyData == nil {
-			// No data yet received? This can happen only if bot didn't tick the extension!
-			bot.Log.Error("BTC extension wasn't ticked before if was asked a price!")
-			return
-		}
-		price, _ := strconv.ParseFloat(ext.HourlyData["last"].(string), 64)
-		diff := price - ext.HourlyData["open"].(float64)
-
-		bot.SendNotice(sourceEvent, utils.Format(ext.Texts.TempBtcNotice, map[string]string{
-			"price": fmt.Sprintf("$%.2f", price),
-			"diff":  ext.diffStr(diff)}))
+		bot.SendNotice(sourceEvent, ext.simpleAnnounceMessage())
 
 	} else {
 		// Only warn once.
