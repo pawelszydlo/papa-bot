@@ -25,19 +25,31 @@ type MyExtension struct {
 	bot       *papaBot.Bot
 }
 
-// Will be run on bot's init or when extension is registered after bot's init. This is the only require function
-// that your extension must have.
+// Will be run on bot's init or when extension is registered after bot's init. This is the only required function
+// that your extension must have. For a list of actions your extension can perform on the bot see api.go.
 func (ext *MyExtension) Init(bot *papaBot.Bot) error {
 	ext.bot = bot
 	ext.startTime = time.Now()
+	// This is an example event listener registration. You can find a list of events in the "events" package.
 	bot.EventDispatcher.RegisterListener(events.EventTick, ext.TickListener)
+	// Register new command. See the struct for field descriptions.
+	bot.RegisterCommand(&papaBot.BotCommand{
+		[]string{"hello"},
+		false, false, false,
+		"", "Say hello!",
+		ext.commandHello})
 	return nil
 }
 
-// Will be attached to a EventTick event that is happening every 5 minutes.
+// TickListener will be attached to a EventTick event that is happening every 5 minutes.
 func (ext *MyExtension) TickListener(message events.EventMessage) {
 	ext.bot.SendMassNotice(
 		fmt.Sprintf("I have been running for %.0f minutes now.", time.Since(ext.startTime).Minutes()))
+}
+
+// commandHello is a command for saying hello.
+func (ext *MyExtension) commandHello(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
+	bot.SendMessage(sourceEvent, "Hello!")
 }
 
 // Entry point
