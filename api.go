@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// RegisterExtension will register a new transport with the bot.
+// RegisterTransport will register a new transport with the bot.
 func (bot *Bot) RegisterTransport(transport transports.Transport) {
 	// Is the transport enabled in the config?
 	name := transport.Name()

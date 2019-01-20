@@ -197,7 +197,7 @@ func (ext *ExtensionAqicn) TickListener(message events.EventMessage) {
 	ext.resultCache = map[string]string{}
 }
 
-// commandMovie is a command for manually searching for movies.
+// commandAqicn is a command for manually searching for movies.
 func (ext *ExtensionAqicn) commandAqicn(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 	if len(params) < 1 {
 		return
