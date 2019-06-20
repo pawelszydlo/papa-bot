@@ -3,6 +3,7 @@ package mattermostTransport
 import (
 	"github.com/mattermost/mattermost-server/model"
 	"github.com/pawelszydlo/papa-bot/events"
+	"time"
 )
 
 // connect will establish a connection to the server.
@@ -29,12 +30,21 @@ func (transport *MattermostTransport) connect() {
 
 // create a websocket connection and set it for the client.
 func (transport *MattermostTransport) connectWebsocket() {
-	// Start websocket for communication.
-	webClient, err := model.NewWebSocketClient4(transport.websocket, transport.client.AuthToken)
-	if err != nil {
-		transport.log.Fatalf("Failed to connect to the web socket at %s: %s", transport.websocket, err)
-	} else {
-		transport.webSocketClient = webClient
+	// Retry loop.
+	retries := 0
+	for {
+		time.Sleep(time.Duration(retries*retries) * time.Second)
+		transport.log.Infof("Connecting websocket...")
+		// Start websocket for communication.
+		retries += 1
+		webClient, err := model.NewWebSocketClient4(transport.websocket, transport.client.AuthToken)
+		if err == nil {
+			transport.webSocketClient = webClient
+			break
+		} else {
+			transport.log.Errorf(
+				"Could not connect: %s. Will retry in %d seconds...", err.DetailedError, retries*retries)
+		}
 	}
 	transport.webSocketClient.Listen()
 }
@@ -59,8 +69,13 @@ func (transport *MattermostTransport) Run() {
 		select {
 		case timeout := <-transport.webSocketClient.PingTimeoutChannel:
 			if timeout {
+				errorMsg := "Unknown error"
+				// Maybe the socket knows what happened?
+				if transport.webSocketClient.ListenError != nil {
+					errorMsg = transport.webSocketClient.ListenError.DetailedError
+				}
 				transport.log.Errorf(
-					"Mattermost disconnected: %s. Reconnecting...", transport.webSocketClient.ListenError)
+					"Mattermost disconnected: %s.", errorMsg)
 				transport.connectWebsocket()
 			}
 		case event, ok := <-transport.webSocketClient.EventChannel:
