@@ -148,7 +148,7 @@ func (bot *Bot) GetPageBody(URL string, customHeaders map[string]string) (error,
 	}
 
 	// If type is text, decode the body to UTF-8.
-	if strings.Contains(contentType, "text/") {
+	if strings.Contains(contentType, "text/") || strings.Contains(contentType, "www-form-urlencoded") {
 		// Try to get more significant part for encoding detection.
 		sample := bytes.Join(bot.webContentSampleRe.FindAll(body, -1), []byte{})
 		if len(sample) < 100 {
