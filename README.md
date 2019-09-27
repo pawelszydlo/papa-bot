@@ -43,6 +43,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Movie information (OMDb).
 * Wikipedia article lookup.
 * Wolfram Alpha lookup.
+* YouTube video info.
 
 
 ##### TODO
