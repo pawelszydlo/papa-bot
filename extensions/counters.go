@@ -168,7 +168,7 @@ func (ext *ExtensionCounters) commandCounters(bot *papaBot.Bot, sourceEvent *eve
 			bot.SendMessage(sourceEvent, "Counters:")
 			for id, c := range ext.counters {
 				bot.SendMessage(sourceEvent, fmt.Sprintf(
-					"%d: %s | %s | interval %dh | %s", id, c.channel, c.date, c.interval, c.text))
+					"%d: %s (%s) | %s | interval %dh | %s", id, c.channel, c.transport, c.date, c.interval, c.text))
 			}
 		} else {
 			bot.SendMessage(sourceEvent, "No counters yet.")
@@ -181,7 +181,8 @@ func (ext *ExtensionCounters) commandCounters(bot *papaBot.Bot, sourceEvent *eve
 		bot.SendMessage(sourceEvent, "add <date> <time> <interval> <channel> <text>")
 		bot.SendMessage(
 			sourceEvent, `Where: date in format 'YYYY-MM-DD', time in format 'HH:MM:SS', interval is annouce`+
-				` interval in hours, channel is the name of the channel to announce on, text is the announcement text.`)
+				` interval in hours, channel is the name of the channel to announce on (on this transport),`+
+				`text is the announcement text.`)
 		bot.SendMessage(
 			sourceEvent,
 			"Announcement text may contain placeholders: {{ .days }}, {{ .hours }}, {{ .minutes }}, {{ .since }}")
@@ -244,7 +245,7 @@ func (ext *ExtensionCounters) commandCounters(bot *papaBot.Bot, sourceEvent *eve
 		dateStr := params[1] + " " + params[2]
 		interval, err := strconv.ParseInt(params[3], 10, 32)
 		if err != nil {
-			bot.SendMessage(sourceEvent, "interval parameter must be a number.")
+			bot.SendMessage(sourceEvent, "Interval parameter must be a number of hours.")
 			return
 		}
 		channel := params[4]
@@ -252,12 +253,11 @@ func (ext *ExtensionCounters) commandCounters(bot *papaBot.Bot, sourceEvent *eve
 		text := strings.Join(params[5:], " ")
 		nick := bot.GetAuthenticatedNick(sourceEvent.UserId)
 		// Add counter to database.
-		// TODO: what about the transport?
 		query := `
-			INSERT INTO counters (channel, creator, announce_text, interval, target_date)
-			VALUES (?, ?, ?, ?, ?);
+			INSERT INTO counters (channel, transport, creator, announce_text, interval, target_date)
+			VALUES (?, ?, ?, ?, ?, ?);
 			`
-		if _, err := bot.Db.Exec(query, channel, nick, text, interval, dateStr); err != nil {
+		if _, err := bot.Db.Exec(query, channel, sourceEvent.TransportName, nick, text, interval, dateStr); err != nil {
 			bot.Log.Warningf("Error while adding a counter: %s", err)
 			bot.SendMessage(sourceEvent, fmt.Sprintf("Error: %s", err))
 			return
