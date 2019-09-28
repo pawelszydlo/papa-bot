@@ -6,8 +6,6 @@ import (
 	"github.com/pawelszydlo/papa-bot"
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
-	"golang.org/x/text/language"
-	text_message "golang.org/x/text/message"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -75,8 +73,6 @@ func (ext *ExtensionYoutube) UrlListener(message events.EventMessage) {
 
 		// Map that the user will be able to use for formatting.
 		duration, err := time.ParseDuration(fmt.Sprintf("%ss", data["lengthSeconds"]))
-
-		p := text_message.NewPrinter(language.English)
 		views, _ := strconv.Atoi(data["viewCount"].(string))
 
 		values := map[string]string{
@@ -84,7 +80,7 @@ func (ext *ExtensionYoutube) UrlListener(message events.EventMessage) {
 			"length":      ext.bot.Humanizer.SecondsToTimeString(int64(duration.Seconds())),
 			"description": fmt.Sprintf("%s", data["shortDescription"]),
 			"rating":      fmt.Sprintf("%.2f", data["averageRating"]),
-			"views":       p.Sprintf("%d", views),
+			"views":       ext.bot.Humanizer.HumanizeNumber(float64(views), 0),
 			"author":      fmt.Sprintf("%s", data["author"]),
 		}
 
