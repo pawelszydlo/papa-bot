@@ -44,6 +44,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Wikipedia article lookup.
 * Wolfram Alpha lookup.
 * YouTube video info.
+* Link to thread version of Twitter status.
 
 
 ##### TODO

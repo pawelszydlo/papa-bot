@@ -19,4 +19,5 @@ func RegisterBuiltinExtensions(bot *papaBot.Bot) {
 	bot.RegisterExtension(new(ExtensionAqicn))
 	bot.RegisterExtension(new(ExtensionReminders))
 	bot.RegisterExtension(new(ExtensionYoutube))
+	bot.RegisterExtension(new(ExtensionTwitterThread))
 }
