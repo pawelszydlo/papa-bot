@@ -61,6 +61,7 @@ func (bot *Bot) RegisterCommand(cmd *BotCommand) {
 			}
 		}
 		bot.commands[name] = cmd
+		bot.Log.Infof("Registered new command: %s", name)
 	}
 }
 

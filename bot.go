@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/onrik/logrus/filename"
 	"github.com/pawelszydlo/humanize"
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/transports"
@@ -23,7 +22,7 @@ import (
 )
 
 const (
-	Version = "1.0.2"
+	Version = "1.0.5"
 	Debug   = false // Set to true to crash on runtime errors.
 )
 
@@ -87,11 +86,13 @@ func New(configFile, textsFile string) *Bot {
 		transports: map[string]transports.Transport{},
 	}
 	// Logging configuration.
+	log.Println("Switching to logging module now.")
 	bot.Log.Level = bot.Config.LogLevel
 	bot.Log.Formatter = &logrus.TextFormatter{FullTimestamp: true, TimestampFormat: "2006-01-02][15:04:05"}
-	filenameHook := filename.NewHook()
-	filenameHook.Field = "source"
-	bot.Log.AddHook(filenameHook)
+	// Below doesn't work with Go 1.14
+	// filenameHook := filename.NewHook()
+	// filenameHook.Field = "source"
+	// bot.Log.AddHook(filenameHook)
 
 	// Setup HTTP client.
 	cookieJar, _ := cookiejar.New(nil)
