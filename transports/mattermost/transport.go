@@ -257,7 +257,7 @@ func (transport *MattermostTransport) SendPrivateMessage(sourceEvent *events.Eve
 
 func (transport *MattermostTransport) SendNotice(sourceEvent *events.EventMessage, message string) {
 	// There are no notices on Mattermost.
-	transport.SendMessage(sourceEvent, "**"+message+"**")
+	transport.SendMessage(sourceEvent, message)
 }
 
 func (transport *MattermostTransport) SendMassNotice(message string) {
