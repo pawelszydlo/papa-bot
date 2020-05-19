@@ -88,7 +88,7 @@ func New(configFile, textsFile string) *Bot {
 	// Logging configuration.
 	log.Println("Switching to logging module now.")
 	bot.Log.Level = bot.Config.LogLevel
-	bot.Log.Formatter = &logrus.TextFormatter{FullTimestamp: true, TimestampFormat: "2006-01-02][15:04:05"}
+	bot.Log.Formatter = &logrus.TextFormatter{FullTimestamp: true, TimestampFormat: "2006-01-02 15:04:05"}
 	// Below doesn't work with Go 1.14
 	// filenameHook := filename.NewHook()
 	// filenameHook.Field = "source"
