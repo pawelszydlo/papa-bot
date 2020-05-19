@@ -54,6 +54,12 @@ func (bot *Bot) initBotCommands() {
 		false, true, true,
 		"add <userName> / remove <userName>", "Manages ignore list.",
 		commandIgnore})
+	// Version.
+	bot.RegisterCommand(&BotCommand{
+		[]string{"ver", "version"},
+		false, false, false,
+		"", "Prints bot's version.",
+		commandVer})
 
 	bot.commandsHideParams["auth"] = true
 	bot.commandsHideParams["useradd"] = true
@@ -355,4 +361,9 @@ func commandFindUrl(bot *Bot, sourceEvent *events.EventMessage, params []string)
 	} else {
 		bot.SendMessage(sourceEvent, fmt.Sprintf("%s", bot.Texts.SearchNoResults))
 	}
+}
+
+// commandVer will print the bot's version.
+func commandVer(bot *Bot, sourceEvent *events.EventMessage, params []string) {
+	bot.SendMessage(sourceEvent, bot.version())
 }

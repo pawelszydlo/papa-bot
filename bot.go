@@ -2,6 +2,7 @@
 package papaBot
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -21,9 +22,11 @@ import (
 	"strings"
 )
 
+// Use: go build -ldflags "-X github.com/pawelszydlo/papa-bot/papaBot.BuildDate=`date -u +.%Y%m%d.%H%M%S`"
 const (
-	Version = "1.0.5"
-	Debug   = false // Set to true to crash on runtime errors.
+	Version   = "1.0.5"
+	Debug     = false // Set to true to crash on runtime errors.
+	BuildDate = ""
 )
 
 // New creates a new bot.
@@ -47,7 +50,7 @@ func New(configFile, textsFile string) *Bot {
 		UrlAnnounceIntervalMinutes: time.Duration(fullConfig.GetDefault("bot.url_announce_interval_minutes", 15).(int64)),
 		CommandsPer5:               10,
 		UrlAnnounceIntervalLines:   int(fullConfig.GetDefault("bot.url_announce_interval_lines", 50).(int64)),
-		PageBodyMaxSize:            100 * 1024,
+		PageBodyMaxSize:            1024 * 1024,
 		HttpDefaultUserAgent:       fullConfig.GetDefault("bot.http_user_agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)").(string),
 		DailyTickHour:              int(fullConfig.GetDefault("bot.daily_tick_hour", 8).(int64)),
 		DailyTickMinute:            0,
@@ -123,9 +126,14 @@ func New(configFile, textsFile string) *Bot {
 	return bot
 }
 
+// version returns the bot version string.
+func (bot *Bot) version() string {
+	return fmt.Sprintf("I am papaBot, version %s, build %s", Version, BuildDate)
+}
+
 // initialize performs initialization of bot's mechanisms.
 func (bot *Bot) initialize() {
-	bot.Log.Infof("I am papaBot, version %s", Version)
+	bot.Log.Infof(bot.version())
 
 	// Init database.
 	if err := bot.initDb(); err != nil {
