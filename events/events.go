@@ -89,6 +89,11 @@ func (message *EventMessage) IsPrivate() bool {
 	return false
 }
 
+// ChannelId will return a channel id that is (most likely) unique.
+func (message *EventMessage) ChannelId() string {
+	return message.TransportName + ";" + message.Channel
+}
+
 // Type for a valid event listener function.
 type EventListenerFunc func(message EventMessage)
 

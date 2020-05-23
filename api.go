@@ -113,7 +113,7 @@ func (bot *Bot) GetPageBody(URL string, customHeaders map[string]string) (error,
 	for k, v := range customHeaders {
 		req.Header.Set(k, v)
 	}
-	fmt.Println(req.Header)
+	bot.Log.Debugf("Request header for %s: %s", URL, req.Header)
 
 	// Get response.
 	bot.Log.Debugf("Fetching page: %s", URL)
