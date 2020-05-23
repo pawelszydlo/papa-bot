@@ -142,7 +142,7 @@ func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, sourceEvent *events.Even
 	search := strings.Join(params, " ")
 
 	// Announce each article only once.
-	if ext.announced[sourceEvent.Channel+search] {
+	if ext.announced[sourceEvent.ChannelId()+search] {
 		return
 	}
 
@@ -163,7 +163,7 @@ func (ext *ExtensionWiki) commandWiki(bot *papaBot.Bot, sourceEvent *events.Even
 
 	notice := fmt.Sprintf("%s, %s", sourceEvent.Nick, contentPreview)
 	bot.SendMessage(sourceEvent, notice)
-	ext.announced[sourceEvent.Channel+search] = true
+	ext.announced[sourceEvent.ChannelId()+search] = true
 
 	if contentFull != "" {
 		bot.AddMoreInfo(sourceEvent.TransportName, sourceEvent.Channel, contentFull)

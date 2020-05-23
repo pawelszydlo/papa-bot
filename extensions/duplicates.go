@@ -80,9 +80,9 @@ func (ext *ExtensionDuplicates) ProcessURLListener(message events.EventMessage) 
 				map[string]string{"nick": nick, "elapsed": elapsed, "count": fmt.Sprintf("%d", count-1)})
 		}
 		// Only announce once per 5 minutes per link.
-		if duplicate != "" && time.Since(ext.announced[message.Channel+message.Message]) > 5*time.Minute {
+		if duplicate != "" && time.Since(ext.announced[message.ChannelId()+message.Message]) > 5*time.Minute {
 			ext.bot.SendNotice(&message, duplicate)
-			ext.announced[message.Channel+message.Message] = time.Now()
+			ext.announced[message.ChannelId()+message.Message] = time.Now()
 		}
 	}
 	return

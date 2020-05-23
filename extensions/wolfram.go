@@ -131,7 +131,7 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 	search := strings.Join(params, " ")
 
 	// Check if we have the result cached.
-	if val, exists := ext.announced[sourceEvent.Channel+search]; exists {
+	if val, exists := ext.announced[sourceEvent.ChannelId()+search]; exists {
 		bot.SendMessage(sourceEvent, fmt.Sprintf("%s, %s", sourceEvent.Nick, val))
 		return
 	}
@@ -157,7 +157,7 @@ func (ext *ExtensionWolfram) commandWolfram(bot *papaBot.Bot, sourceEvent *event
 	}
 
 	bot.SendMessage(sourceEvent, fmt.Sprintf("%s, %s", sourceEvent.Nick, contentPreview))
-	ext.announced[sourceEvent.Channel+search] = contentPreview
+	ext.announced[sourceEvent.ChannelId()+search] = contentPreview
 
 	if contentFull != "" {
 		bot.AddMoreInfo(sourceEvent.TransportName, sourceEvent.Channel, contentFull)

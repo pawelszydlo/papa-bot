@@ -170,16 +170,16 @@ func (ext *ExtensionBtc) TickListener(message events.EventMessage) {
 
 func (ext *ExtensionBtc) commandBtc(bot *papaBot.Bot, sourceEvent *events.EventMessage, params []string) {
 	// Answer only once per 5 minutes per channel.
-	if time.Since(ext.LastAsk[sourceEvent.Channel]) > 5*time.Minute {
-		ext.LastAsk[sourceEvent.Channel] = time.Now()
-		ext.Warned[sourceEvent.Channel] = false
+	if time.Since(ext.LastAsk[sourceEvent.ChannelId()]) > 5*time.Minute {
+		ext.LastAsk[sourceEvent.ChannelId()] = time.Now()
+		ext.Warned[sourceEvent.ChannelId()] = false
 		bot.SendNotice(sourceEvent, ext.simpleAnnounceMessage())
 
 	} else {
 		// Only warn once.
-		if !ext.Warned[sourceEvent.Channel] {
+		if !ext.Warned[sourceEvent.ChannelId()] {
 			bot.SendMessage(sourceEvent, fmt.Sprintf("%s, %s", sourceEvent.Nick, ext.Texts.NothingHasChanged))
-			ext.Warned[sourceEvent.Channel] = true
+			ext.Warned[sourceEvent.ChannelId()] = true
 		}
 	}
 

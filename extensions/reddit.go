@@ -239,11 +239,11 @@ func (ext *ExtensionReddit) TickListener(message events.EventMessage) {
 // ProcessURLListener will try to check if link was ever on reddit.
 func (ext *ExtensionReddit) ProcessURLListener(message events.EventMessage) {
 	// Announce each link only once.
-	if ext.announced[message.Channel+message.Message] {
+	if ext.announced[message.ChannelId()+message.Message] {
 		ext.bot.Log.Debugf("Not looking up on reddit, too soon.")
 		return
 	}
-	ext.announced[message.Channel+message.Message] = true
+	ext.announced[message.ChannelId()+message.Message] = true
 	// Send a notice with URL info.
 	go func() {
 		reddit := ext.getRedditInfo(message.Message, message.Channel, message.TransportFormatting)

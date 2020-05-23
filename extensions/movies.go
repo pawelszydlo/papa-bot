@@ -80,7 +80,7 @@ func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, sourceEvent *events.E
 	}
 	title := strings.Join(params, " ")
 	// Announce each movie only once.
-	if ext.announced[sourceEvent.Channel+title] {
+	if ext.announced[sourceEvent.ChannelId()+title] {
 		return
 	}
 	title = strings.Replace(title, `"`, "", -1)
@@ -99,5 +99,5 @@ func (ext *ExtensionMovies) commandMovie(bot *papaBot.Bot, sourceEvent *events.E
 	notice := fmt.Sprintf("%s (%s, %s) | %s | http://www.imdb.com/title/%s | %s",
 		data.Title, data.Genre, data.Year, data.ImdbRating, data.ImdbID, data.Plot)
 	bot.SendNotice(sourceEvent, notice)
-	ext.announced[sourceEvent.Channel+title] = true
+	ext.announced[sourceEvent.ChannelId()+title] = true
 }
