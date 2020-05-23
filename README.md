@@ -35,7 +35,6 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Custom counters/countdowns.
 * Link title and description.
 * Link duplicates announce.
-
 * Link info from Reddit and pinned Reddit live announcements.
 * GitHub repository information.
 * BTC price check and rapid change announce (Bitstamp).
@@ -45,6 +44,7 @@ Bot is actively developed and constantly used by me and my friends, so there's t
 * Wolfram Alpha lookup.
 * YouTube video info.
 * Link to thread version of Twitter status.
+* Last seen speaking check.
 
 
 ##### TODO
