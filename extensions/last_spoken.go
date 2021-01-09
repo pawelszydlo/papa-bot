@@ -92,7 +92,7 @@ func (ext *ExtensionLastSpoken) commandLastSpoken(bot *papaBot.Bot, sourceEvent 
 		if !ext.LastSpoken[sourceEvent.ChannelId()][nick].IsZero() {
 			message = utils.Format(ext.Texts.TempLastSpoken, map[string]string{
 				"heard": ext.bot.Humanizer.TimeDiffNow(
-					utils.MustForceLocalTimezone(ext.LastSpoken[sourceEvent.ChannelId()][nick]), false),
+					utils.MustForceLocalTimezone(ext.LastSpoken[sourceEvent.ChannelId()][nick]), true),
 				"nick": nick,
 			})
 		}
