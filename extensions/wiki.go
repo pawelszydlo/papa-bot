@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/pawelszydlo/papa-bot"
 	"github.com/pawelszydlo/papa-bot/events"
-	"github.com/pawelszydlo/papa-bot/utils"
 	"net/url"
 	"regexp"
 	"strings"
@@ -22,6 +21,35 @@ type ExtensionWiki struct {
 
 type extensionWikiTexts struct {
 	DidYouMean string
+}
+
+type WikiSearchResult struct {
+	Batchcomplete string `json:"batchcomplete"`
+	Query         struct {
+		Search []struct {
+			Ns     int    `json:"ns"`
+			Title  string `json:"title"`
+			Pageid int    `json:"pageid"`
+		} `json:"search"`
+	} `json:"query"`
+}
+
+type WikiPage struct {
+	Batchcomplete bool `json:"batchcomplete"`
+	Query         struct {
+		Normalized []struct {
+			Fromencoded bool   `json:"fromencoded"`
+			From        string `json:"from"`
+			To          string `json:"to"`
+		} `json:"normalized"`
+		Pages []struct {
+			Pageid  int    `json:"pageid"`
+			Ns      int    `json:"ns"`
+			Title   string `json:"title"`
+			Extract string `json:"extract"`
+			Missing bool   `json:"missing"`
+		} `json:"pages"`
+	} `json:"query"`
 }
 
 // Init inits the extension.
@@ -46,92 +74,55 @@ func (ext *ExtensionWiki) Init(bot *papaBot.Bot) error {
 	return nil
 }
 
-// cleanWikiBody will try to remove as much distractions from an article as possible.
-func (ext *ExtensionWiki) cleanWikiBody(content string) string {
-	// Clean some distracting parts, like {{ }}.
-
-	original := content
-	for {
-		content = ext.cleanupRe.ReplaceAllString(content, "")
-		if original == content {
-			break
-		}
-		original = content
-	}
-	// Remove everything before the first '''
-	parts := strings.SplitN(content, "'''", 2)
-	if len(parts) == 2 {
-		content = parts[1]
-	}
-	// Remove special characters.
-	content = strings.Replace(content, "'''", "", -1)
-	content = strings.Replace(content, "''", "", -1)
-	// Parse links.
-
-	content = ext.linkRe.ReplaceAllStringFunc(content, func(text string) string {
-		match := ext.linkRe.FindStringSubmatch(text)
-		if match[1] != "" {
-			return match[1]
-		}
-		return match[2]
-	})
-
-	return content
-}
-
 // searchWiki will query Wikipedia database for information.
 func (ext *ExtensionWiki) searchWiki(lang, search string) (string, string) {
-	// Fetch data.
+	// Fetch search result data.
 	err, _, body := ext.bot.GetPageBody(
 		fmt.Sprintf(
-			"http://%s.wikipedia.org/w/api.php?action=query&prop=revisions&format=json&rvprop=content&rvlimit=1"+
-				"&rvsection=0&generator=search&redirects=&gsrwhat=text&gsrlimit=1&gsrsearch=%s",
+			"https://%s.wikipedia.org/w/api.php?action=query&format=json&list=search&srlimit=1&srwhat=nearmatch" +
+				"&srprop=&srenablerewrites=1&srsearch=%s",
 			lang, url.QueryEscape(search),
 		), nil)
 	if err != nil {
-		ext.bot.Log.Warningf("Error getting wiki data: %s", err)
+		ext.bot.Log.Warningf("Error getting wiki search results: %s", err)
 		return "", ""
 	}
 
-	// Convert from JSON
-	var raw_data interface{}
-	if err := json.Unmarshal(body, &raw_data); err != nil {
-		ext.bot.Log.Warningf("Error parsing wiki data: %s", err)
+	// Convert result from JSON
+	var search_result = WikiSearchResult{}
+	if err := json.Unmarshal(body, &search_result); err != nil {
+		ext.bot.Log.Warningf("Error parsing wiki search results: %s", err)
 		return "", ""
 	}
-	// Hacky digging.
-	data := raw_data.(map[string]interface{})
-	if data["query"] == nil {
+
+	if len(search_result.Query.Search) == 0 {
+		return "", "¯\\\\_(ツ)_/¯"
+	}
+
+	// Fetch page data.
+	err, _, body = ext.bot.GetPageBody(
+		fmt.Sprintf(
+			"https://%s.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&utf8=1&formatversion=2" +
+				"&exsentences=8&exlimit=1&explaintext=1&pageids=%d",
+			lang, search_result.Query.Search[0].Pageid,
+		), nil)
+	if err != nil {
+		ext.bot.Log.Warningf("Error getting wiki page: %s", err)
 		return "", ""
 	}
-	data = data["query"].(map[string]interface{})
-	if data["pages"] == nil {
+
+	// Convert page from JSON
+	var page_result = WikiPage{}
+	if err := json.Unmarshal(body, &page_result); err != nil {
+		ext.bot.Log.Warningf("Error parsing wiki page: %s", err)
 		return "", ""
 	}
-	data = data["pages"].(map[string]interface{})
-	for _, page := range data {
-		data := page.(map[string]interface{})
-		if data["revisions"] == nil {
-			return "", ""
-		}
-		title := data["title"].(string)
-		revisions := data["revisions"].([]interface{})
-		if len(revisions) == 0 {
-			return "", ""
-		}
-		if revisions[0].(map[string]interface{})["*"] == nil {
-			return "", ""
-		}
-		content := revisions[0].(map[string]interface{})["*"].(string)
 
-		// Cleanup.M
-		content = utils.StripTags(ext.cleanWikiBody(utils.CleanString(content, true)))
-		title = utils.CleanString(title, true)
-
-		return title, content
+	if len(page_result.Query.Pages) == 0 || page_result.Query.Pages[0].Pageid == 0 {
+		return "", "¯\\\\_(ツ)_/¯"
 	}
 
-	return "", ""
+	return "", page_result.Query.Pages[0].Extract
 }
 
 // commandWiki is a command for manually searching for wikipedia entries.

@@ -125,7 +125,7 @@ func (ext *ExtensionReminders) loadReminders() {
 
 	result, err := ext.bot.Db.Query(
 		`SELECT id, channel, transport, creator, announce_text, announced, target_time, created_time ` +
-			`FROM reminders WHERE announced = 0`)
+			`FROM reminders WHERE announced = 0 ORDER BY id ASC`)
 	if err != nil {
 		ext.bot.Log.Warningf("Error while loading reminders: %s", err)
 		return

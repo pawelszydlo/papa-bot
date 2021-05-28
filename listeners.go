@@ -7,7 +7,7 @@ import (
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/utils"
 	"log"
-	"mvdan.cc/xurls"
+	"mvdan.cc/xurls/v2"
 	"os"
 	"regexp"
 	"time"
