@@ -26,7 +26,7 @@ func (ext *ExtensionTwitterThread) Init(bot *papaBot.Bot) error {
 	bot.RegisterCommand(&papaBot.BotCommand{
 		[]string{"tt", "tthread"},
 		false, false, false,
-		"", "Get a link to a thread version of the last tweet.",
+		"[url]", "Get a link to a thread version of the last tweet.",
 		ext.commandTThread})
 	return nil
 }
