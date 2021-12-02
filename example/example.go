@@ -7,6 +7,7 @@ import (
 	"github.com/pawelszydlo/papa-bot"
 	"github.com/pawelszydlo/papa-bot/events"
 	"github.com/pawelszydlo/papa-bot/extensions"
+	"os"
 	"time"
 )
 
@@ -55,7 +56,11 @@ func (ext *MyExtension) commandHello(bot *papaBot.Bot, sourceEvent *events.Event
 // Entry point
 func main() {
 	// This will create bot's structures. Feel free to modify what you need afterwards.
-	_, bot := papaBot.New(*configFile, *textsFile)
+	err, bot := papaBot.New(*configFile, *textsFile)
+	if err != nil {
+		fmt.Printf("Failed to create bot instance: %s", err)
+		os.Exit(3)
+	}
 
 	// As an example, change the name.
 	bot.Config.Name = "David"
