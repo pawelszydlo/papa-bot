@@ -267,3 +267,27 @@ func (transport *MattermostTransport) SendMassNotice(message string) {
 		}
 	}
 }
+
+// GetChannelsOn returns a list of names of channels the bot is on.
+func (transport *MattermostTransport) GetChannelsOn() []string {
+	channels := []string{}
+	for _, c := range transport.onChannel {
+		channels = append(channels, c.Name)
+	}
+	return channels
+}
+
+// GetNicks returns a list of nicks of users on the given channel.
+func (transport *MattermostTransport) GetNicks(channel string) []string {
+	channelId := transport.channelNameToId(channel)
+	nicks := []string{}
+	if users, response := transport.client.GetUsersInChannel(channelId, 0, 100, ""); response.Error != nil {
+		transport.log.Warnf("Failed to get users for channel %s", channel)
+	} else {
+		for _, user := range users {
+			nicks = append(nicks, user.Username)
+		}
+	}
+	return nicks
+}
+

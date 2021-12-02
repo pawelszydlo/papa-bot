@@ -148,7 +148,7 @@ func (transport *IRCTransport) sendIRCNotice(channel, message string) {
 
 // SendMassNotice sends a notice to all the channels transport is on.
 func (transport *IRCTransport) SendMassNotice(message string) {
-	for _, channel := range transport.getChannelsOn() {
+	for _, channel := range transport.GetChannelsOn() {
 		transport.sendFloodProtected(irc.NOTICE, channel, message)
 	}
 }
@@ -174,8 +174,8 @@ func (transport *IRCTransport) sendFloodProtected(mType, channel, message string
 	}
 }
 
-// getChannelsOn will return a list of channels the transport is currently on.
-func (transport *IRCTransport) getChannelsOn() []string {
+// GetChannelsOn will return a list of channels the transport is currently on.
+func (transport *IRCTransport) GetChannelsOn() []string {
 	channelsOn := []string{}
 	for channel, on := range transport.onChannel {
 		if on {
@@ -209,4 +209,9 @@ func (transport *IRCTransport) sendEvent(eventCode events.EventCode, direct bool
 		direct,
 	}
 	transport.eventDispatcher.Trigger(eventMessage)
+}
+
+// GetNicks is not implemented!
+func (transport *IRCTransport) GetNicks(channel string) []string {
+	return []string{}
 }

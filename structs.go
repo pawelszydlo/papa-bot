@@ -54,7 +54,7 @@ type Bot struct {
 	// Registered bot extensions,
 	extensions []extension
 	// Enabled transports.
-	transports map[string]transports.Transport
+	Transports map[string]transports.Transport
 	// Time when URL info was last announced, per channel + link.
 	lastURLAnnouncedTime map[string]time.Time
 	// Lines passed since URL info was last announced, per channel + link.

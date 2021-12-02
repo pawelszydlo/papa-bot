@@ -4,6 +4,9 @@ Initially designed for IRC, now supports multiple transports.
 
 [Full documentation](https://godoc.org/github.com/pawelszydlo/papa-bot) @ GoDoc.org
 
+| :warning: IRC transport is not being maintained anymore. |
+|---|
+
 ### How good is it?
 
 Bot is actively developed and constantly used by me and my friends, so there's that.

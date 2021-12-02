@@ -22,8 +22,12 @@ type Transport interface {
 	)
 	// Will be called once, when the bot starts, and should contain the main loop.
 	Run()
-	// check whether a given nick is the transport.
+	// Check whether a given nick is the transports name for the bot.
 	NickIsMe(nick string) bool
+	// Gets a list of channels the bot is on.
+	GetChannelsOn() []string
+	// Gets a list of nicks of users on the channel.
+	GetNicks(channel string) []string
 	// Send message in reply to sourceEvent.
 	SendMessage(sourceEvent *events.EventMessage, message string)
 	// Send message in reply to sourceEvent as a direct chat with the user.

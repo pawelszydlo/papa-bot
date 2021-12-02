@@ -87,7 +87,7 @@ func New(configFile, textsFile string) (error, *Bot) {
 		webContentSampleRe: regexp.MustCompile(`(?i)<[^>]*?description[^<]*?>|<title>.*?</title>`),
 
 		extensions: []extension{},
-		transports: map[string]transports.Transport{},
+		Transports: map[string]transports.Transport{},
 	}
 	// Logging configuration.
 	log.Println("Switching to logging module now.")
@@ -155,7 +155,7 @@ func (bot *Bot) initialize() {
 	bot.loadVars()
 
 	// Init the transports.
-	for transportName, transport := range bot.transports {
+	for transportName, transport := range bot.Transports {
 		bot.Log.Infof("Initializing transport %s...", transportName)
 		transport.Init(bot.Config.Name, bot.fullConfig, bot.Log, bot.EventDispatcher)
 	}
@@ -225,7 +225,7 @@ func (bot *Bot) loadVars() {
 }
 
 func (bot *Bot) getTransportOrDie(name string) transports.Transport {
-	if transport, ok := bot.transports[name]; ok {
+	if transport, ok := bot.Transports[name]; ok {
 		return transport
 	}
 	bot.Log.Panicf("Code wanted transport %s, but it doesn't exist.", name)
@@ -244,7 +244,7 @@ func (bot *Bot) Run() {
 	defer bot.cleanUp()
 
 	// Start transports.
-	for transportName, transport := range bot.transports {
+	for transportName, transport := range bot.Transports {
 		bot.Log.Infof("Starting transport %s...", transportName)
 		go transport.Run()
 	}

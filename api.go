@@ -25,12 +25,12 @@ func (bot *Bot) RegisterTransport(transport transports.Transport) {
 	// Is the transport enabled in the config?
 	name := transport.Name()
 	if bot.fullConfig.GetDefault(fmt.Sprintf("%s.enabled", name), false).(bool) {
-		for existingName := range bot.transports {
+		for existingName := range bot.Transports {
 			if name == existingName {
 				bot.Log.Fatalf("Transport with name '%s' is already registered.", name)
 			}
 		}
-		bot.transports[name] = transport
+		bot.Transports[name] = transport
 		bot.Log.Infof("Added transport: %s", name)
 	} else {
 		bot.Log.Infof("Transport with name '%s' disabled in the config.", name)
@@ -89,7 +89,7 @@ func (bot *Bot) SendNotice(sourceEvent *events.EventMessage, message string) {
 // SendMassNotice sends a notice to all the channels bot is on, on all transports.
 func (bot *Bot) SendMassNotice(message string) {
 	bot.Log.Debugf("Sending mass notice: %s", message)
-	for _, transport := range bot.transports {
+	for _, transport := range bot.Transports {
 		transport.SendMassNotice(message)
 	}
 }
