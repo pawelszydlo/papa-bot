@@ -55,7 +55,7 @@ func (ext *MyExtension) commandHello(bot *papaBot.Bot, sourceEvent *events.Event
 // Entry point
 func main() {
 	// This will create bot's structures. Feel free to modify what you need afterwards.
-	bot := papaBot.New(*configFile, *textsFile)
+	_, bot := papaBot.New(*configFile, *textsFile)
 
 	// As an example, change the name.
 	bot.Config.Name = "David"

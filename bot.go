@@ -2,6 +2,7 @@
 package papaBot
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -24,24 +25,24 @@ import (
 
 // Use: go build -ldflags "-X github.com/pawelszydlo/papa-bot/papaBot.BuildDate=`date -u +.%Y%m%d.%H%M%S`"
 const (
-	Version   = "1.0.5"
+	Version   = "1.0.6"
 	Debug     = false // Set to true to crash on runtime errors.
 	BuildDate = ""
 )
 
 // New creates a new bot.
-func New(configFile, textsFile string) *Bot {
+func New(configFile, textsFile string) (error, *Bot) {
 	rand.Seed(time.Now().Unix())
 
 	// Load config file.
 	fullConfig, err := toml.LoadFile(configFile)
 	if err != nil {
-		log.Fatalf("Can't load config: %s", err)
+		return errors.New(fmt.Sprintf("Can't load config: %s", err)), nil
 	}
 	// Load texts file.
 	fullTexts, err := toml.LoadFile(textsFile)
 	if err != nil {
-		log.Fatalf("Can't load texts: %s", err)
+		return errors.New(fmt.Sprintf("Can't load texts: %s", err)), nil
 	}
 
 	// Prepare configuration.
@@ -92,10 +93,6 @@ func New(configFile, textsFile string) *Bot {
 	log.Println("Switching to logging module now.")
 	bot.Log.Level = bot.Config.LogLevel
 	bot.Log.Formatter = &logrus.TextFormatter{FullTimestamp: true, TimestampFormat: "2006-01-02 15:04:05"}
-	// Below doesn't work with Go 1.14
-	// filenameHook := filename.NewHook()
-	// filenameHook.Field = "source"
-	// bot.Log.AddHook(filenameHook)
 
 	// Setup HTTP client.
 	cookieJar, _ := cookiejar.New(nil)
@@ -120,10 +117,10 @@ func New(configFile, textsFile string) *Bot {
 
 	// Load texts.
 	if err := bot.LoadTexts("bot", bot.Texts); err != nil {
-		bot.Log.Fatalf("Can't load bot texts: %s", err)
+		return errors.New(fmt.Sprintf("Can't load bot texts: %s", err)), nil
 	}
 
-	return bot
+	return nil, bot
 }
 
 // version returns the bot version string.
