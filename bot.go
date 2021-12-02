@@ -25,7 +25,7 @@ import (
 
 // Use: go build -ldflags "-X github.com/pawelszydlo/papa-bot/papaBot.BuildDate=`date -u +.%Y%m%d.%H%M%S`"
 const (
-	Version   = "1.0.6"
+	Version   = "1.0.7"
 	Debug     = false // Set to true to crash on runtime errors.
 	BuildDate = ""
 )
